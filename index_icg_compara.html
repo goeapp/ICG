@@ -1,0 +1,1588 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ComparaICG | Roggio CDG</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdn.tailwindcss.com/3.4.1"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css">
+    <style>
+        * { box-sizing: border-box; }
+        body { font-family: 'Inter', sans-serif; background-color: #f1f5f9; color: #0f172a; }
+        .card { background: #fff; border-radius: 14px; border: 1px solid #e2e8f0; }
+
+        /* Drop zones */
+        .drop-zone { border: 2px dashed #cbd5e1; border-radius: 14px; transition: all .2s; cursor: pointer; background: #f8fafc; }
+        .drop-zone:hover, .drop-zone.dragover { border-color: #3b82f6; background: #eff6ff; }
+        .drop-zone.loaded  { border: 2px solid #10b981; background: #f0fdf4; }
+        .drop-zone.error   { border: 2px solid #ef4444; background: #fef2f2; }
+        .drop-zone.loading { border: 2px solid #f59e0b; background: #fffbeb; }
+
+        /* KPI cards */
+        .kpi-card { border-radius: 14px; padding: 16px 18px; color: #fff; }
+        .kpi-card .kpi-label { font-size: 9px; font-weight: 900; text-transform: uppercase; letter-spacing: .09em; opacity: .75; margin-bottom: 6px; }
+        .kpi-card .kpi-val   { font-size: 22px; font-weight: 900; line-height: 1; }
+        .kpi-card .kpi-sub   { font-size: 10px; font-weight: 600; opacity: .7; margin-top: 4px; }
+        .kpi-card .kpi-interp { font-size: 9px; font-weight: 700; margin-top: 6px; padding: 3px 8px; background: rgba(255,255,255,.2); border-radius: 99px; display: inline-block; }
+        .kpi-neutral { background: linear-gradient(135deg,#334155,#1e293b); }
+        .kpi-good    { background: linear-gradient(135deg,#059669,#047857); }
+        .kpi-warn    { background: linear-gradient(135deg,#d97706,#b45309); }
+        .kpi-bad     { background: linear-gradient(135deg,#dc2626,#b91c1c); }
+        .kpi-info    { background: linear-gradient(135deg,#2563eb,#1d4ed8); }
+
+        /* Bloques de sección — PRIMERA PARTE */
+        .bloque { border-radius: 14px; border: 1px solid #e2e8f0; background: #fff; overflow: hidden; }
+        .bloque-header {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 14px 20px; border-bottom: 3px solid transparent;
+        }
+        .bloque-header h3 {
+            font-size: 13px; font-weight: 900; text-transform: uppercase;
+            letter-spacing: .07em; color: #0f172a;
+        }
+        .bloque-header .bloque-sub { font-size: 9px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: .05em; margin-top: 2px; }
+        .bloque-venta  .bloque-header { border-color: #10b981; background: #f0fdf4; }
+        .bloque-costos .bloque-header { border-color: #3b82f6; background: #eff6ff; }
+        .bloque-margen .bloque-header { border-color: #f59e0b; background: #fffbeb; }
+        .bloque-avance .bloque-header { border-color: #8b5cf6; background: #f5f3ff; }
+        .bloque-hh     .bloque-header { border-color: #06b6d4; background: #ecfeff; }
+        .bloque-faltante .bloque-header { border-color: #f97316; background: #fff7ed; }
+        .faltante-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 16px; padding: 18px 20px; }
+        .faltante-item { display: flex; flex-direction: column; gap: 4px; padding: 12px 14px; border-radius: 10px; }
+        .faltante-item.fi-destacado { background: #f1f5f9; }
+        .faltante-item .fi-label  { font-size: 9px; font-weight: 900; text-transform: uppercase; letter-spacing: .07em; color: #94a3b8; margin-bottom: 4px; }
+        .faltante-item .fi-mes    { font-size: 22px; font-weight: 900; color: #0f172a; line-height: 1.1; }
+        .faltante-item .fi-nmes   { font-size: 11px; font-weight: 600; color: #64748b; margin-top: 3px; }
+        .faltante-item .fi-val    { font-size: 22px; font-weight: 900; color: #0f172a; line-height: 1.1; }
+        .faltante-nodata { padding: 20px; font-size: 11px; color: #94a3b8; font-style: italic; }
+        .bloque-costohh .bloque-header { border-color: #8b5cf6; background: #f5f3ff; }
+        .costohh-table { width: 100%; border-collapse: collapse; }
+        .costohh-table th { background: #1e293b; color: #94a3b8; font-size: 9px; font-weight: 900; text-transform: uppercase; letter-spacing: .07em; padding: 8px 14px; white-space: nowrap; text-align: right; }
+        .costohh-table th:first-child { text-align: left; }
+        .costohh-table td { padding: 9px 14px; font-size: 12px; border-bottom: 1px solid #f1f5f9; white-space: nowrap; text-align: right; }
+        .costohh-table td:first-child { text-align: left; font-weight: 700; }
+        .costohh-table tr:last-child td { border-bottom: none; }
+        .costohh-nodata { padding: 20px; font-size: 11px; color: #94a3b8; font-style: italic; }
+
+        /* Tabla comparativa */
+        .tabla-compara { width: 100%; border-collapse: collapse; }
+        .tabla-compara th {
+            background: #1e293b; color: #94a3b8;
+            font-size: 9px; font-weight: 900; text-transform: uppercase; letter-spacing: .07em;
+            padding: 10px 14px; white-space: nowrap; text-align: right;
+        }
+        .tabla-compara th:first-child { text-align: left; }
+        .tabla-compara td { padding: 9px 14px; font-size: 11px; border-bottom: 1px solid #f1f5f9; white-space: nowrap; text-align: right; }
+        .tabla-compara td:first-child { text-align: left; }
+        .tabla-compara tr:last-child td { border-bottom: none; }
+        .tabla-compara tr.fila-total td { background: #f8fafc; font-weight: 900; font-size: 12px; border-top: 2px solid #e2e8f0; }
+        .tabla-compara tr.fila-rubro:hover td { background: #f8fafc; }
+        .hidden-row { display: none !important; }
+
+        /* Grupo de columnas */
+        .th-grupo { background: #0f172a !important; color: #475569 !important; font-size: 8px !important; text-align: center !important; padding: 5px 14px !important; }
+
+        /* Semáforos */
+        .sem { display: inline-flex; align-items: center; gap: 3px; padding: 2px 8px; border-radius: 99px; font-size: 10px; font-weight: 700; }
+        .sem-ok   { background: #dcfce7; color: #15803d; }
+        .sem-warn { background: #fef9c3; color: #a16207; }
+        .sem-bad  { background: #fee2e2; color: #b91c1c; }
+        .sem-neu  { background: #f1f5f9; color: #64748b; }
+
+        /* Botón rubros */
+        .btn-rubros { font-size: 9px; font-weight: 900; text-transform: uppercase; letter-spacing: .06em;
+            padding: 4px 12px; border-radius: 99px; border: 1px solid #e2e8f0;
+            background: #f8fafc; color: #64748b; cursor: pointer; transition: all .15s; }
+        .btn-rubros:hover { background: #1e293b; color: #fff; border-color: #1e293b; }
+
+        /* Bloque RESUMEN FINAL */
+        .bloque-resumen { border-radius: 14px; background: #fff; border: 1px solid #e2e8f0; overflow: hidden; }
+        .bloque-resumen .res-header { padding: 18px 24px; border-bottom: 1px solid #e2e8f0; display:flex; align-items:center; justify-content:space-between; }
+        .bloque-resumen .res-header h3 { font-size: 14px; font-weight: 900; color: #0f172a; text-transform: uppercase; letter-spacing: .07em; }
+        .bloque-resumen .res-header p  { font-size: 10px; color: #94a3b8; margin-top: 2px; }
+        .btn-resumen { font-size: 10px; font-weight: 900; text-transform: uppercase; letter-spacing: .06em;
+            padding: 8px 20px; border-radius: 99px; border: 2px solid #3b82f6;
+            background: #eff6ff; color: #2563eb; cursor: pointer; transition: all .15s; white-space:nowrap; }
+        .btn-resumen:hover { background: #2563eb; color: #fff; }
+        .tabla-resumen { width: 100%; border-collapse: collapse; }
+        .tabla-resumen th { background: #1e293b; color: #e2e8f0; font-size: 9px; font-weight: 900; text-transform: uppercase; letter-spacing: .07em; padding: 10px 14px; white-space: nowrap; text-align: right; }
+        .tabla-resumen th:first-child { text-align: left; }
+        .tabla-resumen td { padding: 10px 14px; font-size: 11px; border-bottom: 1px solid #1e293b; white-space: nowrap; text-align: right; color: #cbd5e1; }
+        .tabla-resumen td:first-child { text-align: left; font-weight: 700; color: #f1f5f9; }
+        .tabla-resumen tr:last-child td { border-bottom: none; }
+        .tabla-resumen tr.res-total td { background: #1e293b; font-weight: 900; font-size: 12px; color: #f1f5f9; border-top: 1px solid #334155; }
+        .tabla-resumen tr.res-contrib td { background: #172554; color: #93c5fd; font-weight: 700; }
+        .tabla-resumen tr.res-contrib td:first-child { color: #bfdbfe; }
+        .tabla-resumen tr.res-rubro td { color: #94a3b8; font-size: 10px; padding-left: 28px; }
+        #resumen-body { display: none; }
+
+        /* th grupos resumen */
+        .th-res-grupo { background: #0f172a !important; color: #94a3b8 !important; font-size: 8px !important; text-align: center !important; padding: 5px 14px !important; border-bottom: 1px solid #1e293b; }
+
+        /* Destacados del período */
+        .dest-grid { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 12px; }
+        .dest-col { border-radius: 14px; border: 1px solid #e2e8f0; overflow: hidden; background: #fff; }
+        .dest-header { padding: 12px 14px 10px; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid #e2e8f0; }
+        .dest-icon-wrap { width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 18px; }
+        .dest-meta { flex: 1; }
+        .dest-title { font-size: 12px; font-weight: 900; letter-spacing: .06em; text-transform: uppercase; display: block; }
+        .dest-badge { display: inline-block; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 99px; margin-top: 3px; }
+        .dest-items { padding: 10px 12px; display: flex; flex-direction: column; gap: 6px; }
+        .dest-item { display: flex; align-items: flex-start; gap: 8px; font-size: 12px; padding: 7px 10px; border-radius: 8px; line-height: 1.4; color: #0f172a; }
+        .dest-item i { font-size: 15px; flex-shrink: 0; margin-top: 1px; }
+        .dest-empty { font-size: 11px; color: #94a3b8; font-style: italic; padding: 8px 10px; }
+        .dest-fav .dest-header { background: #f0fdf4; }
+        .dest-fav .dest-icon-wrap { background: #bbf7d0; color: #15803d; }
+        .dest-fav .dest-title { color: #14532d; }
+        .dest-fav .dest-badge { background: #bbf7d0; color: #15803d; }
+        .dest-fav .dest-item { background: #f0fdf4; }
+        .dest-fav .dest-item i { color: #16a34a; }
+        .dest-ate .dest-header { background: #fffbeb; }
+        .dest-ate .dest-icon-wrap { background: #fde68a; color: #92400e; }
+        .dest-ate .dest-title { color: #78350f; }
+        .dest-ate .dest-badge { background: #fde68a; color: #92400e; }
+        .dest-ate .dest-item { background: #fffbeb; }
+        .dest-ate .dest-item i { color: #d97706; }
+        .dest-ale .dest-header { background: #fef2f2; }
+        .dest-ale .dest-icon-wrap { background: #fecaca; color: #991b1b; }
+        .dest-ale .dest-title { color: #7f1d1d; }
+        .dest-ale .dest-badge { background: #fecaca; color: #991b1b; }
+        .dest-ale .dest-item { background: #fef2f2; }
+        .dest-ale .dest-item i { color: #dc2626; }
+
+        /* Modal */
+        .modal-ov { display:none; position:fixed; inset:0; background:rgba(15,23,42,.6); z-index:200; align-items:center; justify-content:center; }
+        .modal-ov.active { display:flex; }
+        input[type=range].uslider { -webkit-appearance:none; width:100%; height:4px; background:#334155; border-radius:2px; outline:none; }
+        input[type=range].uslider::-webkit-slider-thumb { -webkit-appearance:none; width:15px; height:15px; border-radius:50%; background:#3b82f6; border:2px solid #fff; cursor:pointer; box-shadow:0 1px 4px rgba(0,0,0,.2); }
+
+        /* Spinner */
+        #spinner { display:none; position:fixed; inset:0; background:rgba(15,23,42,.55); z-index:300; align-items:center; justify-content:center; flex-direction:column; gap:14px; }
+        #spinner.active { display:flex; }
+
+        @media print {
+            @page { size: A4 landscape; margin: 10mm; }
+            header, #zona-carga, #btn-bar { display:none !important; }
+        }
+    </style>
+</head>
+<body class="min-h-screen">
+
+<!-- === ICG VISUALIZADOR ECOSYSTEM HEADER === -->
+<div id="icg-ecosystem-header" style="
+    background: #ffffff;
+    border-bottom: 1px solid #e2e8f0;
+    padding: 0 20px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-family: 'Inter', sans-serif;
+    position: sticky;
+    top: 0;
+    z-index: 9999;
+">
+    <a href="./index.html" style="
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        text-decoration: none;
+    ">
+        <span style="
+            width: 8px; height: 8px;
+            border-radius: 50%;
+            background: #f97316;
+            display: inline-block;
+            flex-shrink: 0;
+        "></span>
+        <span style="
+            font-size: 10px;
+            font-weight: 900;
+            letter-spacing: .10em;
+            text-transform: uppercase;
+            color: #94a3b8;
+        ">ICG Visualizador</span>
+    </a>
+    <span style="font-size: 10px; color: #cbd5e1; margin: 0 2px;">/</span>
+    <span id="icg-app-name" style="
+        font-size: 10px;
+        font-weight: 900;
+        letter-spacing: .08em;
+        text-transform: uppercase;
+        color: #0f172a;
+    "></span>
+</div>
+<!-- === FIN ECOSYSTEM HEADER === -->
+
+<div id="spinner">
+    <div class="w-12 h-12 border-4 border-white/20 border-t-blue-400 rounded-full animate-spin"></div>
+    <p class="text-white text-xs font-black tracking-widest uppercase">Procesando...</p>
+</div>
+
+<header class="bg-slate-900 text-white px-8 py-4 shadow-xl sticky z-50" style="top: 36px;">
+    <div class="max-w-[1600px] mx-auto flex justify-between items-center gap-3">
+        <div class="flex items-center gap-4">
+            <div class="bg-blue-600 px-3 py-2 rounded-xl font-black text-xl shadow-lg shadow-blue-500/20">ICG</div>
+            <div>
+                <div class="flex items-baseline gap-3">
+                    <h1 class="text-lg font-black tracking-tight">ComparaICG</h1>
+                    <span class="text-[9px] text-slate-500 font-mono bg-slate-800 px-2 py-0.5 rounded">v4.0</span>
+                </div>
+                <p class="text-[10px] text-blue-400 font-mono tracking-widest uppercase">Comparador Tablero de Control · 2-TC</p>
+            </div>
+        </div>
+        <div id="btn-bar" class="hidden flex items-center gap-3">
+            <button onclick="abrirUmbrales()" class="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 px-4 py-2 rounded-full text-slate-300 text-[10px] font-black uppercase tracking-wider transition-all">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 4a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/></svg>
+                Umbrales
+            </button>
+            <button onclick="resetTodo()" class="flex items-center gap-2 bg-slate-800 hover:bg-red-900/40 px-4 py-2 rounded-full text-slate-400 hover:text-red-400 text-[10px] font-black uppercase tracking-wider transition-all">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                Nueva
+            </button>
+        </div>
+    </div>
+</header>
+
+<main class="max-w-[1600px] mx-auto px-6 py-8 space-y-5">
+
+    <!-- ZONA CARGA -->
+    <div id="zona-carga">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-5 mb-5">
+            <div>
+                <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">① Archivo Anterior</p>
+                <div class="drop-zone p-8 text-center relative" id="drop-ant"
+                    ondragover="onDragOver(event,'ant')" ondragleave="onDragLeave('ant')" ondrop="onDrop(event,'ant')"
+                    onclick="document.getElementById('file-ant').click()">
+                    <input type="file" id="file-ant" class="hidden" accept=".xlsx,.xls" onchange="onFileSelect(event,'ant')">
+                    <div id="spin-ant" style="display:none;position:absolute;inset:0;background:rgba(255,255,255,.85);border-radius:12px;align-items:center;justify-content:center;">
+                        <div class="w-8 h-8 border-4 border-slate-200 border-t-blue-500 rounded-full animate-spin"></div>
+                    </div>
+                    <div id="drop-ant-icon">
+                        <svg class="w-9 h-9 text-slate-300 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                        <p class="text-sm font-bold text-slate-400">Mes anterior</p>
+                        <p class="text-[10px] text-slate-300 mt-1">Click o arrastrar .xlsx</p>
+                    </div>
+                    <div id="drop-ant-info" class="hidden">
+                        <div class="w-9 h-9 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-2">
+                            <svg class="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                        </div>
+                        <p id="drop-ant-nombre" class="text-sm font-black text-slate-700 truncate px-2"></p>
+                        <p id="drop-ant-periodo" class="text-[10px] text-emerald-600 font-bold mt-1"></p>
+                    </div>
+                </div>
+            </div>
+            <div>
+                <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">② Archivo Actual</p>
+                <div class="drop-zone p-8 text-center relative" id="drop-act"
+                    ondragover="onDragOver(event,'act')" ondragleave="onDragLeave('act')" ondrop="onDrop(event,'act')"
+                    onclick="document.getElementById('file-act').click()">
+                    <input type="file" id="file-act" class="hidden" accept=".xlsx,.xls" onchange="onFileSelect(event,'act')">
+                    <div id="spin-act" style="display:none;position:absolute;inset:0;background:rgba(255,255,255,.85);border-radius:12px;align-items:center;justify-content:center;">
+                        <div class="w-8 h-8 border-4 border-slate-200 border-t-blue-500 rounded-full animate-spin"></div>
+                    </div>
+                    <div id="drop-act-icon">
+                        <svg class="w-9 h-9 text-slate-300 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                        <p class="text-sm font-bold text-slate-400">Mes actual</p>
+                        <p class="text-[10px] text-slate-300 mt-1">Click o arrastrar .xlsx</p>
+                    </div>
+                    <div id="drop-act-info" class="hidden">
+                        <div class="w-9 h-9 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-2">
+                            <svg class="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                        </div>
+                        <p id="drop-act-nombre" class="text-sm font-black text-slate-700 truncate px-2"></p>
+                        <p id="drop-act-periodo" class="text-[10px] text-emerald-600 font-bold mt-1"></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div id="alerta-val" class="hidden mb-4 bg-red-50 border border-red-200 rounded-xl px-5 py-4 flex items-start gap-3">
+            <svg class="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>
+            <p id="alerta-val-msg" class="text-sm font-bold text-red-700"></p>
+        </div>
+        <div class="flex justify-center">
+            <button id="btn-generar" onclick="intentarComparar()"
+                class="hidden items-center gap-3 bg-blue-600 hover:bg-blue-500 text-white px-10 py-3.5 rounded-2xl font-black text-sm uppercase tracking-wider transition-all shadow-lg shadow-blue-500/20">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+                Generar Comparativa
+            </button>
+        </div>
+    </div>
+
+    <!-- REPORTE -->
+    <div id="reporte" class="hidden space-y-5">
+
+        <!-- Cabecera -->
+        <div class="card p-5 border-l-4 border-l-blue-600">
+            <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4 items-start">
+                <div class="col-span-2">
+                    <p class="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Proyecto</p>
+                    <p id="rpt-proyecto" class="text-base font-black text-slate-800 leading-tight"></p>
+                </div>
+                <div>
+                    <p class="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Período Anterior</p>
+                    <p id="rpt-per-ant" class="text-xs font-bold text-slate-500"></p>
+                    <p id="rpt-mes-ant" class="text-[9px] text-blue-400 font-bold"></p>
+                </div>
+                <div>
+                    <p class="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Período Actual</p>
+                    <p id="rpt-per-act" class="text-xs font-bold text-slate-600"></p>
+                    <p id="rpt-mes-act" class="text-[9px] text-blue-400 font-bold"></p>
+                </div>
+                <div class="col-span-3 flex justify-between items-start border border-slate-200 rounded-xl px-4 py-2 bg-slate-50">
+                    <div>
+                        <p class="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Margen Oferta</p>
+                        <p id="rpt-margen-oferta" class="text-sm font-black text-slate-800"></p>
+                        <span id="rpt-margen-oferta-alerta" class="hidden text-[9px] font-bold text-red-600">⚠ Cambió</span>
+                    </div>
+                    <div class="w-px self-stretch bg-slate-200"></div>
+                    <div>
+                        <p class="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Margen Real</p>
+                        <div class="flex items-center gap-2 flex-wrap">
+                            <p id="rpt-margen-real" class="text-sm font-black text-slate-800"></p>
+                            <span id="rpt-margen-real-sem" class="sem sem-neu"></span>
+                        </div>
+                    </div>
+                </div>
+                <div>
+                    <p class="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Av. Certificación</p>
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <p id="rpt-avance" class="text-sm font-black text-slate-800"></p>
+                        <span id="rpt-avance-sem" class="sem sem-neu"></span>
+                    </div>
+                </div>
+            </div>
+            <div id="alertas-cabecera" class="mt-3 flex flex-wrap gap-2"></div>
+        </div>
+
+        <!-- KPIs -->
+        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4" id="kpi-row"></div>
+
+        <!-- Faltante + Costo HH — grid 2 columnas -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+
+        <!-- Faltante — Información -->
+        <div class="bloque bloque-faltante" id="bloque-faltante">
+            <div class="bloque-header" id="faltante-header">
+                <div>
+                    <h3>Faltante — Información</h3>
+                    <div class="bloque-sub">Costo Industrial · Hoja Económico</div>
+                </div>
+                <div id="faltante-desvio"></div>
+            </div>
+            <div id="faltante-body"></div>
+        </div>
+
+        <!-- Costo HH -->
+        <div class="bloque bloque-costohh" id="bloque-costohh">
+            <div class="bloque-header">
+                <div>
+                    <h3>Costo HH</h3>
+                    <div class="bloque-sub">$/HH del Mes · Hoja 2-TC</div>
+                </div>
+            </div>
+            <div id="costohh-body"></div>
+        </div>
+
+        </div><!-- fin grid faltante+costohh -->
+
+        <!-- Alertas -->
+        <div class="card p-5">
+            <p class="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-4">Destacados del período</p>
+            <div id="panel-destacados" class="dest-grid"></div>
+        </div>
+
+        <!-- ══ PRIMERA PARTE: DELTAS ══ -->
+
+        <!-- Venta Ajustada -->
+        <div class="bloque bloque-venta">
+            <div class="bloque-header">
+                <div>
+                    <h3>Venta</h3>
+                    
+                </div>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="tabla-compara" id="tabla-venta"></table>
+            </div>
+        </div>
+
+        <!-- Costos -->
+        <div class="bloque bloque-costos">
+            <div class="bloque-header">
+                <div>
+                    <h3>Costos</h3>
+                    
+                </div>
+                <button class="btn-rubros" onclick="toggleRubros()" id="btn-rubros">▶ Ver rubros</button>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="tabla-compara" id="tabla-costos"></table>
+            </div>
+        </div>
+
+        <!-- Contribución -->
+        <div class="bloque bloque-margen">
+            <div class="bloque-header">
+                <div>
+                    <h3>% Contribución / Margen</h3>
+                    
+                </div>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="tabla-compara" id="tabla-margen"></table>
+            </div>
+        </div>
+
+        <!-- Avance + HH -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+            <div class="bloque bloque-avance">
+                <div class="bloque-header">
+                    <div>
+                        <h3>Avance Físico</h3>
+                        
+                    </div>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="tabla-compara" id="tabla-avance"></table>
+                </div>
+            </div>
+            <div class="bloque bloque-hh">
+                <div class="bloque-header">
+                    <div>
+                        <h3>Horas Hombre</h3>
+                        
+                    </div>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="tabla-compara" id="tabla-hh"></table>
+                </div>
+            </div>
+        </div>
+
+        <!-- AEC/CONT -->
+        <div class="card p-5 border-l-4 border-l-slate-400">
+            <p class="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-3">Situación Económica AEC/CONT</p>
+            <div class="flex items-center gap-6 flex-wrap">
+                <div><p class="text-[9px] text-slate-400 mb-1">Anterior</p><p id="aec-ant" class="text-xl font-black text-slate-600">—</p></div>
+                <svg class="w-4 h-4 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                <div><p class="text-[9px] text-slate-400 mb-1">Actual</p><p id="aec-act" class="text-xl font-black text-slate-900">—</p></div>
+                <div id="aec-badge"></div>
+                <p class="text-[9px] text-slate-400 ml-auto max-w-xs leading-relaxed">Negativo = se quitó costo · Positivo = se agregó costo · Alerta si |valor| &gt; 20%</p>
+            </div>
+        </div>
+
+        <!-- ══ SEGUNDA PARTE: RESUMEN COMPLETO ══ -->
+        <div class="bloque-resumen">
+            <div class="res-header">
+                <div>
+                    <h3>Resumen Completo del Período</h3>
+                    <p>Venta · Costo · Contribución — Todas las columnas · Valores anteriores y actuales</p>
+                </div>
+                <button class="btn-resumen" onclick="toggleResumen()" id="btn-resumen">▶ Ver resumen completo</button>
+            </div>
+            <div id="resumen-body" class="overflow-x-auto">
+                <table class="tabla-resumen" id="tabla-resumen"></table>
+            </div>
+        </div>
+
+    </div>
+</main>
+
+<!-- Modal Umbrales -->
+<div class="modal-ov" id="modal-umbrales">
+    <div class="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md mx-4">
+        <div class="flex items-center justify-between mb-5">
+            <h3 class="text-sm font-black text-slate-800 uppercase tracking-wider">Umbrales de Alerta</h3>
+            <button onclick="cerrarUmbrales()" class="text-slate-400 hover:text-slate-700">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+        </div>
+        <div class="space-y-5" id="umbrales-content"></div>
+        <div class="mt-6 flex gap-3">
+            <button onclick="resetUmbrales()" class="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-black py-2.5 rounded-xl">Defaults</button>
+            <button onclick="cerrarUmbrales()" class="flex-1 bg-blue-600 hover:bg-blue-500 text-white text-xs font-black py-2.5 rounded-xl">Aplicar</button>
+        </div>
+    </div>
+</div>
+
+<script>
+const LOG = (...a) => console.log('[comparaICG v4.0]', ...a);
+const ERR = (...a) => console.error('[comparaICG v4.0]', ...a);
+
+let wbAnt=null, wbAct=null, datosAnt=null, datosAct=null;
+let rubrosVisible = false;
+let alertasGlobales = [];
+let ultimoAnt=null, ultimoAct=null; // para re-render al cambiar umbrales
+
+const UMBRALES_DEF = {
+    venta:   { aten:3,  alerta:8  },
+    costo:   { aten:3,  alerta:8  },
+    margen:  { aten:1,  alerta:3  },
+    hh:      { aten:3,  alerta:8  },
+    aec:     { aten:10, alerta:20 },
+    costoHH: { aten:5,  alerta:15 },
+};
+let umbrales = JSON.parse(JSON.stringify(UMBRALES_DEF));
+
+// ── Fechas ──
+function parseFecha(val) {
+    if (!val) return null;
+    if (val instanceof Date) return val.getFullYear()>1950?val:null;
+    if (typeof val==='number' && val>40000) return new Date(Date.UTC(1899,11,30)+val*86400000);
+    if (typeof val==='string') { const d=new Date(val); return isNaN(d.getTime())?null:d; }
+    return null;
+}
+
+// ── Drag & Drop ──
+function onDragOver(e,s){ e.preventDefault(); document.getElementById('drop-'+s).classList.add('dragover'); }
+function onDragLeave(s){ document.getElementById('drop-'+s).classList.remove('dragover'); }
+function onDrop(e,s){ e.preventDefault(); onDragLeave(s); const f=e.dataTransfer.files[0]; if(f) procesarArchivo(f,s); }
+function onFileSelect(e,s){ const f=e.target.files[0]; if(f) procesarArchivo(f,s); }
+
+// ── Procesar archivo ──
+function procesarArchivo(file, slot) {
+    LOG(`[${slot}] Cargando:`, file.name);
+    const spinEl = document.getElementById('spin-'+slot);
+    const dropEl = document.getElementById('drop-'+slot);
+    spinEl.style.display = 'flex';
+    dropEl.classList.add('loading');
+
+    const reader = new FileReader();
+    reader.onload = evt => {
+        try {
+            const wb = XLSX.read(new Uint8Array(evt.target.result), { type:'array', cellDates:true });
+            LOG(`[${slot}] Hojas:`, wb.SheetNames);
+
+            if (!wb.Sheets['2 - TC']) {
+                ERR(`[${slot}] Hoja "2 - TC" no encontrada. Hojas:`, wb.SheetNames);
+                mostrarErrorZona(slot, `No se encontró la hoja "2 - TC". Hojas disponibles: ${wb.SheetNames.join(', ')}`);
+                return;
+            }
+
+            const datos = extraerTC(wb, file.name);
+            LOG(`[${slot}] extraerTC:`, datos);
+
+            if (!datos.mesActual) {
+                mostrarErrorZona(slot, 'No se pudo leer "Mes X de Y" en celda E1 de la hoja 2 - TC.');
+                return;
+            }
+
+            if (slot==='ant') { wbAnt=wb; datosAnt=datos; }
+            else              { wbAct=wb; datosAct=datos; }
+
+            actualizarZona(slot, file.name, datos);
+            ocultarAlerta();
+            actualizarBtnGenerar();
+        } catch(err) {
+            ERR(`[${slot}] ERROR:`, err);
+            mostrarErrorZona(slot, 'Error al leer el archivo: '+err.message);
+        } finally {
+            spinEl.style.display = 'none';
+            dropEl.classList.remove('loading');
+        }
+    };
+    reader.readAsArrayBuffer(file);
+}
+
+function actualizarZona(slot, filename, datos) {
+    const drop = document.getElementById('drop-'+slot);
+    drop.className = 'drop-zone p-8 text-center relative loaded';
+    document.getElementById('drop-'+slot+'-icon').classList.add('hidden');
+    document.getElementById('drop-'+slot+'-info').classList.remove('hidden');
+    document.getElementById('drop-'+slot+'-nombre').textContent = filename;
+    document.getElementById('drop-'+slot+'-periodo').textContent = `Mes ${datos.mesActual} de ${datos.mesTotal} · Per. ${datos.periodoLabel}`;
+}
+
+function mostrarErrorZona(slot, msg) {
+    const drop = document.getElementById('drop-'+slot);
+    drop.className = 'drop-zone p-8 text-center relative error';
+    if(slot==='ant'){wbAnt=null;datosAnt=null;}else{wbAct=null;datosAct=null;}
+    document.getElementById('drop-'+slot+'-icon').classList.remove('hidden');
+    document.getElementById('drop-'+slot+'-info').classList.add('hidden');
+    mostrarAlerta(msg);
+    actualizarBtnGenerar();
+}
+
+function actualizarBtnGenerar() {
+    const btn = document.getElementById('btn-generar');
+    if (datosAnt && datosAct) { btn.classList.remove('hidden'); btn.classList.add('flex'); }
+    else { btn.classList.add('hidden'); btn.classList.remove('flex'); }
+}
+
+// ── Extracción 2-TC ──
+function extraerTC(wb, filename) {
+    const rows = XLSX.utils.sheet_to_json(wb.Sheets['2 - TC'], { header:1, defval:null });
+    LOG('extraerTC — filas:', rows.length);
+
+    const d = {
+        filename, codigoObra: extraerCodigo(filename),
+        mesActual:null, mesTotal:null, periodoLabel:'',
+        proyecto:null, margenOferta:null, avanceCertif:null, aecCont:null,
+        ventaAjustada:{C:null,D:null,F:null},
+        totalCosto:{C:null,D:null,F:null},
+        rubrosCosto:[],
+        pctContrib:{C:null,D:null,F:null},
+        margenRealF:null,
+        avanceFisico:[],
+        hh:[],
+    };
+
+    // F1: Mes X de Y en col E (idx 4)
+    const f1 = rows[0]||[];
+    LOG('F1 completa:', f1);
+    const celE1 = f1[4];
+    if (celE1 && typeof celE1==='string') {
+        const m = celE1.match(/Mes\s+(\d+)\s+de\s+(\d+)/i);
+        if (m) { d.mesActual=parseInt(m[1]); d.mesTotal=parseInt(m[2]); }
+    }
+    LOG('Mes detectado:', d.mesActual, 'de', d.mesTotal);
+
+    // Período label col H (idx 7)
+    if (f1[7]) d.periodoLabel = String(f1[7]).replace(/período de reporte[:\s]*/i,'').trim();
+
+    // F2: Proyecto col C (idx 2) o B (idx 1)
+    const f2 = rows[1]||[];
+    LOG('F2:', f2);
+    d.proyecto = f2[2] ? String(f2[2]).trim() : (f2[1] ? String(f2[1]).trim() : null);
+
+    // F3: Margen Oferta col H (idx 7)
+    const f3 = rows[2]||[];
+    const mof = parseFloat(f3[7]);
+    if (!isNaN(mof)) d.margenOferta = mof;
+
+    // F5: Margen Oferta desde fila 4 (idx 3) col F (idx 5) — puede ser fórmula referencia
+    // Si el valor anterior no se leyó o es 0, intentar desde F5
+    if (!d.margenOferta) {
+        const f5 = rows[4]||[];
+        LOG('F5 completa (Margen Oferta alternativo):', f5);
+        const mof5 = parseFloat(f5[5]);
+        if (!isNaN(mof5) && mof5 !== 0) {
+            d.margenOferta = mof5 > 1 ? mof5 / 100 : mof5;
+            LOG('Margen Oferta desde F5:', d.margenOferta);
+        }
+    }
+    LOG('Margen Oferta final:', d.margenOferta);
+
+    // F4: Avance certificación col F (idx 5)
+    const f4 = rows[3]||[];
+    const avc = parseFloat(f4[5]);
+    if (!isNaN(avc)) d.avanceCertif = avc;
+    LOG('Avance certif:', d.avanceCertif);
+
+    // C9: AEC/CONT
+    for (let r=6; r<Math.min(rows.length,14); r++) {
+        const lbl = rows[r]&&rows[r][0] ? String(rows[r][0]).trim().toLowerCase() : '';
+        if (lbl.includes('situaci')||lbl.includes('aec')) {
+            const v = parseFloat(rows[r][2]);
+            if (!isNaN(v)) { d.aecCont=v; LOG(`AEC/CONT fila ${r}:`,v); break; }
+        }
+    }
+    if (d.aecCont===null) {
+        const v = parseFloat(rows[8]&&rows[8][2]);
+        if (!isNaN(v)) { d.aecCont=v; LOG('AEC/CONT fija fila 8:',v); }
+    }
+
+    // VENTA AJUSTADA
+    for (let r=8; r<Math.min(rows.length,30); r++) {
+        const lbl = rows[r]&&rows[r][0] ? String(rows[r][0]).trim().toUpperCase() : '';
+        if (lbl==='VENTA AJUSTADA') {
+            d.ventaAjustada = leerCDF(rows[r]);
+            LOG(`VENTA AJUSTADA fila ${r}:`, d.ventaAjustada); break;
+        }
+    }
+
+    // RUBROS COSTO + TOTAL COSTO
+    const RUBROS = ['PERSONAL','EQUIPOS','MATERIALES','SUBCONTRATOS','OTROS','FLETES','IMP.','CONTINGENCIAS','AXI'];
+    for (let r=18; r<Math.min(rows.length,42); r++) {
+        const raw = rows[r]&&rows[r][0] ? String(rows[r][0]).trim() : '';
+        const lbl = raw.toUpperCase();
+        if (RUBROS.some(rb => lbl.startsWith(rb))) {
+            const vals = leerCDF(rows[r]);
+            if (vals.C!==null||vals.D!==null||vals.F!==null) {
+                d.rubrosCosto.push({label:raw,...vals});
+                LOG(`Rubro [${raw}] fila ${r}:`, vals);
+            }
+        }
+        if (lbl==='TOTAL COSTO') {
+            d.totalCosto = leerCDF(rows[r]);
+            LOG(`TOTAL COSTO fila ${r}:`, d.totalCosto);
+        }
+    }
+
+    // % CONTRIBUCIÓN F34
+    let enContrib=false;
+    for (let r=25; r<Math.min(rows.length,45); r++) {
+        const lbl = rows[r]&&rows[r][0] ? String(rows[r][0]).trim().toLowerCase() : '';
+        if (lbl==='contribución'||lbl==='contribucion') { enContrib=true; continue; }
+        if (enContrib && lbl==='%') {
+            d.pctContrib = leerCDF(rows[r], true);
+            d.margenRealF = d.pctContrib.F;
+            LOG(`% Contrib fila ${r}:`, d.pctContrib);
+            enContrib=false;
+        }
+    }
+
+    // AVANCE FÍSICO F41:H48
+    // Labels pueden estar en col F (idx 5) via fórmula referencia, o en col A (idx 0)
+    // Valor Acum.Real en col G (idx 6)
+    // Si col F es numérico (serial fecha u otro), usar col A como fallback
+    LOG('--- Buscando Avance Físico (filas 36-56) ---');
+    for (let r=36; r<Math.min(rows.length,56); r++) {
+        const rawF = rows[r]&&rows[r][5]; // col F idx 5
+        const rawA = rows[r]&&rows[r][0]; // col A idx 0 fallback
+        LOG(`  Fila ${r}: colA=${JSON.stringify(rawA)} colF=${JSON.stringify(rawF)} colG=${rows[r]&&rows[r][6]}`);
+
+        // Determinar label: preferir col F si es string válido, sino col A
+        let label = null;
+        if (rawF && typeof rawF==='string' && rawF.trim().length>1) {
+            label = rawF.trim();
+        } else if (rawA && typeof rawA==='string' && rawA.trim().length>1) {
+            label = rawA.trim();
+        }
+        if (!label) continue;
+
+        // Ignorar headers
+        const lblLow = label.toLowerCase();
+        if (lblLow.includes('avance')||lblLow.includes('acum')||lblLow.includes('físic')||lblLow.includes('fisic')||lblLow.includes('ppto')) continue;
+
+        // Valor en col G (idx 6)
+        const vG = parseFloat(rows[r][6]);
+        if (isNaN(vG)||vG===0) { LOG(`  → Sin valor en G, omitida`); continue; }
+
+        const val = vG > 1 ? vG/100 : vG;
+        d.avanceFisico.push({label, val});
+        LOG(`  → AVANCE [${label}]: G=${vG} → val=${val}`);
+    }
+    LOG('Avance físico encontrado:', d.avanceFisico.length, 'filas');
+
+    // HH A41:E43
+    LOG('--- Buscando HH ---');
+    const HH_PREF = ['directos','indirectos','total jorn'];
+    for (let r=36; r<Math.min(rows.length,55); r++) {
+        const raw = rows[r]&&rows[r][0] ? String(rows[r][0]).trim() : '';
+        const lbl = raw.toLowerCase();
+        if (HH_PREF.some(h=>lbl.startsWith(h))) {
+            const acum   = parseFloat(rows[r][1]); // col B
+            const estTot = parseFloat(rows[r][2]); // col C
+            d.hh.push({label:raw, acum:!isNaN(acum)?acum:null, estTotal:!isNaN(estTot)?estTot:null});
+            LOG(`HH [${raw}] fila ${r}: acum=${acum} estTot=${estTot}`);
+        }
+    }
+
+    LOG('extraerTC completo:', d);
+    return d;
+}
+
+function leerCDF(row, esPct=false) {
+    const parse = v => { const f=parseFloat(v); if(isNaN(f))return null; return (esPct&&Math.abs(f)<=1.5)?f*100:f; };
+    return { C:parse(row[2]), D:parse(row[3]), F:parse(row[5]) };
+}
+
+function extraerCodigo(fn) {
+    const m = fn.match(/^([\d][\d\-]*?)-ICG-/i);
+    return m ? m[1] : null;
+}
+
+// ── Comparar ──
+function intentarComparar() {
+    LOG('Comparando...');
+    ocultarAlerta();
+    alertasGlobales = [];
+
+    if (datosAnt.codigoObra&&datosAct.codigoObra&&datosAnt.codigoObra!==datosAct.codigoObra) {
+        mostrarAlerta(`Obras distintas: "${datosAnt.codigoObra}" vs "${datosAct.codigoObra}".`);
+        return;
+    }
+    if (datosAnt.mesActual===datosAct.mesActual&&datosAnt.mesTotal===datosAct.mesTotal) {
+        mostrarAlerta('Ambos archivos son del mismo período.');
+        return;
+    }
+
+    let dAnt=datosAnt, dAct=datosAct;
+    if (datosAnt.mesActual>datosAct.mesActual) { [dAnt,dAct]=[datosAct,datosAnt]; LOG('Orden intercambiado.'); }
+    if (dAnt.mesTotal!==dAct.mesTotal) pushAlerta(`Extensión de plazo: ${dAnt.mesTotal} → ${dAct.mesTotal} meses`,'bad');
+
+    document.getElementById('spinner').classList.add('active');
+    setTimeout(()=>{ renderReporte(dAnt,dAct); document.getElementById('spinner').classList.remove('active'); },60);
+}
+
+// ── Extracción hoja Económico — Costo Industrial Faltante ──
+function extraerFaltante(wb) {
+    const resultado = { ok: false, error: null, desde: null, hasta: null, meses: 0, desvio: null, mesDesde: null, mesHasta: null, mesTotal: null };
+
+    // Buscar hoja con o sin tilde
+    const nombreHoja = wb.SheetNames.find(n => n.trim().toLowerCase() === 'económico' || n.trim().toLowerCase() === 'economico');
+    if (!nombreHoja) {
+        resultado.error = 'Hoja "Económico" no encontrada';
+        LOG('[Faltante] Hoja Económico ausente. Hojas:', wb.SheetNames);
+        return resultado;
+    }
+    LOG('[Faltante] Hoja encontrada:', nombreHoja);
+
+    const rows = XLSX.utils.sheet_to_json(wb.Sheets[nombreHoja], { header: 1, defval: null, raw: true });
+    LOG('[Faltante] Total filas:', rows.length);
+
+    // ── Paso 1: Leer fila 3 (idx 2) — fechas calendario ──
+    const filaFechas = rows[2] || [];
+    // ── Paso 2: Leer fila 4 (idx 3) — número de mes ──
+    const filaMeses  = rows[3] || [];
+
+    // ── Paso 3: Buscar "faltante desde" en filas 13-19, columnas 79-115 ──
+    let fechaCorte = null;
+    for (let r = 13; r <= 19 && r < rows.length; r++) {
+        const fila = rows[r] || [];
+        for (let c = 79; c <= 115 && c < fila.length; c++) {
+            const cell = fila[c];
+            if (cell && typeof cell === 'string' && cell.trim().toLowerCase().includes('faltante desde')) {
+                // Fecha en celda inmediatamente debajo
+                const filaAbajo = rows[r + 1] || [];
+                const valFecha  = filaAbajo[c];
+                fechaCorte = parseFecha(valFecha);
+                LOG(`[Faltante] Label "faltante desde" en fila ${r} col ${c}, fecha:`, valFecha, '→', fechaCorte);
+                break;
+            }
+        }
+        if (fechaCorte) break;
+    }
+
+    if (!fechaCorte) {
+        resultado.error = 'No se encontró "faltante desde" en hoja Económico';
+        LOG('[Faltante] fecha de corte no encontrada');
+        return resultado;
+    }
+
+    // EOMONTH: último día del mes de la fecha corte
+    const eoMonth = (d) => {
+        const t = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 0));
+        return t;
+    };
+    const umbral = eoMonth(fechaCorte);
+    LOG('[Faltante] Umbral EOMONTH:', umbral);
+
+    // ── Paso 4: Buscar fila "Costo Industrial" ──
+    let filaCostoIndustrial = null;
+    for (let r = 30; r < rows.length; r++) {
+        const lbl = rows[r] && rows[r][0] ? String(rows[r][0]).trim().toLowerCase() : '';
+        if (lbl.includes('costo industrial')) {
+            filaCostoIndustrial = rows[r];
+            LOG(`[Faltante] "Costo Industrial" en fila ${r}`);
+            break;
+        }
+    }
+
+    if (!filaCostoIndustrial) {
+        resultado.error = 'No se encontró fila "Costo Industrial" en hoja Económico';
+        LOG('[Faltante] Costo Industrial no encontrado');
+        return resultado;
+    }
+
+    // ── Paso 5: Sumar columnas donde fecha >= umbral y valor > 0 ──
+    let sumaFaltante = 0;
+    let fechaDesde   = null;
+    let fechaHasta   = null;
+    let mesDesde     = null;
+    let mesHasta     = null;
+    let mesesCount   = 0;
+
+    for (let c = 1; c < filaFechas.length; c++) {
+        const fechaCol = parseFecha(filaFechas[c]);
+        if (!fechaCol) continue;
+
+        // Verificar si es posterior o igual al umbral (comparar por fecha)
+        const eoCol = eoMonth(fechaCol);
+        if (eoCol < umbral) continue;
+
+        const val = parseFloat(filaCostoIndustrial[c]);
+        if (isNaN(val) || val <= 0) continue;
+
+        sumaFaltante += val;
+        mesesCount++;
+
+        // Número de mes del cronograma
+        const numMes = filaMeses[c];
+        const nMes   = numMes && !isNaN(parseFloat(numMes)) ? Math.round(parseFloat(numMes)) : null;
+
+        if (!fechaDesde) { fechaDesde = fechaCol; mesDesde = nMes; }
+        fechaHasta = fechaCol;
+        mesHasta   = nMes;
+    }
+
+    LOG('[Faltante] Suma faltante:', sumaFaltante, '| Meses:', mesesCount, '| Desde:', fechaDesde, '| Hasta:', fechaHasta);
+
+    resultado.ok       = true;
+    resultado.meses    = mesesCount;
+    resultado.desde    = fechaDesde;
+    resultado.hasta    = fechaHasta;
+    resultado.mesDesde = mesDesde;
+    resultado.mesHasta = mesHasta;
+    return resultado;
+}
+
+// ── Render bloque Faltante ──
+function renderFaltante(faltanteAct, faltanteAnt, mesActualAct, mesTotalAct, mesActualAnt, mesTotalAnt) {
+    const body = document.getElementById('faltante-body');
+
+    // Sin hoja Económico
+    if (!faltanteAct.ok) {
+        document.getElementById('faltante-desvio').innerHTML = '';
+        body.innerHTML = `<div class="faltante-nodata">⚠ ${faltanteAct.error || 'Sin información'}</div>`;
+        return;
+    }
+
+    // Sin faltante (todo ejecutado)
+    if (faltanteAct.meses === 0) {
+        document.getElementById('faltante-desvio').innerHTML = '';
+        body.innerHTML = `<div class="faltante-nodata">✓ Sin costo industrial faltante en el período actual.</div>`;
+        pushOk('Sin costo faltante — obra dentro de plazo');
+        return;
+    }
+
+    // Formatear fecha como "MMM-AA"
+    const fmtFecha = d => {
+        if (!d) return '—';
+        return d.toLocaleDateString('es-AR', { month: 'short', year: '2-digit', timeZone: 'UTC' }).replace('.','').replace(' ','-');
+    };
+
+    // Separar mes-label y número de mes para jerarquía visual
+    const fmtFechaMes  = d => d ? d.toLocaleDateString('es-AR', { month: 'short', year: '2-digit', timeZone: 'UTC' }).replace('.','').replace(' ','-') : '—';
+    const desdeLabel = faltanteAct.desde ? fmtFechaMes(faltanteAct.desde) : '—';
+    const desdeSub   = faltanteAct.mesDesde != null ? `Mes ${faltanteAct.mesDesde}` : '';
+    const hastaLabel = faltanteAct.hasta  ? fmtFechaMes(faltanteAct.hasta)  : '—';
+    const hastaSub   = faltanteAct.mesHasta != null ? `Mes ${faltanteAct.mesHasta}` : '';
+
+    // Desvío: último mes faltante vs mes total del plazo
+    let desvioStr = '—';
+    let desvioColor = '#64748b';
+    let desvioVal = null;
+    if (faltanteAct.mesHasta != null && mesTotalAct != null) {
+        desvioVal = faltanteAct.mesHasta - mesTotalAct;
+        desvioStr = (desvioVal >= 0 ? '+' : '') + desvioVal + ' mes' + (Math.abs(desvioVal) !== 1 ? 'es' : '');
+        desvioColor = desvioVal <= 0 ? '#15803d' : desvioVal <= 2 ? '#d97706' : '#b91c1c';
+    }
+
+    // Inyectar desvío en el header
+    document.getElementById('faltante-desvio').innerHTML = `
+        <div style="text-align:right">
+            <div style="font-size:9px;font-weight:900;text-transform:uppercase;letter-spacing:.07em;color:#94a3b8;margin-bottom:4px">Desvío sobre plazo</div>
+            <div style="font-size:22px;font-weight:900;color:${desvioColor};line-height:1">${desvioStr}</div>
+        </div>`;
+
+    body.innerHTML = `<div class="faltante-grid">
+        <div class="faltante-item">
+            <span class="fi-label">Desde</span>
+            <span class="fi-mes">${desdeLabel}</span>
+            ${desdeSub ? `<span class="fi-nmes">${desdeSub}</span>` : ''}
+        </div>
+        <div class="faltante-item fi-destacado">
+            <span class="fi-label">Hasta</span>
+            <span class="fi-mes">${hastaLabel}</span>
+            ${hastaSub ? `<span class="fi-nmes">${hastaSub}</span>` : ''}
+        </div>
+        <div class="faltante-item">
+            <span class="fi-label">Meses faltantes</span>
+            <span class="fi-val">${faltanteAct.meses}</span>
+        </div>
+    </div>`;
+
+    // ── Destacados del período: lógica faltante ──
+    if (faltanteAnt && faltanteAnt.ok) {
+        // Verificar si los períodos son consecutivos (actual - anterior = 1)
+        const sonConsecutivos = (mesActualAct - mesActualAnt) === 1;
+        const deltaM = faltanteAct.meses - faltanteAnt.meses;
+
+        if (sonConsecutivos) {
+            if (faltanteAct.meses === 1) {
+                pushAlerta('Faltante: solo 1 mes restante', 'warn');
+            } else if (deltaM > 0) {
+                pushAlerta(`Faltante aumentó +${deltaM} mes${deltaM !== 1 ? 'es' : ''} respecto al período anterior`, 'warn');
+            } else if (deltaM < 0) {
+                pushOk(`Faltante se redujo ${deltaM} mes${Math.abs(deltaM) !== 1 ? 'es' : ''} respecto al período anterior`);
+            }
+        } else {
+            // Períodos no consecutivos — describe estado sin delta
+            const desc = `Faltante: ${faltanteAct.meses} mes${faltanteAct.meses !== 1 ? 'es' : ''} (${desdeLabel} → ${hastaLabel}) — variación no calculable (períodos no consecutivos)`;
+            pushAlerta(desc, 'warn');
+        }
+    } else if (!faltanteAnt) {
+        // Solo un período cargado — sin mención en Destacados
+        LOG('[Faltante] Un solo período — sin push a Destacados');
+    } else if (!faltanteAnt.ok) {
+        // Período anterior sin hoja Económico — describe solo el actual
+        const desc = `Faltante actual: ${faltanteAct.meses} mes${faltanteAct.meses !== 1 ? 'es' : ''} (${desdeLabel} → ${hastaLabel}) — sin datos del período anterior para comparar`;
+        pushAlerta(desc, 'warn');
+    }
+}
+
+// ── Extracción Costo HH $/HH del mes — hoja 2-TC ──
+function extraerCostoHH(wb) {
+    const resultado = { ok: false, error: null, desnuda: null, vestida: null };
+    const ws = wb.Sheets['2 - TC'];
+    if (!ws) { resultado.error = 'Hoja "2 - TC" no encontrada'; return resultado; }
+
+    const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null });
+    let headerEncontrado = false;
+
+    for (let r = 40; r < Math.min(rows.length, 75); r++) {
+        const lblA = rows[r] && rows[r][0] ? String(rows[r][0]).trim() : '';
+
+        // Buscar header "Costo Prom. H de JORN del mes"
+        if (!headerEncontrado && lblA.includes('Costo Prom') && lblA.toLowerCase().includes('mes')) {
+            headerEncontrado = true;
+            LOG(`[CostoHH] Header encontrado en fila ${r}: "${lblA}"`);
+            continue;
+        }
+
+        if (headerEncontrado) {
+            // Segundo header = stop
+            if (lblA.includes('Costo Prom')) {
+                LOG(`[CostoHH] Stop en fila ${r} — segundo header`);
+                break;
+            }
+            const valC = parseFloat(rows[r][2]);
+            if (lblA.includes('Desnuda') && !isNaN(valC)) {
+                resultado.desnuda = valC;
+                LOG(`[CostoHH] Desnuda fila ${r}: ${valC}`);
+            }
+            if (lblA.includes('Vestida') && !isNaN(valC)) {
+                resultado.vestida = valC;
+                LOG(`[CostoHH] Vestida fila ${r}: ${valC}`);
+            }
+        }
+    }
+
+    if (resultado.desnuda === null && resultado.vestida === null) {
+        resultado.error = 'No se encontraron datos de Costo HH en hoja 2-TC';
+        return resultado;
+    }
+    resultado.ok = true;
+    return resultado;
+}
+
+// ── Render bloque Costo HH ──
+function renderCostoHH(hhAct, hhAnt) {
+    const body = document.getElementById('costohh-body');
+
+    if (!hhAct.ok) {
+        body.innerHTML = `<div class="costohh-nodata">⚠ ${hhAct.error || 'Sin información'}</div>`;
+        return;
+    }
+
+    // Formatter $/HH sin decimales con miles
+    const fmtHH = v => v != null ? '$ ' + Math.round(v).toLocaleString('es-AR') : '—';
+
+    const filas = [
+        { label: 'HH Desnuda', act: hhAct.desnuda, ant: hhAnt?.ok ? hhAnt.desnuda : null, key: 'desnuda' },
+        { label: 'HH Vestida', act: hhAct.vestida, ant: hhAnt?.ok ? hhAnt.vestida : null, key: 'vestida' },
+    ];
+
+    let rowsHTML = '';
+    filas.forEach(f => {
+        const dMonto = (f.ant != null && f.act != null) ? f.act - f.ant : null;
+        const dPct   = (f.ant != null && f.ant !== 0 && f.act != null) ? (f.act - f.ant) / f.ant * 100 : null;
+
+        // Color Δ% según umbrales costoHH
+        let dPctHTML = '—';
+        if (dPct !== null) {
+            const abs = Math.abs(dPct);
+            const cls = abs >= umbrales.costoHH.alerta ? 'sem-bad' : abs >= umbrales.costoHH.aten ? 'sem-warn' : 'sem-ok';
+            const signo = dPct >= 0 ? '+' : '';
+            dPctHTML = `<span class="sem ${cls}">${signo}${dPct.toLocaleString('es-AR',{minimumFractionDigits:1,maximumFractionDigits:1})}%</span>`;
+        }
+
+        const dMontoStr = dMonto !== null
+            ? `<span style="color:${dMonto > 0 ? '#b91c1c' : dMonto < 0 ? '#15803d' : '#64748b'};font-weight:700">${dMonto >= 0 ? '+' : ''}${Math.round(dMonto).toLocaleString('es-AR')}</span>`
+            : '—';
+
+        rowsHTML += `<tr>
+            <td>${f.label}</td>
+            <td>${f.ant != null ? fmtHH(f.ant) : '—'}</td>
+            <td style="font-weight:900">${fmtHH(f.act)}</td>
+            <td>${dMontoStr}</td>
+            <td>${dPctHTML}</td>
+        </tr>`;
+
+        // Destacados — umbrales
+        if (dPct !== null) {
+            const abs = Math.abs(dPct);
+            const signo = dPct >= 0 ? '+' : '';
+            const label = f.key === 'desnuda' ? 'Desnuda' : 'Vestida';
+            if (abs >= umbrales.costoHH.alerta) {
+                pushBad(`Costo HH ${label} varió ${signo}${dPct.toLocaleString('es-AR',{minimumFractionDigits:1,maximumFractionDigits:1})}% respecto al período anterior`);
+            } else if (abs >= umbrales.costoHH.aten) {
+                pushWarn(`Costo HH ${label} varió ${signo}${dPct.toLocaleString('es-AR',{minimumFractionDigits:1,maximumFractionDigits:1})}% respecto al período anterior`);
+            } else if (dPct === 0) {
+                pushWarn(`Sin cambio en Costo HH ${label} respecto al período anterior`);
+            }
+        } else if (hhAnt && hhAnt.ok && f.act != null && f.ant != null && f.act === f.ant) {
+            pushWarn(`Sin cambio en Costo HH ${f.key === 'desnuda' ? 'Desnuda' : 'Vestida'}`);
+        }
+    });
+
+    body.innerHTML = `<div class="overflow-x-auto">
+        <table class="costohh-table">
+            <thead><tr>
+                <th style="text-align:left;min-width:120px">Concepto</th>
+                <th>Anterior</th>
+                <th>Actual</th>
+                <th>Δ $/HH</th>
+                <th>Δ %</th>
+            </tr></thead>
+            <tbody>${rowsHTML}</tbody>
+        </table>
+    </div>`;
+}
+
+// ── Render ──
+function renderReporte(ant, act) {
+    ultimoAnt = ant; ultimoAct = act; // guardar para re-render por umbrales
+    alertasGlobales = [];
+    // Cabecera
+    document.getElementById('rpt-proyecto').textContent = act.proyecto||act.codigoObra||'—';
+    document.getElementById('rpt-per-ant').textContent  = `Per. ${ant.periodoLabel}`;
+    document.getElementById('rpt-mes-ant').textContent  = `Mes ${ant.mesActual} de ${ant.mesTotal}`;
+    document.getElementById('rpt-per-act').textContent  = `Per. ${act.periodoLabel}`;
+    document.getElementById('rpt-mes-act').textContent  = `Mes ${act.mesActual} de ${act.mesTotal}`;
+
+    const mof = act.margenOferta!=null?fmt1(act.margenOferta*100)+'%':'—';
+    document.getElementById('rpt-margen-oferta').textContent = mof;
+    const mofCambio = ant.margenOferta!=null&&act.margenOferta!=null&&ant.margenOferta!==act.margenOferta;
+    document.getElementById('rpt-margen-oferta-alerta').classList.toggle('hidden',!mofCambio);
+    if (mofCambio) pushAlerta(`Margen de Oferta cambió: ${fmt1(ant.margenOferta*100)}% → ${fmt1(act.margenOferta*100)}%`,'bad');
+
+    const mrF=act.margenRealF, mrFant=ant.margenRealF;
+    document.getElementById('rpt-margen-real').textContent = mrF!=null?fmt1(mrF)+'%':'—';
+    const dMr=delta(mrFant,mrF);
+    const semMr=document.getElementById('rpt-margen-real-sem');
+    if(dMr!==null){semMr.textContent=(dMr>=0?'+':'')+fmt1(dMr)+'pp';semMr.className='sem '+(dMr>=0?'sem-ok':'sem-bad');}
+
+    const avAnt=ant.avanceCertif, avAct=act.avanceCertif;
+    document.getElementById('rpt-avance').textContent = avAct!=null?fmt1(avAct*100)+'%':'—';
+    const dAv=delta(avAnt,avAct);
+    const semAv=document.getElementById('rpt-avance-sem');
+    if(dAv!==null){semAv.textContent=(dAv>=0?'+':'')+fmt1(dAv*100)+'pp';semAv.className='sem '+(dAv>=0?'sem-ok':'sem-bad');}
+
+    // AEC
+    document.getElementById('aec-ant').textContent = ant.aecCont!=null?fmt1(ant.aecCont*100)+'%':'—';
+    document.getElementById('aec-act').textContent = act.aecCont!=null?fmt1(act.aecCont*100)+'%':'—';
+    const aecBadge=document.getElementById('aec-badge');
+    if(ant.aecCont!=null&&act.aecCont!=null){
+        const cambio=Math.abs(act.aecCont-ant.aecCont)>0.001;
+        const absAct=Math.abs(act.aecCont*100);
+        const tipo=absAct>umbrales.aec.alerta?'bad':absAct>umbrales.aec.aten?'warn':'ok';
+        if(cambio) pushAlerta(`AEC/CONT varió: ${fmt1(ant.aecCont*100)}% → ${fmt1(act.aecCont*100)}%`,tipo==='bad'?'bad':'warn');
+        aecBadge.innerHTML=`<span class="sem sem-${tipo==='bad'?'bad':tipo==='warn'?'warn':'ok'}">${fmt1(act.aecCont*100)}%</span>`;
+    }
+
+    // Tablas
+    renderTablaVenta(ant,act);
+    renderTablaCostos(ant,act);
+    renderTablaMargen(ant,act);
+    renderTablaAvance(ant,act);
+    renderTablaHH(ant,act);
+    renderTablaResumen(ant,act);
+    renderKPIs(ant,act);
+
+    // ── Faltante — extraer de wbAct y wbAnt ──
+    const faltanteAct = extraerFaltante(wbAct);
+    const faltanteAnt = (wbAnt) ? extraerFaltante(wbAnt) : null;
+
+    // ── Costo HH — extraer de wbAct y wbAnt ──
+    const costoHHAct = extraerCostoHH(wbAct);
+    const costoHHAnt = wbAnt ? extraerCostoHH(wbAnt) : null;
+    // Destacados favorables
+    const dVF=delta(ant.ventaAjustada?.F,act.ventaAjustada?.F);
+    const dCF=delta(ant.totalCosto?.F,act.totalCosto?.F);
+    const dMF=delta(ant.pctContrib?.F,act.pctContrib?.F);
+    const hhTA=act.hh.find(h=>h.label.toLowerCase().includes('total'));
+    const hhTAnt=ant.hh.find(h=>h.label.toLowerCase().includes('total'));
+    const dHF=delta(hhTAnt?.estTotal,hhTA?.estTotal);
+    const avTA=act.avanceFisico.find(a=>a.label.toLowerCase().includes('total'));
+    const avTAnt=ant.avanceFisico.find(a=>a.label.toLowerCase().includes('total'));
+    const dAvF=delta(avTAnt?.val,avTA?.val);
+    if(dCF!==null&&dCF<0) pushOk(`Costo Total bajó ${fmtMM(Math.abs(dCF))} — favorable`);
+    if(dVF!==null&&dVF>0) pushOk(`Venta Total aumentó ${fmtMM(dVF)}`);
+    if(dMF!==null&&dMF>0) pushOk(`Margen Total Proyecto mejoró ${fmt1(dMF)}pp → ${act.pctContrib?.F!=null?fmt1(act.pctContrib.F)+'%':''}`);
+    if(dHF!==null&&dHF<0) pushOk(`HH Est. Total bajaron ${fmt0(Math.abs(dHF))} HH — favorable`);
+    if(dAvF!==null&&dAvF>0) pushOk(`Avance físico avanzó ${fmt1(dAvF*100)}pp → ${avTA?fmt1(avTA.val*100)+'%':''}`);
+
+    // Renderizar faltante (puede pushear a alertasGlobales)
+    renderFaltante(faltanteAct, faltanteAnt, act.mesActual, act.mesTotal, ant.mesActual, ant.mesTotal);
+
+    // Renderizar Costo HH (puede pushear a alertasGlobales)
+    renderCostoHH(costoHHAct, costoHHAnt);
+
+    // Destacados del período
+    renderDestacados(alertasGlobales);
+
+    document.getElementById('reporte').classList.remove('hidden');
+    document.getElementById('btn-bar').classList.remove('hidden');
+    document.getElementById('zona-carga').classList.add('hidden');
+    rubrosVisible=false;
+    document.getElementById('btn-rubros').textContent='▶ Ver rubros';
+}
+
+// ── TABLA VENTA (solo deltas) ──
+function renderTablaVenta(ant,act) {
+    const el=document.getElementById('tabla-venta');
+    const dC=delta(ant.ventaAjustada.C,act.ventaAjustada.C);
+    const dD=delta(ant.ventaAjustada.D,act.ventaAjustada.D);
+    const dF=delta(ant.ventaAjustada.F,act.ventaAjustada.F);
+    if(dF!==null){const pct=ant.ventaAjustada.F?Math.abs(dF/ant.ventaAjustada.F*100):0;if(pct>umbrales.venta.alerta)pushAlerta(`Venta Ajustada (F) ${dF>0?'aumentó':'bajó'} ${fmtMM(Math.abs(dF))} (${fmt1(pct)}%)`,dF>0?'ok':'bad');}
+    el.innerHTML=`<thead><tr>
+        <th style="text-align:left;min-width:180px">Concepto</th>
+        <th>Δ Acumulado</th><th>Δ Faltante Estimado</th><th>Δ Total Proyecto</th><th>Estado</th>
+    </tr></thead><tbody><tr class="fila-total">
+        <td style="text-align:left;font-weight:900">Total</td>
+        <td>${dC!==null?semDelta(dC,'venta',true):'—'}</td>
+        <td>${dD!==null?semNeu(dD):'—'}</td>
+        <td>${dF!==null?semDelta(dF,'venta',true):'—'}</td>
+        <td>${badgeEstado(dF,'venta',true)}</td>
+    </tr></tbody>`;
+}
+
+// ── TABLA COSTOS (rubros colapsables) ──
+function renderTablaCostos(ant,act) {
+    const el=document.getElementById('tabla-costos');
+    // alerta total
+    const dFtot=delta(ant.totalCosto.F,act.totalCosto.F);
+    if(dFtot!==null){const pct=ant.totalCosto.F?Math.abs(dFtot/ant.totalCosto.F*100):0;if(pct>umbrales.costo.alerta)pushAlerta(`TOTAL COSTO (F) ${dFtot>0?'aumentó':'bajó'} ${fmtMM(Math.abs(dFtot))} (${fmt1(pct)}%)`,dFtot>0?'bad':'ok');}
+
+    let rubros='';
+    act.rubrosCosto.forEach(ra=>{
+        const co=ant.rubrosCosto.find(rb=>rb.label.toUpperCase().substring(0,6)===ra.label.toUpperCase().substring(0,6))||{C:null,D:null,F:null};
+        const dC=delta(co.C,ra.C),dD=delta(co.D,ra.D),dF=delta(co.F,ra.F);
+        rubros+=`<tr class="fila-rubro rubro-row hidden-row">
+            <td style="text-align:left;padding-left:24px;color:#475569">${ra.label}</td>
+            <td>${dC!==null?semDelta(dC,'costo',false):'—'}</td>
+            <td>${dD!==null?semNeu(dD):'—'}</td>
+            <td>${dF!==null?semDelta(dF,'costo',false):'—'}</td>
+            <td>${dF!==null?semDelta(dF,'costo',false):'—'}</td>
+        </tr>`;
+    });
+
+    const dC=delta(ant.totalCosto.C,act.totalCosto.C);
+    const dD=delta(ant.totalCosto.D,act.totalCosto.D);
+    const dF=delta(ant.totalCosto.F,act.totalCosto.F);
+    el.innerHTML=`<thead><tr>
+        <th style="text-align:left;min-width:200px">Concepto</th>
+        <th>Δ Acumulado</th><th>Δ Faltante Estimado</th><th>Δ Total Proyecto</th><th>Estado</th>
+    </tr></thead><tbody>${rubros}<tr class="fila-total">
+        <td style="text-align:left;font-weight:900">Total</td>
+        <td>${dC!==null?semDelta(dC,'costo',false):'—'}</td>
+        <td>${dD!==null?semNeu(dD):'—'}</td>
+        <td>${dF!==null?semDelta(dF,'costo',false):'—'}</td>
+        <td>${badgeEstado(dF,'costo',false)}</td>
+    </tr></tbody>`;
+}
+
+// ── TABLA MARGEN ──
+function renderTablaMargen(ant,act) {
+    const el=document.getElementById('tabla-margen');
+    const dC=delta(ant.pctContrib.C,act.pctContrib.C);
+    const dD=delta(ant.pctContrib.D,act.pctContrib.D);
+    const dF=delta(ant.pctContrib.F,act.pctContrib.F);
+    if(dD!==null&&dD<0) pushAlerta(`% Contribución Faltante (D) empeoró ${fmt1(Math.abs(dD))}pp`,'bad');
+    if(dF!==null&&Math.abs(dF)>umbrales.margen.alerta) pushAlerta(`% Margen Total Proyecto ${dF>0?'mejoró':'cayó'} ${fmt1(Math.abs(dF))}pp`,dF>0?'ok':'bad');
+    const semMg=d=>d===null?'—':`<span class="sem ${d>0?'sem-ok':Math.abs(d)>umbrales.margen.alerta?'sem-bad':'sem-warn'}">${d>=0?'+':''}${fmt1(d)}pp</span>`;
+    el.innerHTML=`<thead><tr>
+        <th style="text-align:left;min-width:200px">Concepto</th>
+        <th>Δ Acumulado</th><th>Δ Faltante Estimado</th><th>Δ Total Proyecto</th><th>Estado</th>
+    </tr></thead><tbody><tr class="fila-total">
+        <td style="text-align:left;font-weight:900">% Contribución</td>
+        <td>${semMg(dC)}</td><td>${semMg(dD)}</td><td>${semMg(dF)}</td><td>${badgeEstado(dF,'margen',true)}</td>
+    </tr></tbody>`;
+}
+
+// ── TABLA AVANCE ──
+function renderTablaAvance(ant,act) {
+    const el=document.getElementById('tabla-avance');
+    if(!act.avanceFisico.length){
+        el.innerHTML='<tbody><tr><td style="text-align:center;padding:20px;color:#94a3b8;font-size:11px" colspan="4">Sin datos de avance físico</td></tr></tbody>';
+        return;
+    }
+    let rows='';
+    act.avanceFisico.forEach(av=>{
+        const antAv=ant.avanceFisico.find(a=>a.label.toLowerCase().substring(0,5)===av.label.toLowerCase().substring(0,5));
+        const antVal=antAv?antAv.val:null;
+        const dv=delta(antVal,av.val);
+        const retroceso=dv!==null&&dv<0;
+        const esTotal=av.label.toLowerCase().includes('total');
+        if(retroceso) pushAlerta(`Retroceso en avance: ${av.label} bajó ${fmt1(Math.abs(dv)*100)}pp`,'bad');
+        rows+=`<tr class="${esTotal?'fila-total':''}">
+            <td style="text-align:left;font-weight:${esTotal?900:600}">${av.label}</td>
+            <td style="color:#64748b">${antVal!==null?fmt1(antVal*100)+'%':'—'}</td>
+            <td style="font-weight:700">${fmt1(av.val*100)}%</td>
+            <td>${dv!==null?`<span class="sem ${retroceso?'sem-bad':'sem-ok'}">${retroceso?'⬇':'✓'} ${(dv>=0?'+':'')+fmt1(dv*100)}pp</span>`:'<span class="sem sem-neu">—</span>'}</td>
+        </tr>`;
+    });
+    el.innerHTML=`<thead><tr>
+        <th style="text-align:left;min-width:150px">Disciplina</th>
+        <th>Anterior</th><th>Actual</th><th>Estado</th>
+    </tr></thead><tbody>${rows}</tbody>`;
+}
+
+// ── TABLA HH ──
+function renderTablaHH(ant,act) {
+    const el=document.getElementById('tabla-hh');
+    if(!act.hh.length){
+        el.innerHTML='<tbody><tr><td style="text-align:center;padding:20px;color:#94a3b8;font-size:11px" colspan="4">Sin datos de HH</td></tr></tbody>';
+        return;
+    }
+    let rows='';
+    act.hh.forEach(hAct=>{
+        const hAnt=ant.hh.find(h=>h.label.toLowerCase().substring(0,5)===hAct.label.toLowerCase().substring(0,5));
+        const estAnt=hAnt?.estTotal||null, estAct=hAct.estTotal;
+        const dEst=delta(estAnt,estAct);
+        const esTotal=hAct.label.toLowerCase().includes('total');
+        if(esTotal&&dEst!==null&&dEst>0){const pct=estAnt>0?dEst/estAnt*100:0;pushAlerta(`HH Est. Total aumentaron ${fmt0(dEst)} HH (+${fmt1(pct)}%)`,pct>umbrales.hh.alerta?'bad':'warn');}
+        // HH: baja=bueno, sube=malo
+        const semHH=d=>{if(d===null)return'—';const pct=estAnt>0?Math.abs(d/estAnt*100):0;const cls=d<0?'sem-ok':pct>umbrales.hh.alerta?'sem-bad':pct>umbrales.hh.aten?'sem-warn':'sem-bad';return`<span class="sem ${cls}">${d>=0?'+':''}${fmt0(d)}</span>`;};
+        rows+=`<tr class="${esTotal?'fila-total':''}">
+            <td style="text-align:left;font-weight:${esTotal?900:600}">${hAct.label}</td>
+            <td style="color:#64748b">${estAnt!=null?fmt0(estAnt):'—'}</td>
+            <td style="font-weight:700">${estAct!=null?fmt0(estAct):'—'}</td>
+            <td>${semHH(dEst)}</td>
+        </tr>`;
+    });
+    el.innerHTML=`<thead><tr>
+        <th style="text-align:left;min-width:150px">Concepto</th>
+        <th>Est. Ant.</th><th>Est. Act.</th><th>Δ Est. Total</th>
+    </tr></thead><tbody>${rows}</tbody>`;
+}
+
+// ── TABLA RESUMEN FINAL (todas las columnas) ──
+function renderTablaResumen(ant,act) {
+    const el=document.getElementById('tabla-resumen');
+    const fmtV=v=>v!=null?fmtMM(v):'—';
+    const fmtP=v=>v!=null?fmt1(v)+'%':'—';
+
+    const thGrupo=(txt,span)=>`<th class="th-res-grupo" colspan="${span}">${txt}</th>`;
+    const thGrupos=`<tr>${thGrupo('',1)}${thGrupo('ACUMULADO',3)}${thGrupo('FALTANTE',3)}${thGrupo('TOTAL PROYECTO',3)}</tr>`;
+    const thCols=`<tr>
+        <th style="text-align:left;min-width:200px">Concepto</th>
+        <th>Anterior</th><th>Actual</th><th>Δ</th>
+        <th>Anterior</th><th>Actual</th><th>Δ</th>
+        <th>Anterior</th><th>Actual</th><th>Δ</th>
+    </tr>`;
+
+    const filaRes=(label,antV,actV,esPct,esPosMejora,clsExtra='')=>{
+        const dC=delta(antV.C,actV.C),dD=delta(antV.D,actV.D),dF=delta(antV.F,actV.F);
+        const fmt=esPct?fmtP:fmtV;
+        const semR=(d,esPos)=>{if(d===null)return'—';const cls=esPos?(d>0?'sem-ok':d<0?'sem-bad':'sem-neu'):(d<0?'sem-ok':d>0?'sem-bad':'sem-neu');const lbl=esPct?(d>=0?'+':'')+fmt1(d)+'pp':(d>=0?'+':'')+fmtMM(d);return`<span class="sem ${cls}">${lbl}</span>`;};
+        return`<tr class="${clsExtra}">
+            <td style="text-align:left">${label}</td>
+            <td>${fmt(antV.C)}</td><td>${fmt(actV.C)}</td><td>${semR(dC,esPosMejora)}</td>
+            <td>${fmt(antV.D)}</td><td>${fmt(actV.D)}</td><td>${semR(dD,esPosMejora)}</td>
+            <td>${fmt(antV.F)}</td><td>${fmt(actV.F)}</td><td>${semR(dF,esPosMejora)}</td>
+        </tr>`;
+    };
+
+    // Rubros de costo en resumen
+    let rubrosResHTML='';
+    act.rubrosCosto.forEach(ra=>{
+        const co=ant.rubrosCosto.find(rb=>rb.label.toUpperCase().substring(0,6)===ra.label.toUpperCase().substring(0,6))||{C:null,D:null,F:null};
+        rubrosResHTML+=filaRes(ra.label,co,ra,false,false,'res-rubro');
+    });
+
+    el.innerHTML=`<thead>${thGrupos}${thCols}</thead><tbody>
+        ${filaRes('VENTA AJUSTADA',ant.ventaAjustada,act.ventaAjustada,false,true,'res-total')}
+        ${filaRes('TOTAL COSTO',ant.totalCosto,act.totalCosto,false,false,'res-total')}
+        ${rubrosResHTML}
+        ${filaRes('% CONTRIBUCIÓN',ant.pctContrib,act.pctContrib,true,true,'res-contrib')}
+    </tbody>`;
+}
+
+// ── Destacados del período ──
+function renderDestacados(alertas) {
+    const panel = document.getElementById('panel-destacados');
+    const favs = alertas.filter(a => a.tipo === 'ok');
+    const ates = alertas.filter(a => a.tipo === 'warn');
+    const ales = alertas.filter(a => a.tipo === 'bad');
+
+    const iconoItem = (msg, tipo) => {
+        const m = msg.toLowerCase();
+        if (m.includes('bajó')||m.includes('bajaron')||m.includes('empeoró')||m.includes('cayó')||m.includes('retroceso')) return 'ti-trending-down';
+        if (m.includes('aumentó')||m.includes('aumentaron')||m.includes('mejoró')||m.includes('avanzó')) return 'ti-trending-up';
+        if (m.includes('varió')) return 'ti-minus';
+        if (tipo==='warn') return 'ti-alert-triangle';
+        if (tipo==='bad')  return 'ti-alert-circle';
+        return 'ti-circle-check';
+    };
+
+    const col = (tipo, clsMod, iconHd, titulo, items) => {
+        const itemsHTML = items.length === 0
+            ? `<div class="dest-empty">Sin novedades</div>`
+            : items.map(a => `<div class="dest-item"><i class="ti ${iconoItem(a.msg, tipo)}" aria-hidden="true"></i><span>${a.msg}</span></div>`).join('');
+        return `<div class="dest-col ${clsMod}">
+            <div class="dest-header">
+                <div class="dest-icon-wrap"><i class="ti ${iconHd}" aria-hidden="true"></i></div>
+                <div class="dest-meta">
+                    <span class="dest-title">${titulo}</span>
+                    <span class="dest-badge">${items.length} ${items.length===1?'item':'items'}</span>
+                </div>
+            </div>
+            <div class="dest-items">${itemsHTML}</div>
+        </div>`;
+    };
+
+    panel.innerHTML =
+        col('ok',   'dest-fav', 'ti-circle-check',  'Favorable', favs) +
+        col('warn', 'dest-ate', 'ti-alert-triangle', 'Atención',  ates) +
+        col('bad',  'dest-ale', 'ti-alert-circle',   'Alertas',   ales);
+}
+
+// ── KPIs ──
+function renderKPIs(ant,act) {
+    const dV=delta(ant.ventaAjustada?.F,act.ventaAjustada?.F);
+    const dC=delta(ant.totalCosto?.F,act.totalCosto?.F);
+    const dM=delta(ant.pctContrib?.F,act.pctContrib?.F);
+    const hhA=act.hh.find(h=>h.label.toLowerCase().includes('total'));
+    const hhAnt=ant.hh.find(h=>h.label.toLowerCase().includes('total'));
+    const dH=delta(hhAnt?.estTotal,hhA?.estTotal);
+    const kpiColor=(d,umb,esPos)=>{if(d===null)return'kpi-neutral';if(esPos)return d>0?'kpi-good':(Math.abs(d)>umb.alerta?'kpi-bad':'kpi-warn');return d<0?'kpi-good':(Math.abs(d)>umb.alerta?'kpi-bad':'kpi-warn');};
+    const interp=(d,esPos,labels)=>d===null?'':(esPos?(d>0?labels[0]:labels[1]):(d<0?labels[0]:labels[1]));
+    // Avance físico Total Proyecto para KPI
+    const avKpiAct=act.avanceFisico.find(a=>a.label.toLowerCase().includes('total'));
+    const avKpiAnt=ant.avanceFisico.find(a=>a.label.toLowerCase().includes('total'));
+    const dAv=delta(avKpiAnt?.val,avKpiAct?.val);
+    const avKpiVal=avKpiAct?fmt1(avKpiAct.val*100)+'%':'—';
+    const avKpiInterp=dAv===null?'':(dAv>=0?'↑ Avanzó':'⬇ Retroceso');
+    const avKpiColor=dAv===null?'kpi-neutral':dAv>=0?'kpi-good':'kpi-bad';
+    const kpis=[
+        {label:'Avance de Obra',val:`${act.mesActual} / ${act.mesTotal}`,sub:`+${act.mesActual-ant.mesActual} mes`,interp:'',color:'kpi-info'},
+        {label:'Venta Tot. Estim. Δ',val:dV!=null?fmtMM(dV):'—',sub:act.ventaAjustada?.F!=null?fmtMM(act.ventaAjustada.F):'',interp:interp(dV,true,['↑ Aumentó','↓ Bajó']),color:kpiColor(dV,umbrales.venta,true)},
+        {label:'Costo Tot. Estim. Δ',val:dC!=null?fmtMM(dC):'—',sub:act.totalCosto?.F!=null?fmtMM(act.totalCosto.F):'',interp:interp(dC,false,['↓ Bajó — favorable','↑ Aumentó']),color:kpiColor(dC,umbrales.costo,false)},
+        {label:'% Margen Estim. Δ',val:dM!=null?(dM>=0?'+':'')+fmt1(dM)+'pp':'—',sub:act.pctContrib?.F!=null?fmt1(act.pctContrib.F)+'%':'',interp:interp(dM,true,['↑ Mejoró','↓ Cayó']),color:kpiColor(dM,umbrales.margen,true)},
+        {label:'HH Est. Total Δ',val:dH!=null?(dH>=0?'+':'')+fmt0(dH):'—',sub:hhA?.estTotal!=null?fmt0(hhA.estTotal)+' HH':'',interp:interp(dH,false,['↓ Bajaron — favorable','↑ Aumentaron']),color:kpiColor(dH,umbrales.hh,false)},
+        {label:'Avance Físico',val:avKpiVal,sub:dAv!==null?(dAv>=0?'+':'')+fmt1(dAv*100)+'pp vs anterior':'',interp:avKpiInterp,color:avKpiColor},
+    ];
+    document.getElementById('kpi-row').innerHTML=kpis.map(k=>`
+        <div class="kpi-card ${k.color}">
+            <div class="kpi-label">${k.label}</div>
+            <div class="kpi-val">${k.val}</div>
+            ${k.sub?`<div class="kpi-sub">${k.sub}</div>`:''}
+            ${k.interp?`<div class="kpi-interp">${k.interp}</div>`:''}
+        </div>`).join('');
+}
+
+// ── Badge Estado interpretativo ──
+function badgeEstado(d, grupo, esPosMejora){
+    if(d===null) return '<span class="sem sem-neu">—</span>';
+    const umb=umbrales[grupo]||umbrales.costo;
+    let cls,txt;
+    const absD=Math.abs(d);
+    if(esPosMejora){
+        if(d>0){ cls='sem-ok'; txt='✓ Favorable'; }
+        else if(absD>umb.alerta){ cls='sem-bad'; txt='✗ Desfavorable'; }
+        else { cls='sem-warn'; txt='⚠ Atención'; }
+    } else {
+        if(d<0){ cls='sem-ok'; txt='✓ Favorable'; }
+        else if(absD>umb.alerta){ cls='sem-bad'; txt='✗ Desfavorable'; }
+        else { cls='sem-warn'; txt='⚠ Atención'; }
+    }
+    return `<span class="sem ${cls}">${txt}</span>`;
+}
+
+// ── Semáforos helper ──
+function semDelta(d,grupo,esPosMejora){
+    if(d===null)return'—';
+    const umb=umbrales[grupo]||umbrales.costo;
+    let cls;
+    if(esPosMejora) cls=d>0?'sem-ok':(Math.abs(d)>umb.alerta?'sem-bad':'sem-warn');
+    else cls=d<0?'sem-ok':(Math.abs(d)>umb.alerta?'sem-bad':'sem-warn');
+    return`<span class="sem ${cls}">${d>=0?'+':''}${fmtMM(d)}</span>`;
+}
+function semNeu(d){if(d===null)return'—';const cls=d<0?'sem-ok':d>0?'sem-warn':'sem-neu';return`<span class="sem ${cls}">${d>=0?'+':''}${fmtMM(d)}</span>`;}
+
+// ── Toggle resumen ──
+let resumenVisible = false;
+function toggleResumen(){
+    resumenVisible = !resumenVisible;
+    document.getElementById('resumen-body').style.display = resumenVisible ? 'block' : 'none';
+    document.getElementById('btn-resumen').textContent = resumenVisible ? '◀ Ocultar resumen' : '▶ Ver resumen completo';
+}
+
+// ── Toggle rubros ──
+function toggleRubros(){
+    rubrosVisible=!rubrosVisible;
+    document.querySelectorAll('.rubro-row').forEach(r=>r.classList.toggle('hidden-row',!rubrosVisible));
+    document.getElementById('btn-rubros').textContent=rubrosVisible?'◀ Ocultar rubros':'▶ Ver rubros';
+}
+
+// ── Alertas ──
+function pushAlerta(msg,tipo){
+    alertasGlobales.push({msg,tipo});
+}
+function pushOk(msg){pushAlerta(msg,'ok');}
+function pushWarn(msg){pushAlerta(msg,'warn');}
+function pushBad(msg){pushAlerta(msg,'bad');}
+
+// ── Umbrales modal ──
+const GRUPOS_U=[
+    {key:'venta',label:'Venta ($M)',unit:'M'},{key:'costo',label:'Costos ($M)',unit:'M'},
+    {key:'margen',label:'% Margen',unit:'pp'},{key:'hh',label:'HH Est. Total',unit:'%'},
+    {key:'aec',label:'AEC/CONT',unit:'%'},{key:'costoHH',label:'Costo HH (Δ%)',unit:'%'},
+];
+function abrirUmbrales(){
+    document.getElementById('umbrales-content').innerHTML=GRUPOS_U.map(g=>`
+        <div>
+            <p class="text-xs font-black text-slate-700 mb-2">${g.label}</p>
+            <div class="space-y-2">
+                <div class="flex items-center gap-3"><span class="text-[9px] w-12 text-amber-600 font-bold">Atenc.</span>
+                    <input type="range" class="uslider flex-1" min="0" max="20" step="0.5" value="${umbrales[g.key].aten}"
+                        oninput="umbrales['${g.key}'].aten=+this.value;this.nextElementSibling.textContent=this.value+'${g.unit}'">
+                    <span class="text-xs font-black w-14 text-right">${umbrales[g.key].aten}${g.unit}</span>
+                </div>
+                <div class="flex items-center gap-3"><span class="text-[9px] w-12 text-red-600 font-bold">Alerta</span>
+                    <input type="range" class="uslider flex-1" min="0" max="30" step="0.5" value="${umbrales[g.key].alerta}"
+                        oninput="umbrales['${g.key}'].alerta=+this.value;this.nextElementSibling.textContent=this.value+'${g.unit}'">
+                    <span class="text-xs font-black w-14 text-right">${umbrales[g.key].alerta}${g.unit}</span>
+                </div>
+            </div>
+        </div>${g!==GRUPOS_U[GRUPOS_U.length-1]?'<hr class="border-slate-100">':''}`).join('');
+    document.getElementById('modal-umbrales').classList.add('active');
+}
+function cerrarUmbrales(){
+    document.getElementById('modal-umbrales').classList.remove('active');
+    // Re-render si hay reporte visible y datos cargados
+    if (ultimoAnt && ultimoAct && !document.getElementById('reporte').classList.contains('hidden')) {
+        LOG('Re-render por cambio de umbrales');
+        renderReporte(ultimoAnt, ultimoAct);
+    }
+}
+function resetUmbrales(){umbrales=JSON.parse(JSON.stringify(UMBRALES_DEF));abrirUmbrales();}
+document.getElementById('modal-umbrales').addEventListener('click',e=>{if(e.target===e.currentTarget)cerrarUmbrales();});
+
+// ── UI ──
+function mostrarAlerta(msg){document.getElementById('alerta-val-msg').textContent=msg;document.getElementById('alerta-val').classList.remove('hidden');}
+function ocultarAlerta(){document.getElementById('alerta-val').classList.add('hidden');}
+function resetTodo(){
+    wbAnt=wbAct=null;datosAnt=datosAct=null;
+    ['ant','act'].forEach(s=>{
+        document.getElementById('drop-'+s).className='drop-zone p-8 text-center relative';
+        document.getElementById('drop-'+s+'-icon').classList.remove('hidden');
+        document.getElementById('drop-'+s+'-info').classList.add('hidden');
+        document.getElementById('file-'+s).value='';
+    });
+    document.getElementById('reporte').classList.add('hidden');
+    document.getElementById('btn-bar').classList.add('hidden');
+    document.getElementById('zona-carga').classList.remove('hidden');
+    document.getElementById('btn-generar').classList.add('hidden');
+    document.getElementById('btn-generar').classList.remove('flex');
+    ocultarAlerta();
+}
+
+// ── Formatters ──
+const fmt1  = v=>v!=null?v.toLocaleString('es-AR',{minimumFractionDigits:1,maximumFractionDigits:1}):'—';
+const fmt0  = v=>v!=null?Math.round(v).toLocaleString('es-AR'):'—';
+const fmtMM = v=>v!=null?'$'+v.toLocaleString('es-AR',{minimumFractionDigits:1,maximumFractionDigits:1})+' M':'—';
+const delta = (a,b)=>(a==null||b==null)?null:b-a;
+
+LOG('ComparaICG v4.0 inicializado.');
+    document.getElementById('icg-app-name').textContent = 'ICG Compara';
+</script>
+</body>
+</html>
