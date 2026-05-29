@@ -162,6 +162,47 @@
         #spinner { display:none; position:fixed; inset:0; background:rgba(15,23,42,.55); z-index:300; align-items:center; justify-content:center; flex-direction:column; gap:14px; }
         #spinner.active { display:flex; }
 
+        /* Bloque R&O */
+        .bloque-ryo .bloque-header { border-color: #f97316; background: #fff7ed; }
+        .ryo-body { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; padding: 18px 20px; }
+        .ryo-section-title { font-size: 9px; font-weight: 900; text-transform: uppercase; letter-spacing: .08em; color: #94a3b8; margin: 0 0 10px; }
+        .ryo-grupo-label { font-size: 9px; font-weight: 900; text-transform: uppercase; letter-spacing: .07em; margin: 10px 0 5px; }
+        .ryo-grupo-label.riesgo { color: #b91c1c; }
+        .ryo-grupo-label.opor   { color: #15803d; }
+        .ryo-noesta-item { font-size: 12px; color: #0f172a; padding: 5px 0; border-bottom: 0.5px solid #f1f5f9; }
+        .ryo-noesta-item:last-child { border-bottom: none; }
+        .ryo-nodata { padding: 20px; font-size: 11px; color: #94a3b8; font-style: italic; }
+        /* Tabla nuevos */
+        .ryo-tabla { width: 100%; border-collapse: collapse; }
+        .ryo-tabla th { background: #1e293b; color: #94a3b8; font-size: 9px; font-weight: 900; text-transform: uppercase; letter-spacing: .07em; padding: 7px 12px; white-space: nowrap; text-align: right; }
+        .ryo-tabla th:first-child { text-align: left; }
+        .ryo-tabla th.th-origen { text-align: left; min-width: 180px; }
+        .ryo-tabla td { padding: 8px 12px; font-size: 11px; border-bottom: 1px solid #f1f5f9; white-space: nowrap; text-align: right; }
+        .ryo-tabla td:first-child { text-align: left; }
+        .ryo-tabla tr:last-child td { border-bottom: none; }
+        .ryo-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+        .ryo-dot.riesgo { background: #ef4444; }
+        .ryo-dot.opor   { background: #10b981; }
+        .ryo-pond-ml { font-weight: 900; color: #0f172a; }
+        /* Sin cambios badge */
+        .ryo-sin-cambios { padding: 14px 20px; font-size: 11px; color: #94a3b8; font-style: italic; }
+        /* Recuadro escenarios header */
+        .ryo-escenarios-box { display: flex; align-items: stretch; border: 1px solid #e2e8f0; border-radius: 10px; overflow: hidden; background: #f8fafc; }
+        .ryo-esc-item { display: flex; flex-direction: column; align-items: center; padding: 6px 14px; gap: 3px; }
+        .ryo-esc-item + .ryo-esc-item { border-left: 1px solid #e2e8f0; }
+        .ryo-esc-label { font-size: 8px; font-weight: 900; text-transform: uppercase; letter-spacing: .08em; }
+        .ryo-esc-label.peor     { color: #dc2626; }
+        .ryo-esc-label.probable { color: #0ea5e9; }
+        .ryo-esc-label.optimista{ color: #059669; }
+        .ryo-esc-val { font-size: 14px; font-weight: 900; line-height: 1; }
+        .ryo-esc-val.esc-ok  { color: #059669; }
+        .ryo-esc-val.esc-bad { color: #dc2626; }
+        .ryo-esc-val.esc-neu { color: #64748b; }
+        /* Btn expandir */
+        .btn-ryo-expand { font-size: 9px; font-weight: 900; text-transform: uppercase; letter-spacing: .06em; padding: 4px 12px; border-radius: 99px; border: 1px solid #e2e8f0; background: #f8fafc; color: #64748b; cursor: pointer; transition: all .15s; margin: 8px 12px 12px; display: block; }
+        .btn-ryo-expand:hover { background: #1e293b; color: #fff; border-color: #1e293b; }
+        .ryo-row-hidden { display: none !important; }
+
         @media print {
             @page { size: A4 landscape; margin: 10mm; }
             header, #zona-carga, #btn-bar { display:none !important; }
@@ -228,7 +269,7 @@
             <div>
                 <div class="flex items-baseline gap-3">
                     <h1 class="text-lg font-black tracking-tight">ComparaICG</h1>
-                    <span class="text-[9px] text-slate-500 font-mono bg-slate-800 px-2 py-0.5 rounded">v4.0</span>
+                    <span class="text-[9px] text-slate-500 font-mono bg-slate-800 px-2 py-0.5 rounded">v5.2</span>
                 </div>
                 <p class="text-[10px] text-blue-400 font-mono tracking-widest uppercase">Comparador Tablero de Control · 2-TC</p>
             </div>
@@ -360,6 +401,12 @@
         <!-- KPIs -->
         <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4" id="kpi-row"></div>
 
+        <!-- Destacados del período — PRIMERO -->
+        <div class="card p-5" id="bloque-destacados">
+            <p class="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-4">Destacados del período</p>
+            <div id="panel-destacados" class="dest-grid"></div>
+        </div>
+
         <!-- Faltante + Costo HH — grid 2 columnas -->
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
 
@@ -388,10 +435,16 @@
 
         </div><!-- fin grid faltante+costohh -->
 
-        <!-- Alertas -->
-        <div class="card p-5">
-            <p class="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-4">Destacados del período</p>
-            <div id="panel-destacados" class="dest-grid"></div>
+        <!-- R&O — Riesgos y Oportunidades -->
+        <div class="bloque bloque-ryo" id="bloque-ryo">
+            <div class="bloque-header">
+                <div>
+                    <h3>R&amp;O — Riesgos y Oportunidades</h3>
+                    <div class="bloque-sub">Registro · Variación del período</div>
+                </div>
+                <div id="ryo-header-right"></div>
+            </div>
+            <div id="ryo-body"></div>
         </div>
 
         <!-- ══ PRIMERA PARTE: DELTAS ══ -->
@@ -509,8 +562,8 @@
 </div>
 
 <script>
-const LOG = (...a) => console.log('[comparaICG v4.0]', ...a);
-const ERR = (...a) => console.error('[comparaICG v4.0]', ...a);
+const LOG = (...a) => console.log('[comparaICG v5.2]', ...a);
+const ERR = (...a) => console.error('[comparaICG v5.2]', ...a);
 
 let wbAnt=null, wbAct=null, datosAnt=null, datosAct=null;
 let rubrosVisible = false;
@@ -807,6 +860,222 @@ function intentarComparar() {
 
     document.getElementById('spinner').classList.add('active');
     setTimeout(()=>{ renderReporte(dAnt,dAct); document.getElementById('spinner').classList.remove('active'); },60);
+}
+
+// ── Extracción hoja R&O ──
+function extraerRyo(wb) {
+    const resultado = { ok: false, error: null, items: [], escenarios: null };
+    const sheetName = wb.SheetNames.find(n => n.includes('R&O'));
+    if (!sheetName) { resultado.error = 'Hoja R&O no encontrada'; return resultado; }
+
+    const rows = XLSX.utils.sheet_to_json(wb.Sheets[sheetName], { header: 1, defval: null });
+    for (let r = 9; r < Math.min(rows.length, 300); r++) {
+        const row = rows[r];
+        if (!row) continue;
+        const num   = row[0];
+        const clase = row[1];
+        if (!(typeof num === 'number' || (typeof num === 'string' && !isNaN(parseFloat(num)))) ) continue;
+        if (clase !== 'Riesgo' && clase !== 'Oportunidad') continue;
+        const status = row[21] ? String(row[21]).trim() : '';
+        resultado.items.push({
+            num:    typeof num === 'number' ? num : parseFloat(num),
+            clase,
+            origen: row[2] ? String(row[2]).trim() : '—',
+            tipo:   row[3] ? String(row[3]).trim() : '',
+            grado:  row[5] ? String(row[5]).trim() : '',
+            impacto: row[7] ? String(row[7]).trim() : '',
+            pctWorst: row[12] != null ? parseFloat(row[12]) : null,
+            pctML:    row[15] != null ? parseFloat(row[15]) : null,
+            pctBest:  row[18] != null ? parseFloat(row[18]) : null,
+            status,
+        });
+    }
+
+    // Escenarios desde hoja 2-TC fila 38 cols F(5)/G(6)/H(7)
+    const ws2TC = wb.Sheets['2 - TC'];
+    if (ws2TC) {
+        const tcRows = XLSX.utils.sheet_to_json(ws2TC, { header: 1, defval: null });
+        const fila38 = tcRows[37] || []; // idx 37 = fila 38
+        const peor     = parseFloat(fila38[5]);
+        const probable = parseFloat(fila38[6]);
+        const optimista= parseFloat(fila38[7]);
+        if (!isNaN(peor) && !isNaN(probable) && !isNaN(optimista)) {
+            resultado.escenarios = { peor, probable, optimista };
+            LOG('[RyO] Escenarios 2-TC fila38:', resultado.escenarios);
+        }
+    }
+
+    resultado.ok = true;
+    LOG('[RyO] Hoja:', sheetName, '| Ítems totales:', resultado.items.length);
+    return resultado;
+}
+
+// ── Render bloque R&O ──
+function renderRyo(ryoAct, ryoAnt) {
+    const body  = document.getElementById('ryo-body');
+    const hdrR  = document.getElementById('ryo-header-right');
+
+    if (!ryoAct.ok) {
+        hdrR.innerHTML = '';
+        body.innerHTML = `<div class="ryo-nodata">⚠ ${ryoAct.error || 'Sin información'}</div>`;
+        return;
+    }
+
+    const vigAct = ryoAct.items.filter(i => i.status === 'Vigente');
+    const vigAnt = ryoAnt && ryoAnt.ok ? ryoAnt.items.filter(i => i.status === 'Vigente') : null;
+
+    // Header derecho — recuadro escenarios + conteo
+    const cntAnt = vigAnt ? vigAnt.length : '—';
+    const esc = ryoAct.escenarios;
+    const margenOferta = esc && ultimoAct ? ultimoAct.margenOferta : null;
+    let escHTML = '';
+    if (esc) {
+        const fmt1 = v => (v * 100).toLocaleString('es-AR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + '%';
+        const semCls = v => {
+            if (margenOferta == null) return 'esc-neu';
+            return v > margenOferta ? 'esc-ok' : v < margenOferta ? 'esc-bad' : 'esc-neu';
+        };
+        escHTML = `<div class="ryo-escenarios-box">
+            <div class="ryo-esc-item">
+                <span class="ryo-esc-label peor">Peor</span>
+                <span class="ryo-esc-val ${semCls(esc.peor)}">${fmt1(esc.peor)}</span>
+            </div>
+            <div class="ryo-esc-item">
+                <span class="ryo-esc-label probable">Probable</span>
+                <span class="ryo-esc-val ${semCls(esc.probable)}">${fmt1(esc.probable)}</span>
+            </div>
+            <div class="ryo-esc-item">
+                <span class="ryo-esc-label optimista">Optimista</span>
+                <span class="ryo-esc-val ${semCls(esc.optimista)}">${fmt1(esc.optimista)}</span>
+            </div>
+        </div>`;
+    }
+    hdrR.innerHTML = `<div style="display:flex;align-items:center;gap:12px">
+        ${escHTML}
+        <div style="text-align:right">
+            <div style="font-size:9px;font-weight:900;text-transform:uppercase;letter-spacing:.07em;color:#94a3b8;margin-bottom:4px">Ítems vigentes</div>
+            <div style="font-size:22px;font-weight:900;color:#0f172a;line-height:1">${cntAnt} → ${vigAct.length}</div>
+        </div>
+    </div>`;
+
+    // ── Nivel 1: ¿Cambió algo? ──
+    if (vigAnt) {
+        const sumaM_ant = vigAnt.reduce((s,i) => s + (i.pctWorst||0), 0);
+        const sumaP_ant = vigAnt.reduce((s,i) => s + (i.pctML   ||0), 0);
+        const sumaS_ant = vigAnt.reduce((s,i) => s + (i.pctBest ||0), 0);
+        const sumaM_act = vigAct.reduce((s,i) => s + (i.pctWorst||0), 0);
+        const sumaP_act = vigAct.reduce((s,i) => s + (i.pctML   ||0), 0);
+        const sumaS_act = vigAct.reduce((s,i) => s + (i.pctBest ||0), 0);
+
+        const igualCnt = vigAct.length === vigAnt.length;
+        const igualM   = Math.abs(sumaM_act - sumaM_ant) < 0.001;
+        const igualP   = Math.abs(sumaP_act - sumaP_ant) < 0.001;
+        const igualS   = Math.abs(sumaS_act - sumaS_ant) < 0.001;
+
+        if (igualCnt && igualM && igualP && igualS) {
+            body.innerHTML = `<div class="ryo-sin-cambios">✓ Sin cambios en R&O respecto al período anterior.</div>`;
+            pushAlerta('R&O sin cambios respecto al período anterior', 'warn', 'ryo');
+            LOG('[RyO] Sin cambios');
+            return;
+        }
+    }
+
+    // ── Nivel 2: ¿Qué cambió? ──
+    const numsAnt = vigAnt ? new Set(vigAnt.map(i => i.num)) : new Set();
+    const numsAct = new Set(vigAct.map(i => i.num));
+
+    const noEstan  = vigAnt ? vigAnt.filter(i => !numsAct.has(i.num)) : [];
+    const nuevos   = vigAct.filter(i => !numsAnt.has(i.num));
+    const sinCambio = vigAct.filter(i => numsAnt.has(i.num));
+
+    LOG('[RyO] Ya no están:', noEstan.length, '| Nuevos:', nuevos.length, '| Sin cambio:', sinCambio.length);
+
+    // Push a destacados
+    if (noEstan.length > 0 || nuevos.length > 0) {
+        const msg = `R&O: ${nuevos.length} nuevo${nuevos.length!==1?'s':''}, ${noEstan.length} cerrado${noEstan.length!==1?'s':''}`;
+        pushAlerta(msg, 'warn', 'ryo');
+    }
+
+    // ── HTML — dos columnas ──
+    const fmtPct = v => v != null && !isNaN(v) ? Math.round(v * 100) + '%' : '—';
+
+    // Columna izquierda: Ya no están
+    let htmlNoEstan = '';
+    if (noEstan.length === 0) {
+        htmlNoEstan = `<div class="ryo-nodata" style="padding:8px 0">Sin ítems cerrados.</div>`;
+    } else {
+        const riesgos = noEstan.filter(i => i.clase === 'Riesgo');
+        const opors   = noEstan.filter(i => i.clase === 'Oportunidad');
+        if (riesgos.length) {
+            htmlNoEstan += `<p class="ryo-grupo-label riesgo">Riesgos</p>`;
+            htmlNoEstan += riesgos.map(i => `<div class="ryo-noesta-item"><span style="color:#94a3b8;font-weight:900;margin-right:6px">#${Math.round(i.num)}</span>${i.origen}</div>`).join('');
+        }
+        if (opors.length) {
+            htmlNoEstan += `<p class="ryo-grupo-label opor" style="margin-top:${riesgos.length?'14px':'0'}">Oportunidades</p>`;
+            htmlNoEstan += opors.map(i => `<div class="ryo-noesta-item"><span style="color:#94a3b8;font-weight:900;margin-right:6px">#${Math.round(i.num)}</span>${i.origen}</div>`).join('');
+        }
+    }
+
+    // Columna derecha: Nuevos (tabla con expansión si >5)
+    let htmlNuevos = '';
+    if (nuevos.length === 0) {
+        htmlNuevos = `<div class="ryo-nodata" style="padding:8px 0">Sin ítems nuevos.</div>`;
+    } else {
+        const LIMITE = 5;
+        const filas = nuevos.map((i, idx) => {
+            const dotCls = i.clase === 'Riesgo' ? 'riesgo' : 'opor';
+            const hidden = idx >= LIMITE ? ' ryo-row-hidden' : '';
+            return `<tr class="${hidden}">
+                <td style="text-align:left">
+                    <span class="ryo-dot ${dotCls}" style="margin-right:6px;vertical-align:middle"></span>${i.origen}
+                </td>
+                <td>${fmtPct(i.pctWorst)}</td>
+                <td class="ryo-pond-ml">${fmtPct(i.pctML)}</td>
+                <td>${fmtPct(i.pctBest)}</td>
+            </tr>`;
+        }).join('');
+
+        const btnExpand = nuevos.length > LIMITE
+            ? `<button class="btn-ryo-expand" id="btn-ryo-expand" onclick="toggleRyoExpand()">▶ Ver todos (${nuevos.length})</button>`
+            : '';
+
+        htmlNuevos = `<div class="overflow-x-auto">
+            <table class="ryo-tabla">
+                <thead><tr>
+                    <th class="th-origen">Origen</th>
+                    <th>Peor</th>
+                    <th>Probable</th>
+                    <th>Optimista</th>
+                </tr></thead>
+                <tbody>${filas}</tbody>
+            </table>
+        </div>${btnExpand}`;
+    }
+
+    body.innerHTML = `<div class="ryo-body">
+        <div>
+            <p class="ryo-section-title">Ya no están</p>
+            ${htmlNoEstan}
+        </div>
+        <div>
+            <p class="ryo-section-title">Nuevos</p>
+            ${htmlNuevos}
+        </div>
+    </div>`;
+}
+
+let ryoExpanded = false;
+function toggleRyoExpand() {
+    ryoExpanded = !ryoExpanded;
+    document.querySelectorAll('#ryo-body .ryo-row-hidden, #ryo-body tr.ryo-row-hidden').forEach(r => r.classList.toggle('ryo-row-hidden', !ryoExpanded));
+    // Re-aplicar a filas que estaban ocultas
+    if (ryoExpanded) {
+        document.querySelectorAll('#ryo-body tbody tr').forEach(r => r.classList.remove('ryo-row-hidden'));
+    } else {
+        document.querySelectorAll('#ryo-body tbody tr').forEach((r,idx) => { if(idx>=5) r.classList.add('ryo-row-hidden'); });
+    }
+    const btn = document.getElementById('btn-ryo-expand');
+    if (btn) btn.textContent = ryoExpanded ? '◀ Compactar' : `▶ Ver todos`;
 }
 
 // ── Extracción hoja Económico — Costo Industrial Faltante ──
@@ -1214,6 +1483,13 @@ function renderReporte(ant, act) {
     // Renderizar Costo HH (puede pushear a alertasGlobales)
     renderCostoHH(costoHHAct, costoHHAnt);
 
+    // ── R&O — extraer de wbAct y wbAnt ──
+    const ryoAct = extraerRyo(wbAct);
+    const ryoAnt = wbAnt ? extraerRyo(wbAnt) : null;
+
+    // Renderizar R&O (puede pushear a alertasGlobales)
+    renderRyo(ryoAct, ryoAnt);
+
     // Destacados del período
     renderDestacados(alertasGlobales);
 
@@ -1402,10 +1678,23 @@ function renderDestacados(alertas) {
     const ates = alertas.filter(a => a.tipo === 'warn');
     const ales = alertas.filter(a => a.tipo === 'bad');
 
+    const ANCHOR_MAP = {
+        'ryo':      'bloque-ryo',
+        'faltante': 'bloque-faltante',
+        'costohh':  'bloque-costohh',
+    };
+
+    const scrollTo = (anchorId) => {
+        const el = document.getElementById(anchorId);
+        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    };
+
     const iconoItem = (msg, tipo) => {
         const m = msg.toLowerCase();
         if (m.includes('bajó')||m.includes('bajaron')||m.includes('empeoró')||m.includes('cayó')||m.includes('retroceso')) return 'ti-trending-down';
         if (m.includes('aumentó')||m.includes('aumentaron')||m.includes('mejoró')||m.includes('avanzó')) return 'ti-trending-up';
+        if (m.includes('r&o sin cambios')) return 'ti-shield-check';
+        if (m.includes('r&o:')) return 'ti-shield-exclamation';
         if (m.includes('varió')) return 'ti-minus';
         if (tipo==='warn') return 'ti-alert-triangle';
         if (tipo==='bad')  return 'ti-alert-circle';
@@ -1415,7 +1704,14 @@ function renderDestacados(alertas) {
     const col = (tipo, clsMod, iconHd, titulo, items) => {
         const itemsHTML = items.length === 0
             ? `<div class="dest-empty">Sin novedades</div>`
-            : items.map(a => `<div class="dest-item"><i class="ti ${iconoItem(a.msg, tipo)}" aria-hidden="true"></i><span>${a.msg}</span></div>`).join('');
+            : items.map(a => {
+                const anchorId = a.anchor ? ANCHOR_MAP[a.anchor] : null;
+                const inner = `<i class="ti ${iconoItem(a.msg, tipo)}" aria-hidden="true"></i><span>${a.msg}</span>`;
+                if (anchorId) {
+                    return `<div class="dest-item" style="cursor:pointer" onclick="document.getElementById('${anchorId}').scrollIntoView({behavior:'smooth',block:'start'})">${inner}<i class="ti ti-arrow-down" aria-hidden="true" style="margin-left:auto;opacity:.4;font-size:12px"></i></div>`;
+                }
+                return `<div class="dest-item"><i class="ti ${iconoItem(a.msg, tipo)}" aria-hidden="true"></i><span>${a.msg}</span></div>`;
+            }).join('');
         return `<div class="dest-col ${clsMod}">
             <div class="dest-header">
                 <div class="dest-icon-wrap"><i class="ti ${iconHd}" aria-hidden="true"></i></div>
@@ -1513,12 +1809,12 @@ function toggleRubros(){
 }
 
 // ── Alertas ──
-function pushAlerta(msg,tipo){
-    alertasGlobales.push({msg,tipo});
+function pushAlerta(msg, tipo, anchor) {
+    alertasGlobales.push({ msg, tipo, anchor: anchor || null });
 }
-function pushOk(msg){pushAlerta(msg,'ok');}
-function pushWarn(msg){pushAlerta(msg,'warn');}
-function pushBad(msg){pushAlerta(msg,'bad');}
+function pushOk(msg, anchor)   { pushAlerta(msg, 'ok',   anchor); }
+function pushWarn(msg, anchor) { pushAlerta(msg, 'warn', anchor); }
+function pushBad(msg, anchor)  { pushAlerta(msg, 'bad',  anchor); }
 
 // ── Umbrales modal ──
 const GRUPOS_U=[
@@ -1581,7 +1877,7 @@ const fmt0  = v=>v!=null?Math.round(v).toLocaleString('es-AR'):'—';
 const fmtMM = v=>v!=null?'$'+v.toLocaleString('es-AR',{minimumFractionDigits:1,maximumFractionDigits:1})+' M':'—';
 const delta = (a,b)=>(a==null||b==null)?null:b-a;
 
-LOG('ComparaICG v4.0 inicializado.');
+LOG('ComparaICG v5.2 inicializado.');
     document.getElementById('icg-app-name').textContent = 'ICG Compara';
 </script>
 </body>
