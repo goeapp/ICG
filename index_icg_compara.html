@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ComparaICG | Roggio CDG</title>
+    <title>Compara | Roggio CDG</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdn.tailwindcss.com/3.4.1"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;900&display=swap" rel="stylesheet">
@@ -188,7 +188,7 @@
         .ryo-sin-cambios { padding: 14px 20px; font-size: 11px; color: #94a3b8; font-style: italic; }
         /* Recuadro escenarios header */
         .ryo-escenarios-box { display: flex; align-items: stretch; border: 1px solid #e2e8f0; border-radius: 10px; overflow: hidden; background: #f8fafc; }
-        .ryo-esc-item { display: flex; flex-direction: column; align-items: center; padding: 6px 14px; gap: 3px; }
+        .ryo-esc-item { display: flex; flex-direction: column; align-items: center; justify-content: center; flex: 1; padding: 6px 10px; gap: 3px; text-align: center; }
         .ryo-esc-item + .ryo-esc-item { border-left: 1px solid #e2e8f0; }
         .ryo-esc-label { font-size: 8px; font-weight: 900; text-transform: uppercase; letter-spacing: .08em; }
         .ryo-esc-label.peor     { color: #dc2626; }
@@ -204,8 +204,8 @@
         .ryo-row-hidden { display: none !important; }
 
         @media print {
-            @page { size: A4 landscape; margin: 10mm; }
-            header, #zona-carga, #btn-bar { display:none !important; }
+            @page { size: A3 portrait; margin: 10mm; }
+            header, #icg-ecosystem-header, #zona-carga, #btn-bar { display:none !important; }
         }
     </style>
 </head>
@@ -268,8 +268,8 @@
             <div class="bg-blue-600 px-3 py-2 rounded-xl font-black text-xl shadow-lg shadow-blue-500/20">ICG</div>
             <div>
                 <div class="flex items-baseline gap-3">
-                    <h1 class="text-lg font-black tracking-tight">ComparaICG</h1>
-                    <span class="text-[9px] text-slate-500 font-mono bg-slate-800 px-2 py-0.5 rounded">v5.2</span>
+                    <h1 class="text-lg font-black tracking-tight">Compara</h1>
+                    <span class="text-[9px] text-slate-500 font-mono bg-slate-800 px-2 py-0.5 rounded">v5.5</span>
                 </div>
                 <p class="text-[10px] text-blue-400 font-mono tracking-widest uppercase">Comparador Tablero de Control · 2-TC</p>
             </div>
@@ -562,8 +562,8 @@
 </div>
 
 <script>
-const LOG = (...a) => console.log('[comparaICG v5.2]', ...a);
-const ERR = (...a) => console.error('[comparaICG v5.2]', ...a);
+const LOG = (...a) => console.log('[comparaICG v5.5]', ...a);
+const ERR = (...a) => console.error('[comparaICG v5.5]', ...a);
 
 let wbAnt=null, wbAct=null, datosAnt=null, datosAct=null;
 let rubrosVisible = false;
@@ -780,34 +780,42 @@ function extraerTC(wb, filename) {
 
     // AVANCE FÍSICO F41:H48
     // Labels pueden estar en col F (idx 5) via fórmula referencia, o en col A (idx 0)
-    // Valor Acum.Real en col G (idx 6)
-    // Si col F es numérico (serial fecha u otro), usar col A como fallback
-    LOG('--- Buscando Avance Físico (filas 36-56) ---');
-    for (let r=36; r<Math.min(rows.length,56); r++) {
-        const rawF = rows[r]&&rows[r][5]; // col F idx 5
-        const rawA = rows[r]&&rows[r][0]; // col A idx 0 fallback
-        LOG(`  Fila ${r}: colA=${JSON.stringify(rawA)} colF=${JSON.stringify(rawF)} colG=${rows[r]&&rows[r][6]}`);
-
-        // Determinar label: preferir col F si es string válido, sino col A
-        let label = null;
-        if (rawF && typeof rawF==='string' && rawF.trim().length>1) {
-            label = rawF.trim();
-        } else if (rawA && typeof rawA==='string' && rawA.trim().length>1) {
-            label = rawA.trim();
+    // Búsqueda por label "Avances Físicos" en col F, corte en "Total Proyecto" inclusive
+    LOG('--- Buscando Avance Físico por label ---');
+    let avanceStart = -1;
+    for (let r=0; r<rows.length; r++) {
+        const rawF = rows[r]&&rows[r][5];
+        if (rawF && typeof rawF==='string' && rawF.trim().toLowerCase().includes('avances f')) {
+            avanceStart = r + 1;
+            LOG(`  Header "Avances Físicos" encontrado en fila ${r}, datos desde ${avanceStart}`);
+            break;
         }
-        if (!label) continue;
-
-        // Ignorar headers
-        const lblLow = label.toLowerCase();
-        if (lblLow.includes('avance')||lblLow.includes('acum')||lblLow.includes('físic')||lblLow.includes('fisic')||lblLow.includes('ppto')) continue;
-
-        // Valor en col G (idx 6)
-        const vG = parseFloat(rows[r][6]);
-        if (isNaN(vG)||vG===0) { LOG(`  → Sin valor en G, omitida`); continue; }
-
-        const val = vG > 1 ? vG/100 : vG;
-        d.avanceFisico.push({label, val});
-        LOG(`  → AVANCE [${label}]: G=${vG} → val=${val}`);
+    }
+    if (avanceStart >= 0) {
+        for (let r=avanceStart; r<rows.length; r++) {
+            const rawF = rows[r]&&rows[r][5];
+            if (!rawF || typeof rawF!=='string' || rawF.trim().length<=1) continue;
+            const label = rawF.trim();
+            const lblLow = label.toLowerCase();
+            // Ignorar sub-headers
+            if (lblLow.includes('acum')||lblLow.includes('ppto')) continue;
+            // Valor en col G (idx 6)
+            const vG = parseFloat(rows[r][6]);
+            const val = isNaN(vG) ? null : (vG > 1 ? vG/100 : vG);
+            if (val !== null) {
+                d.avanceFisico.push({label, val});
+                LOG(`  → AVANCE [${label}]: G=${vG} → val=${val}`);
+            } else {
+                LOG(`  → Sin valor en G [${label}], omitida`);
+            }
+            // Corte: después de procesar "Total Proyecto"
+            if (lblLow.includes('total')) {
+                LOG(`  Corte en "Total Proyecto" fila ${r}`);
+                break;
+            }
+        }
+    } else {
+        LOG('  Header "Avances Físicos" no encontrado en col F');
     }
     LOG('Avance físico encontrado:', d.avanceFisico.length, 'filas');
 
@@ -1507,8 +1515,8 @@ function renderTablaVenta(ant,act) {
     const dD=delta(ant.ventaAjustada.D,act.ventaAjustada.D);
     const dF=delta(ant.ventaAjustada.F,act.ventaAjustada.F);
     if(dF!==null){const pct=ant.ventaAjustada.F?Math.abs(dF/ant.ventaAjustada.F*100):0;if(pct>umbrales.venta.alerta)pushAlerta(`Venta Ajustada (F) ${dF>0?'aumentó':'bajó'} ${fmtMM(Math.abs(dF))} (${fmt1(pct)}%)`,dF>0?'ok':'bad');}
-    el.innerHTML=`<thead><tr>
-        <th style="text-align:left;min-width:180px">Concepto</th>
+    el.innerHTML=`<colgroup><col style="width:40%"><col style="width:15%"><col style="width:15%"><col style="width:15%"><col style="width:15%"></colgroup><thead><tr>
+        <th style="text-align:left">Concepto</th>
         <th>Δ Acumulado</th><th>Δ Faltante Estimado</th><th>Δ Total Proyecto</th><th>Estado</th>
     </tr></thead><tbody><tr class="fila-total">
         <td style="text-align:left;font-weight:900">Total</td>
@@ -1542,8 +1550,8 @@ function renderTablaCostos(ant,act) {
     const dC=delta(ant.totalCosto.C,act.totalCosto.C);
     const dD=delta(ant.totalCosto.D,act.totalCosto.D);
     const dF=delta(ant.totalCosto.F,act.totalCosto.F);
-    el.innerHTML=`<thead><tr>
-        <th style="text-align:left;min-width:200px">Concepto</th>
+    el.innerHTML=`<colgroup><col style="width:40%"><col style="width:15%"><col style="width:15%"><col style="width:15%"><col style="width:15%"></colgroup><thead><tr>
+        <th style="text-align:left">Concepto</th>
         <th>Δ Acumulado</th><th>Δ Faltante Estimado</th><th>Δ Total Proyecto</th><th>Estado</th>
     </tr></thead><tbody>${rubros}<tr class="fila-total">
         <td style="text-align:left;font-weight:900">Total</td>
@@ -1563,8 +1571,8 @@ function renderTablaMargen(ant,act) {
     if(dD!==null&&dD<0) pushAlerta(`% Contribución Faltante (D) empeoró ${fmt1(Math.abs(dD))}pp`,'bad');
     if(dF!==null&&Math.abs(dF)>umbrales.margen.alerta) pushAlerta(`% Margen Total Proyecto ${dF>0?'mejoró':'cayó'} ${fmt1(Math.abs(dF))}pp`,dF>0?'ok':'bad');
     const semMg=d=>d===null?'—':`<span class="sem ${d>0?'sem-ok':Math.abs(d)>umbrales.margen.alerta?'sem-bad':'sem-warn'}">${d>=0?'+':''}${fmt1(d)}pp</span>`;
-    el.innerHTML=`<thead><tr>
-        <th style="text-align:left;min-width:200px">Concepto</th>
+    el.innerHTML=`<colgroup><col style="width:40%"><col style="width:15%"><col style="width:15%"><col style="width:15%"><col style="width:15%"></colgroup><thead><tr>
+        <th style="text-align:left">Concepto</th>
         <th>Δ Acumulado</th><th>Δ Faltante Estimado</th><th>Δ Total Proyecto</th><th>Estado</th>
     </tr></thead><tbody><tr class="fila-total">
         <td style="text-align:left;font-weight:900">% Contribución</td>
@@ -1587,6 +1595,7 @@ function renderTablaAvance(ant,act) {
         const retroceso=dv!==null&&dv<0;
         const esTotal=av.label.toLowerCase().includes('total');
         if(retroceso) pushAlerta(`Retroceso en avance: ${av.label} bajó ${fmt1(Math.abs(dv)*100)}pp`,'bad');
+        if(esTotal && av.val===0) pushWarn('Avance Físico Total Proyecto - REVISAR', 'avance');
         rows+=`<tr class="${esTotal?'fila-total':''}">
             <td style="text-align:left;font-weight:${esTotal?900:600}">${av.label}</td>
             <td style="color:#64748b">${antVal!==null?fmt1(antVal*100)+'%':'—'}</td>
@@ -1877,7 +1886,7 @@ const fmt0  = v=>v!=null?Math.round(v).toLocaleString('es-AR'):'—';
 const fmtMM = v=>v!=null?'$'+v.toLocaleString('es-AR',{minimumFractionDigits:1,maximumFractionDigits:1})+' M':'—';
 const delta = (a,b)=>(a==null||b==null)?null:b-a;
 
-LOG('ComparaICG v5.2 inicializado.');
+LOG('ComparaICG v5.5 inicializado.');
     document.getElementById('icg-app-name').textContent = 'ICG Compara';
 </script>
 </body>
