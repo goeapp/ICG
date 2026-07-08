@@ -1,0 +1,1312 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ICG EvoTen v2.08 | 1316 - Acueducto Gran Tulum</title>
+<script src="https://cdn.tailwindcss.com/3.4.1"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@300;400;600;700;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css">
+<style>
+* { box-sizing: border-box; }
+body { font-family: 'Inter', sans-serif; background: #eef1f6; color: #0f172a; }
+.num, .kpi-val, .app-title, .bloque-hdr h3 { font-family: 'Space Grotesk', 'Inter', sans-serif; }
+@keyframes fadeSlideUp { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration:.001ms !important; transition-duration:.001ms !important; } }
+
+/* ── Ecosystem header ── */
+#eco-header {
+  background:#fff; border-bottom:1px solid #e2e8f0;
+  padding:0 20px; height:36px;
+  display:flex; align-items:center; gap:8px;
+  position:sticky; top:0; z-index:9999;
+}
+.eco-dot { width:8px;height:8px;border-radius:50%;background:#f97316;display:inline-block; }
+.eco-label { font-size:10px;font-weight:900;letter-spacing:.10em;text-transform:uppercase;color:#94a3b8; }
+.eco-sep { font-size:10px;color:#cbd5e1;margin:0 2px; }
+.eco-app { font-size:10px;font-weight:900;letter-spacing:.08em;text-transform:uppercase;color:#0f172a; }
+
+/* ── App header ── */
+#app-header {
+  background:#0f172a; color:#fff;
+  padding:14px 32px;
+  display:flex; align-items:center; justify-content:space-between;
+  position:sticky; top:36px; z-index:100;
+  box-shadow:0 4px 20px rgba(0,0,0,.3);
+  flex-wrap:wrap; gap:10px;
+}
+.app-badge { background:#3b82f6; padding:6px 12px; border-radius:10px; font-size:13px; font-weight:900; }
+.app-title { font-size:16px; font-weight:900; }
+.app-sub { font-size:10px; color:#64748b; margin-top:2px; }
+.btn-hdr {
+  font-size:9px; font-weight:900; text-transform:uppercase; letter-spacing:.07em;
+  padding:6px 14px; border-radius:99px; border:1px solid #334155;
+  background:#1e293b; color:#94a3b8; cursor:pointer; transition:all .15s;
+  display:flex; align-items:center; gap:6px;
+}
+.btn-hdr:hover { background:#3b82f6; color:#fff; border-color:#3b82f6; }
+.btn-hdr.btn-export { border-color:#10b981; color:#10b981; }
+.btn-hdr.btn-export:hover { background:#10b981; color:#fff; }
+.btn-hdr.btn-load { border-color:#f59e0b; color:#f59e0b; }
+.btn-hdr.btn-load:hover { background:#f59e0b; color:#fff; }
+.btn-hdr.btn-json { border-color:#8b5cf6; color:#8b5cf6; }
+.btn-hdr.btn-json:hover { background:#8b5cf6; color:#fff; }
+input[type=file].hidden-input { display:none; }
+
+/* ── Cards & bloques ── */
+.card { background:#fff; border-radius:16px; border:1px solid #e6eaf0; }
+.bloque {
+  background:#fff; border-radius:16px; border:1px solid #e6eaf0; overflow:hidden;
+  box-shadow:0 1px 2px rgba(15,23,42,.04);
+  animation: fadeSlideUp .35s ease both;
+  transition: box-shadow .2s ease, transform .2s ease;
+}
+.bloque:hover { box-shadow:0 6px 20px rgba(15,23,42,.08); transform:translateY(-1px); }
+.bloque-hdr {
+  display:flex; align-items:center; justify-content:space-between;
+  padding:14px 20px; border-bottom:3px solid transparent;
+}
+.bloque-hdr h3 { font-size:12.5px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:#0f172a; }
+.bloque-hdr .bsub { font-size:9px; font-weight:700; color:#94a3b8; text-transform:uppercase; letter-spacing:.05em; margin-top:2px; }
+.b-margen  .bloque-hdr { border-color:#f59e0b; background:#fffbeb; }
+.b-result  .bloque-hdr { border-color:#3b82f6; background:#eff6ff; }
+.b-avance  .bloque-hdr { border-color:#8b5cf6; background:#f5f3ff; }
+.b-costos  .bloque-hdr { border-color:#ef4444; background:#fef2f2; }
+.b-dotacion .bloque-hdr { border-color:#06b6d4; background:#ecfeff; }
+.b-hh      .bloque-hdr { border-color:#10b981; background:#f0fdf4; }
+.b-control .bloque-hdr { border-color:#f97316; background:#fff7ed; }
+.b-periodos .bloque-hdr { border-color:#64748b; background:#f8fafc; }
+
+/* ── KPI cards ── */
+.kpi {
+  border-radius:16px; padding:16px 18px; color:#fff;
+  box-shadow:0 4px 14px rgba(15,23,42,.14);
+  animation: fadeSlideUp .35s ease both;
+  transition: transform .18s ease, box-shadow .18s ease;
+}
+.kpi:hover { transform:translateY(-2px); box-shadow:0 10px 24px rgba(15,23,42,.20); }
+.kpi .kpi-lbl { font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.09em;opacity:.78;margin-bottom:6px; }
+.kpi .kpi-val { font-size:25px;font-weight:700;line-height:1; letter-spacing:-.01em; }
+.kpi .kpi-sub { font-size:10px;font-weight:600;opacity:.72;margin-top:4px; }
+.kpi .kpi-arrow { font-size:11px;font-weight:700;margin-top:6px;padding:2px 8px;background:rgba(255,255,255,.2);border-radius:99px;display:inline-block; }
+.kpi-amber  { background:linear-gradient(145deg,#e08c1c,#b45309); }
+.kpi-red    { background:linear-gradient(145deg,#e14b4b,#b91c1c); }
+.kpi-blue   { background:linear-gradient(145deg,#3b7bef,#1d4ed8); }
+.kpi-green  { background:linear-gradient(145deg,#12a874,#047857); }
+.kpi-slate  { background:linear-gradient(145deg,#3f4c63,#1e293b); }
+.kpi-purple { background:linear-gradient(145deg,#8b5cf6,#6d28d9); }
+.kpi-cyan   { background:linear-gradient(145deg,#17a2c4,#0e7490); }
+.kpi-orange { background:linear-gradient(145deg,#f2792f,#c2410c); }
+
+/* ── Alerta de cambio (control values) ── */
+.alert-badge {
+  display:inline-flex; align-items:center; gap:4px;
+  background:rgba(255,255,255,.22); padding:3px 9px; border-radius:99px;
+  font-size:9px; font-weight:900; text-transform:uppercase; letter-spacing:.06em;
+  margin-top:6px;
+}
+.alert-badge.ok { background:rgba(255,255,255,.12); }
+
+/* ── Tabla períodos ── */
+.tabla-per { width:100%;border-collapse:collapse; }
+.tabla-per th { background:#1e293b;color:#94a3b8;font-size:9px;font-weight:900;text-transform:uppercase;letter-spacing:.07em;padding:9px 14px;white-space:nowrap;text-align:left; }
+.tabla-per td { padding:9px 14px;font-size:11px;border-bottom:1px solid #f1f5f9;white-space:nowrap; }
+.tabla-per tr:last-child td { border-bottom:none; }
+.tabla-per tr:hover td { background:#f8fafc; }
+.pill { display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:99px;font-size:9px;font-weight:700; }
+.pill-ok   { background:#dcfce7;color:#15803d; }
+.pill-warn { background:#fef9c3;color:#a16207; }
+.pill-bad  { background:#fee2e2;color:#b91c1c; }
+.pill-neu  { background:#f1f5f9;color:#64748b; }
+
+/* ── Spinner / Toast ── */
+#spinner { display:none;position:fixed;inset:0;background:rgba(15,23,42,.6);z-index:500;align-items:center;justify-content:center;flex-direction:column;gap:14px; }
+#spinner.active { display:flex; }
+.spinner-ring { width:48px;height:48px;border:4px solid rgba(255,255,255,.25);border-top-color:#3b82f6;border-radius:50%;animation:spin 0.8s linear infinite; }
+@keyframes spin { to { transform:rotate(360deg); } }
+#toast { position:fixed;bottom:24px;right:24px;z-index:600;transition:opacity .3s;opacity:0;pointer-events:none; }
+#toast.show { opacity:1; }
+.toast-inner { background:#1e293b;color:#fff;padding:10px 18px;border-radius:12px;font-size:12px;font-weight:700;box-shadow:0 8px 24px rgba(0,0,0,.3);max-width:420px; }
+.toast-inner.warn { background:#92400e; }
+.toast-inner.err  { background:#991b1b; }
+
+/* ── Modal Períodos ── */
+#modal-periodos {
+  display:none; position:fixed; inset:0; z-index:800;
+  background:rgba(15,23,42,.55); backdrop-filter:blur(3px);
+  align-items:flex-start; justify-content:center;
+}
+#modal-periodos.open { display:flex; }
+#modal-periodos-inner {
+  background:#fff; border-radius:18px; margin:60px 20px 0;
+  max-width:1100px; width:100%; max-height:80vh; overflow:auto;
+  box-shadow:0 24px 60px rgba(0,0,0,.4);
+  animation: fadeSlideUp .25s ease both;
+}
+#modal-periodos-inner .bloque-hdr { position:sticky; top:0; background:#fff; z-index:2; }
+.modal-close-btn {
+  background:none; border:none; color:#94a3b8; cursor:pointer;
+  font-size:20px; line-height:1; padding:4px 8px; border-radius:8px;
+  transition:background .15s, color .15s;
+}
+.modal-close-btn:hover { background:#f1f5f9; color:#0f172a; }
+
+/* ── Panel de Alertas (colapsable) ── */
+.alert-panel {
+  background:#fff; border-radius:16px; border:1px solid #e6eaf0;
+  margin-bottom:18px; overflow:hidden;
+  box-shadow:0 1px 2px rgba(15,23,42,.04);
+}
+.alert-panel-hdr {
+  display:flex; align-items:center; justify-content:space-between;
+  padding:13px 20px; cursor:pointer; user-select:none;
+  background:#fff; transition:background .15s;
+}
+.alert-panel-hdr:hover { background:#f8fafc; }
+.alert-panel-hdr.has-alerts { background:#fff7ed; }
+.alert-count-badge {
+  min-width:22px; height:22px; padding:0 7px; border-radius:99px;
+  background:#cbd5e1; color:#fff; font-size:11px; font-weight:800;
+  display:inline-flex; align-items:center; justify-content:center;
+}
+.alert-count-badge.has-alerts { background:#f97316; }
+.alert-panel-body { max-height:0; overflow:hidden; transition:max-height .25s ease; }
+.alert-panel-body.open { max-height:400px; overflow-y:auto; }
+.alert-item {
+  display:flex; align-items:flex-start; gap:10px;
+  padding:9px 20px; font-size:11px; border-top:1px solid #f1f5f9;
+}
+.alert-item i { color:#f97316; margin-top:1px; }
+.alert-item b { font-weight:700; }
+.chev { transition:transform .2s ease; }
+.chev.open { transform:rotate(180deg); }
+
+/* ── Timeline 12 meses ── */
+.timeline-bloque { padding:8px 16px 6px; }
+.timeline-wrap { padding:0; }
+.timeline-row { display:flex; gap:3px; }
+.timeline-cell {
+  flex:1; height:26px; border-radius:5px; background:#e2e8f0;
+  transition:background .2s ease, transform .12s ease;
+  position:relative;
+  display:flex; align-items:center; justify-content:center;
+}
+.timeline-cell.con-dato { background:linear-gradient(145deg,#60a5fa,#2563eb); } /* v2.05: azul neutro-informativo, no verde de "estado ok" */
+.timeline-cell.mes-actual { box-shadow:0 0 0 2px #0f172a inset; }
+.timeline-cell:hover { transform:scaleY(1.08); }
+.timeline-cell span { font-size:7.5px; font-weight:800; color:#0f172a; text-transform:uppercase; letter-spacing:.02em; pointer-events:none; }
+.timeline-hdr-mini { display:flex; align-items:baseline; gap:7px; padding:6px 2px 0; }
+.timeline-hdr-mini h3 { font-size:9px; font-weight:800; text-transform:uppercase; letter-spacing:.05em; color:#64748b; }
+.timeline-hdr-mini .bsub-mini { font-size:8px; font-weight:600; color:#b0b9c6; text-transform:uppercase; letter-spacing:.04em; }
+
+/* ── Grid layout ── */
+.grid-2col { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+.grid-3col { display:grid; grid-template-columns:repeat(3,1fr); gap:16px; }
+.grid-4col { display:grid; grid-template-columns:repeat(4,1fr); gap:16px; }
+.grid-5col { display:grid; grid-template-columns:repeat(5,1fr); gap:14px; }
+.grid-6col { display:grid; grid-template-columns:repeat(6,1fr); gap:14px; }
+@media (max-width:1100px){ .grid-5col,.grid-6col{ grid-template-columns:repeat(3,1fr); } .grid-4col{ grid-template-columns:repeat(2,1fr); } }
+@media (max-width:640px){ .grid-5col,.grid-6col,.grid-4col,.grid-2col{ grid-template-columns:1fr; } }
+.chart-wrap-md { position:relative; height:220px; }
+.chart-wrap-sm { position:relative; height:160px; }
+
+/* ── Empty state ── */
+#empty-state { text-align:center; padding:60px 20px; color:#94a3b8; }
+#empty-state i { font-size:40px; opacity:.4; }
+
+main { max-width:1400px; margin:0 auto; padding:24px 20px 60px; }
+
+/* ============================================================
+   COMPONENTE PORTABLE — "Panel de Notas/Conclusiones"
+   Integrado desde notas_panel_demo_v1.2.html (06-jul-2026).
+   Adaptado a los tokens de EvoTen: Space Grotesk/Inter ya compartidos,
+   border-radius 16px (igual que .bloque), sombras iguales a .bloque.
+   Los 4 colores semáforo NO se adaptan — son conceptuales, no decorativos.
+   ============================================================ */
+.notas-panel { background:#fff; border:1px solid #e6eaf0; border-radius:16px; overflow:hidden; box-shadow:0 1px 2px rgba(15,23,42,.04); }
+.notas-panel-hdr {
+  display:flex; align-items:center; justify-content:space-between;
+  padding:14px 20px; cursor:pointer; user-select:none; transition:background .15s;
+}
+.notas-panel-hdr:hover { background:#f8fafc; }
+.notas-panel-hdr-left { display:flex; align-items:center; gap:10px; }
+.notas-panel-hdr h2 { font-family:'Space Grotesk',sans-serif; font-size:12.5px; margin:0; text-transform:uppercase; letter-spacing:.06em; color:#0f172a; }
+.notas-badge {
+  min-width:22px; height:22px; padding:0 7px; border-radius:99px;
+  background:#cbd5e1; color:#fff; font-size:11px; font-weight:800;
+  display:inline-flex; align-items:center; justify-content:center;
+}
+.notas-badge.con-notas { background:#3b82f6; }
+.notas-chev { transition:transform .2s ease; color:#94a3b8; }
+.notas-chev.open { transform:rotate(180deg); }
+.notas-panel-body { max-height:0; overflow:hidden; transition:max-height .3s ease; }
+.notas-panel-body.open { max-height:900px; overflow-y:auto; }
+.notas-panel-content { padding:16px 20px 20px; }
+
+.notas-toolbar { display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; flex-wrap:wrap; gap:10px; }
+.notas-toolbar-info { font-size:11px; color:#64748b; font-weight:600; }
+.notas-btn {
+  font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:.05em;
+  padding:8px 16px; border-radius:99px; border:1px solid #0f172a;
+  background:#0f172a; color:#fff; cursor:pointer; transition:all .15s;
+}
+.notas-btn:hover:not(:disabled) { background:#3b82f6; border-color:#3b82f6; }
+.notas-btn:disabled { opacity:.35; cursor:not-allowed; }
+
+.notas-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(240px,1fr)); gap:16px; }
+
+.notas-card {
+  border-radius:16px; padding:14px 14px 12px; position:relative;
+  box-shadow:0 2px 8px rgba(15,23,42,.08); min-height:180px;
+  display:flex; flex-direction:column; gap:8px;
+  transition:transform .15s ease, box-shadow .15s ease;
+  animation:notaIn .25s ease both;
+}
+.notas-card:hover { transform:translateY(-2px); box-shadow:0 8px 20px rgba(15,23,42,.14); }
+@keyframes notaIn { from{opacity:0;transform:scale(.96);} to{opacity:1;transform:scale(1);} }
+@media (prefers-reduced-motion: reduce) { .notas-card { animation-duration:.001ms; } }
+
+/* Semáforo + neutro celeste — NO tocar, es conceptual */
+.notas-card.color-rojo    { background:#fee2e2; }
+.notas-card.color-amarillo{ background:#fef9c3; }
+.notas-card.color-verde   { background:#dcfce7; }
+.notas-card.color-celeste { background:#e0f2fe; }
+
+.notas-close {
+  position:absolute; top:8px; right:8px; width:22px; height:22px; border-radius:50%;
+  border:none; background:rgba(15,23,42,.08); color:#0f172a; font-size:13px; font-weight:700;
+  cursor:pointer; display:flex; align-items:center; justify-content:center;
+  opacity:0; transition:opacity .15s, background .15s;
+}
+.notas-card:hover .notas-close { opacity:1; }
+.notas-close:hover { background:rgba(15,23,42,.18); }
+
+.notas-swatches { display:flex; gap:6px; opacity:0; transition:opacity .15s ease; }
+.notas-card:hover .notas-swatches { opacity:1; }
+.notas-swatch {
+  width:16px; height:16px; border-radius:50%; cursor:pointer; border:2px solid transparent;
+  transition:transform .12s ease;
+}
+.notas-swatch:hover { transform:scale(1.15); }
+.notas-swatch.activo { border-color:#0f172a; }
+.notas-swatch.sw-rojo     { background:#ef4444; }
+.notas-swatch.sw-amarillo { background:#eab308; }
+.notas-swatch.sw-verde    { background:#22c55e; }
+.notas-swatch.sw-celeste  { background:#0ea5e9; }
+
+.notas-textarea {
+  flex:1; resize:none; border:none; background:transparent; font-family:'Inter',sans-serif;
+  font-size:12.5px; line-height:1.5; color:#0f172a; outline:none; padding:0;
+  min-height:70px;
+}
+.notas-textarea::placeholder { color:rgba(15,23,42,.35); }
+
+.notas-timestamp { font-size:7.5px; color:rgba(15,23,42,.5); font-weight:700; text-transform:uppercase; letter-spacing:.04em; }
+
+.notas-vacio { grid-column:1/-1; text-align:center; padding:40px 20px; color:#94a3b8; font-size:12px; }
+/* ============================================================
+   FIN COMPONENTE PORTABLE — Notas/Conclusiones
+   ============================================================ */
+
+.section-title { font-size:11px;font-weight:900;text-transform:uppercase;letter-spacing:.08em;color:#64748b;margin:28px 0 12px; }
+</style>
+</head>
+<body>
+
+<a id="eco-header" href="./index.html" style="text-decoration:none;cursor:pointer;">
+  <span class="eco-dot"></span>
+  <span class="eco-label">ICG Visualizador</span>
+  <span class="eco-sep">/</span>
+  <span class="eco-app">ICG EvoTen</span>
+</a>
+
+<div id="app-header">
+  <div style="display:flex;align-items:center;gap:14px;">
+    <div class="app-badge">v2.08</div>
+    <div>
+      <div class="app-title">ICG EvoTen · Evolución y Tendencia</div>
+      <div class="app-sub" id="app-sub"></div>
+    </div>
+  </div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;">
+    <button class="btn-hdr" onclick="abrirModalPeriodos()">
+      <i class="ti ti-table"></i> Ver Períodos
+    </button>
+    <button class="btn-hdr btn-load" onclick="document.getElementById('input-xlsx').click()">
+      <i class="ti ti-file-spreadsheet"></i> Cargar XLSX
+    </button>
+    <input type="file" id="input-xlsx" class="hidden-input" accept=".xlsx" multiple onchange="onXlsxSelected(event)">
+    <button class="btn-hdr btn-json" onclick="document.getElementById('input-json').click()">
+      <i class="ti ti-upload"></i> Cargar JSON
+    </button>
+    <input type="file" id="input-json" class="hidden-input" accept=".json" onchange="onJsonSelected(event)">
+    <button class="btn-hdr btn-export" onclick="exportarJSON()">
+      <i class="ti ti-download"></i> Exportar JSON
+    </button>
+  </div>
+</div>
+
+<main>
+
+  <div id="empty-state">
+    <i class="ti ti-database-off"></i>
+    <div style="font-size:13px;font-weight:700;margin-top:10px;">Sin períodos cargados</div>
+    <div style="font-size:11px;margin-top:4px;">Subí uno o más XLSX (hoja "2 - TC") o cargá un JSON acumulado para empezar.</div>
+  </div>
+
+  <div id="content" style="display:none;">
+
+    <!-- ── Panel de Notas / Conclusiones (componente portable, integrado 07-jul-2026) ── -->
+    <div class="notas-panel" style="margin-bottom:14px;">
+      <div class="notas-panel-hdr" id="notas-panel-hdr" onclick="notasTogglePanel()">
+        <div class="notas-panel-hdr-left">
+          <span class="notas-badge" id="notas-badge">0</span>
+          <h2>Notas / Conclusiones</h2>
+        </div>
+        <i class="ti ti-chevron-down notas-chev" id="notas-chev"></i>
+      </div>
+      <div class="notas-panel-body" id="notas-panel-body">
+        <div class="notas-panel-content">
+          <div class="notas-toolbar">
+            <div class="notas-toolbar-info" id="notas-contador">0 / 4 notas</div>
+            <button class="notas-btn" id="notas-btn-agregar" onclick="notasAgregar()">+ Nueva nota</button>
+          </div>
+          <div class="notas-grid" id="notas-grid"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Panel de Alertas (colapsable) ── -->
+    <!-- PENDIENTE: reactivar. Oculto a pedido de Ale (06-jul-2026) — display:none, sin borrar lógica ni markup. -->
+    <div class="alert-panel" style="display:none;">
+      <div class="alert-panel-hdr" id="alert-panel-hdr" onclick="toggleAlertPanel()">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <span class="alert-count-badge" id="alert-count-badge">0</span>
+          <span style="font-size:12px;font-weight:700;">Avisos y cambios de control</span>
+        </div>
+        <i class="ti ti-chevron-down chev" id="alert-chev"></i>
+      </div>
+      <div class="alert-panel-body" id="alert-panel-body"></div>
+    </div>
+
+    <!-- ── Ventana de reportes · 12 meses ── -->
+    <div class="bloque timeline-bloque" style="margin-bottom:14px;">
+      <div class="timeline-wrap">
+        <div class="timeline-row" id="timeline-row"></div>
+      </div>
+      <div class="timeline-hdr-mini"><h3>Ventana de Reportes</h3><span class="bsub-mini">Últimos 12 meses desde la fecha actual</span></div>
+    </div>
+
+    <!-- ── Fila 1: Margen + Resultado + Costo/Venta ── -->
+    <div class="section-title">Margen y Resultado</div>
+    <div class="grid-2col" style="margin-bottom:16px;">
+      <div class="bloque b-margen">
+        <div class="bloque-hdr"><div><h3>Margen Total Proyectado</h3><div class="bsub">F33 · % mensual</div></div></div>
+        <div style="padding:16px 20px;"><div class="chart-wrap-md"><canvas id="chart-margen"></canvas></div></div>
+      </div>
+      <div class="bloque b-result">
+        <div class="bloque-hdr"><div><h3>Resultado Acumulado · Gestión</h3><div class="bsub">C32 valor + C33 %</div></div></div>
+        <div style="padding:16px 20px;"><div class="chart-wrap-md"><canvas id="chart-resultado"></canvas></div></div>
+      </div>
+    </div>
+
+    <div class="grid-6col" style="margin-bottom:16px;">
+      <div class="kpi kpi-red" id="kpi-costo"></div>
+      <div class="kpi kpi-blue" id="kpi-venta"></div>
+      <div class="kpi kpi-cyan" id="kpi-dotacion"></div>
+      <div class="kpi kpi-slate" id="kpi-mes"></div>
+      <div class="kpi kpi-orange" id="kpi-margenobra"></div>
+      <div class="kpi kpi-purple" id="kpi-resultadoestim"></div>
+    </div>
+
+    <!-- ── Fila 2: HH y Costo HH ── -->
+    <div class="section-title">Horas Hombre y Costos</div>
+    <div class="grid-2col" style="margin-bottom:16px;">
+      <div class="bloque b-hh">
+        <div class="bloque-hdr"><div><h3>HH Est. Total</h3><div class="bsub">C41 Directos + C42 Indirectos</div></div></div>
+        <div style="padding:16px 20px;"><div class="chart-wrap-md"><canvas id="chart-hh"></canvas></div></div>
+      </div>
+      <div class="bloque b-costos">
+        <div class="bloque-hdr"><div><h3>Costo HH Vestida</h3><div class="bsub">C53 Real Mes · D53 Ppto Mes</div></div></div>
+        <div style="padding:16px 20px;"><div class="chart-wrap-md"><canvas id="chart-costohh"></canvas></div></div>
+      </div>
+    </div>
+
+    <!-- ── Fila 3: Avance Físico + Margen Faltante ── -->
+    <div class="section-title">Avance y Faltante</div>
+    <div class="grid-2col" style="margin-bottom:16px;">
+      <div class="bloque b-avance">
+        <div class="bloque-hdr"><div><h3>Avance Físico · Total Proyecto</h3><div class="bsub">G47 Real · H47 Ppto (acumulado + delta)</div></div></div>
+        <div style="padding:16px 20px;"><div class="chart-wrap-md"><canvas id="chart-avance"></canvas></div></div>
+      </div>
+      <div class="bloque b-avance">
+        <div class="bloque-hdr"><div><h3>Margen del Faltante</h3><div class="bsub">D33 %</div></div></div>
+        <div style="padding:16px 20px;"><div class="chart-wrap-md"><canvas id="chart-faltante"></canvas></div></div>
+      </div>
+    </div>
+
+    <!-- ── Fila 4: Valor de control con tendencia ── -->
+    <div class="section-title">Valor de Control · Tendencia (alerta si cambia)</div>
+    <div class="grid-2col" style="margin-bottom:16px;">
+      <!-- Reservado para un próximo panel de Valor de Control. Vacío a propósito. -->
+      <div></div>
+      <div class="bloque b-control">
+        <div class="bloque-hdr"><div><h3>Proyecto Estim. Actual</h3><div class="bsub">F12 · MM$ (control + tendencia)</div></div></div>
+        <div style="padding:16px 20px;"><div class="chart-wrap-sm"><canvas id="chart-estimactual"></canvas></div></div>
+      </div>
+    </div>
+
+  </div>
+</main>
+
+<!-- ── Modal Períodos ── -->
+<div id="modal-periodos" onclick="cerrarModalPeriodosClickFuera(event)">
+  <div id="modal-periodos-inner">
+    <div class="bloque-hdr">
+      <div>
+        <h3>Períodos cargados</h3>
+        <div class="bsub" id="periodos-count">0 períodos</div>
+      </div>
+      <button class="modal-close-btn" onclick="cerrarModalPeriodos()">✕</button>
+    </div>
+    <div style="overflow-x:auto;">
+      <table class="tabla-per">
+        <thead>
+          <tr>
+            <th>Obra</th><th>Período</th><th>Rev.</th><th>Archivo origen</th>
+            <th>Fecha Emisión</th><th>Validación</th><th>Control</th>
+          </tr>
+        </thead>
+        <tbody id="tbody-periodos"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div id="spinner"><div class="spinner-ring"></div><div style="color:#fff;font-size:12px;font-weight:700;" id="spinner-msg">Procesando…</div></div>
+<div id="toast"><div class="toast-inner" id="toast-inner"><span id="toast-msg"></span></div></div>
+
+<script>
+// ============================================================
+// PERFIL DE REGLAS — Obra 1316, hoja "2 - TC" exclusivamente
+// ============================================================
+// Cada regla define cómo ubicar un valor: ancla de texto (columna+texto)
+// + offset de fila + columna de valor. tipo: 'directo' | 'derivado' | 'control' | 'acumulado_delta' | 'info'
+const SHEET_NAME = '2 - TC';
+
+const PERFIL_1316 = [
+  { id:'margen_total_pct',      col:'F', anclaCol:'A', anclaTexto:'Contribución c/Aj. en Vta', offset:1, tipo:'directo' },
+  { id:'dotacion_ppto',         col:'E', anclaCol:'A', anclaTexto:'Dotación del mes [Cantidad]', offset:1, tipo:'directo' },
+  { id:'dotacion_actual',       col:'E', anclaCol:'A', anclaTexto:'Dotación del mes [Cantidad]', offset:2, tipo:'directo' },
+  { id:'resultado_acum_valor',  col:'C', anclaCol:'A', anclaTexto:'Contribución c/Aj. en Vta', offset:0, tipo:'directo' },
+  { id:'resultado_acum_pct',    col:'C', anclaCol:'A', anclaTexto:'Contribución c/Aj. en Vta', offset:1, tipo:'directo' },
+  { id:'costo_total',           col:'F', anclaCol:'A', anclaTexto:'TOTAL COSTO', offset:0, tipo:'directo' },
+  { id:'venta_ajustada',        col:'F', anclaCol:'A', anclaTexto:'VENTA AJUSTADA (IGN)', offset:0, tipo:'directo' },
+  { id:'hh_directos',           col:'C', anclaCol:'A', anclaTexto:'Horas Hombre [HH]-Jornales', offset:1, tipo:'directo' },
+  { id:'hh_indirectos',         col:'C', anclaCol:'A', anclaTexto:'Horas Hombre [HH]-Jornales', offset:2, tipo:'directo' },
+  { id:'costo_hh_vestida_real', col:'C', anclaCol:'A', anclaTexto:'Costo Prom. H de JORN del mes', offset:2, tipo:'directo' },
+  { id:'costo_hh_vestida_ppto', col:'D', anclaCol:'A', anclaTexto:'Costo Prom. H de JORN del mes', offset:2, tipo:'directo' },
+  { id:'avance_fisico_real',    col:'G', anclaCol:'F', anclaTexto:'Avances Físicos', offset:7, tipo:'acumulado_delta' },
+  { id:'avance_fisico_ppto',    col:'H', anclaCol:'F', anclaTexto:'Avances Físicos', offset:7, tipo:'acumulado_delta' },
+  { id:'margen_faltante_pct',   col:'D', anclaCol:'A', anclaTexto:'Contribución c/Aj. en Vta', offset:1, tipo:'directo' },
+  { id:'margen_obra',           celda:'F5', tipo:'control' },
+  { id:'mes_periodo',           celda:'E1', tipo:'info' },
+  { id:'proyecto_estim_actual', col:'F', anclaCol:'F', anclaTexto:'Estim. Actual', offset:1, tipo:'control' },
+];
+
+// Nombres de obra por código — usado solo para el subtítulo del header (N° + nombre).
+// El período/estado de carga NO va acá: se ve en la Ventana de Reportes.
+const NOMBRES_OBRA = { '1316': 'Acueducto Gran Tulum' };
+
+// Celdas auxiliares de identidad/validación (no son paneles, sirven de cruce)
+const AUX_CELDAS = { periodoReporte:'H1', fechaEmision:'H2', revisionHoja:'F1', margenOferta:'H3' };
+
+// Tolerancia relativa para considerar "cambio real" en valores de control (evita ruido de redondeo de Excel)
+const TOL_CONTROL = 1e-4;
+
+// ============================================================
+// ESTADO — en memoria únicamente (no localStorage, no backend)
+// ============================================================
+let STATE = { obra:null, periodos:[], notas:[] }; // periodos: array de registros (ver upsertPeriodo) · notas: Panel de Notas/Conclusiones
+const charts = {};
+
+// ============================================================
+// UTILIDADES DE LECTURA XLSX
+// ============================================================
+function colLetterToIndex(letter){
+  let n = 0;
+  for(let i=0;i<letter.length;i++) n = n*26 + (letter.charCodeAt(i) - 64);
+  return n - 1; // 0-based
+}
+
+function cellRefToRowCol(ref){
+  const m = ref.match(/^([A-Z]+)(\d+)$/);
+  return { col: colLetterToIndex(m[1]), row: parseInt(m[2],10) - 1 };
+}
+
+function findAnclaRow(rows, colLetter, texto){
+  const colIdx = colLetterToIndex(colLetter);
+  for(let r=0;r<rows.length;r++){
+    const v = rows[r] ? rows[r][colIdx] : undefined;
+    if(typeof v === 'string' && v.trim() === texto) return r;
+  }
+  return -1;
+}
+
+function getCell(rows, rowIdx, colLetter){
+  const colIdx = colLetterToIndex(colLetter);
+  if(!rows[rowIdx]) return undefined;
+  return rows[rowIdx][colIdx];
+}
+
+// ============================================================
+// PARSEO DE NOMBRE DE ARCHIVO — identidad del período
+// Patrón esperado: {obra}-ICG-{anio}-{mes}[_rev{N}].xlsx  (revisión ausente = 0)
+// ============================================================
+function parseNombreArchivo(filename){
+  const base = filename.replace(/\.xlsx$/i, '');
+  const m = base.match(/^(\d+)-ICG-(\d{4})-(\d{2})(?:[_-]rev(\d+))?$/i);
+  if(!m) return null;
+  return {
+    obra: m[1],
+    anio: parseInt(m[2],10),
+    mes: parseInt(m[3],10),
+    revision: m[4] ? parseInt(m[4],10) : 0
+  };
+}
+
+// ============================================================
+// EXTRACCIÓN DE UN PERÍODO A PARTIR DEL WORKBOOK
+// ============================================================
+function extraerDatos(rows){
+  const datos = {};
+  const warnings = [];
+
+  PERFIL_1316.forEach(regla => {
+    let valor;
+    if(regla.celda){
+      const {row, col} = cellRefToRowCol(regla.celda);
+      valor = getCell(rows, row, String.fromCharCode(65+col));
+      valor = rows[row] ? rows[row][col] : undefined;
+    } else {
+      const anclaRow = findAnclaRow(rows, regla.anclaCol, regla.anclaTexto);
+      if(anclaRow === -1){
+        warnings.push(`No se encontró ancla "${regla.anclaTexto}" (col ${regla.anclaCol}) para "${regla.id}"`);
+        datos[regla.id] = null;
+        return;
+      }
+      valor = getCell(rows, anclaRow + regla.offset, regla.col);
+    }
+    datos[regla.id] = (typeof valor === 'number') ? valor : (valor ?? null);
+  });
+
+  // Derivado 7.c
+  datos['hh_total'] = (typeof datos.hh_directos === 'number' && typeof datos.hh_indirectos === 'number')
+    ? datos.hh_directos + datos.hh_indirectos : null;
+
+  // Auxiliares de identidad
+  const aux = {};
+  Object.entries(AUX_CELDAS).forEach(([k, ref]) => {
+    const {row, col} = cellRefToRowCol(ref);
+    const v = rows[row] ? rows[row][col] : undefined;
+    aux[k] = v ?? null;
+  });
+
+  return { datos, warnings, aux };
+}
+
+function parsePeriodoReporte(str){
+  // "Período de reporte: 5/2026" → {mes:5, anio:2026}
+  if(typeof str !== 'string') return null;
+  const m = str.match(/(\d{1,2})\/(\d{4})/);
+  if(!m) return null;
+  return { mes: parseInt(m[1],10), anio: parseInt(m[2],10) };
+}
+
+// ============================================================
+// PROCESAMIENTO DE UN ARCHIVO XLSX
+// ============================================================
+async function procesarArchivoXLSX(file){
+  const buf = await file.arrayBuffer();
+  const wb = XLSX.read(buf, { type:'array', cellDates:false });
+
+  if(!wb.SheetNames.includes(SHEET_NAME)){
+    throw new Error(`"${file.name}" no tiene la hoja "${SHEET_NAME}". Hojas encontradas: ${wb.SheetNames.slice(0,5).join(', ')}...`);
+  }
+  const ws = wb.Sheets[SHEET_NAME];
+  const rows = XLSX.utils.sheet_to_json(ws, { header:1, defval:null, raw:true });
+
+  const ident = parseNombreArchivo(file.name);
+  if(!ident){
+    throw new Error(`El nombre "${file.name}" no respeta el patrón esperado: {obra}-ICG-{anio}-{mes}[_rev{N}].xlsx`);
+  }
+
+  const { datos, warnings, aux } = extraerDatos(rows);
+
+  // Validación cruzada: H1 "Período de reporte" vs nombre de archivo
+  const periodoAux = parsePeriodoReporte(aux.periodoReporte);
+  if(periodoAux && (periodoAux.mes !== ident.mes || periodoAux.anio !== ident.anio)){
+    warnings.push(`H1 dice "${aux.periodoReporte}" pero el archivo indica ${String(ident.mes).padStart(2,'0')}/${ident.anio} — revisar.`);
+  }
+
+  return {
+    obra: ident.obra,
+    periodo: { anio: ident.anio, mes: ident.mes },
+    revision: ident.revision,
+    archivo_origen: file.name,
+    fecha_emision: aux.fechaEmision,
+    mes_reporte_raw: aux.periodoReporte,
+    margen_oferta_raw: aux.margenOferta,
+    datos,
+    warnings
+  };
+}
+
+// ============================================================
+// ACUMULACIÓN — upsert por clave obra+anio+mes+revision
+// ============================================================
+function claveDe(p){ return `${p.obra}|${p.periodo.anio}|${p.periodo.mes}|${p.revision}`; }
+
+function upsertPeriodo(nuevo){
+  if(STATE.obra && STATE.obra !== nuevo.obra){
+    toast(`Este JSON es de la obra ${STATE.obra}. "${nuevo.archivo_origen}" es de la obra ${nuevo.obra} — omitido. Un JSON = una obra.`, 'err');
+    return false;
+  }
+  if(!STATE.obra) STATE.obra = nuevo.obra;
+
+  const clave = claveDe(nuevo);
+  const idxExistente = STATE.periodos.findIndex(p => claveDe(p) === clave);
+
+  if(idxExistente >= 0){
+    const anterior = STATE.periodos[idxExistente];
+    const reemplazar = confirm(
+      `Ya existe un período ${String(nuevo.periodo.mes).padStart(2,'0')}/${nuevo.periodo.anio} rev.${nuevo.revision} `+
+      `(archivo: "${anterior.archivo_origen}").\n\n¿Reemplazar con "${nuevo.archivo_origen}"?`
+    );
+    if(!reemplazar) return false;
+    STATE.periodos[idxExistente] = nuevo;
+  } else {
+    STATE.periodos.push(nuevo);
+  }
+
+  STATE.periodos.sort((a,b) => (a.periodo.anio*100+a.periodo.mes) - (b.periodo.anio*100+b.periodo.mes));
+  return true;
+}
+
+// ============================================================
+// DERIVADOS POST-ACUMULACIÓN — delta avance físico + detección de cambio en valores de control
+// ============================================================
+function computeDerivados(){
+  STATE.periodos.forEach((p, i) => {
+    const anterior = i > 0 ? STATE.periodos[i-1] : null;
+
+    // Delta mensual de avance físico (9.a/9.b son acumulados)
+    p.derivados = p.derivados || {};
+    p.derivados.avance_fisico_real_delta = anterior && typeof p.datos.avance_fisico_real === 'number' && typeof anterior.datos.avance_fisico_real === 'number'
+      ? p.datos.avance_fisico_real - anterior.datos.avance_fisico_real : null;
+    p.derivados.avance_fisico_ppto_delta = anterior && typeof p.datos.avance_fisico_ppto === 'number' && typeof anterior.datos.avance_fisico_ppto === 'number'
+      ? p.datos.avance_fisico_ppto - anterior.datos.avance_fisico_ppto : null;
+
+    // Detección de cambio en valores de control (margen_obra, proyecto_estim_actual)
+    ['margen_obra','proyecto_estim_actual'].forEach(id => {
+      const actual = p.datos[id];
+      const previo = anterior ? anterior.datos[id] : null;
+      let cambio = false;
+      if(anterior && typeof actual === 'number' && typeof previo === 'number' && previo !== 0){
+        cambio = Math.abs((actual - previo) / previo) > TOL_CONTROL;
+      }
+      p.derivados[id + '_cambio'] = cambio;
+    });
+  });
+}
+
+// ============================================================
+// HANDLERS DE ARCHIVOS
+// ============================================================
+async function onXlsxSelected(evt){
+  const files = Array.from(evt.target.files || []);
+  if(files.length === 0) return;
+  showSpinner(`Procesando ${files.length} archivo(s)…`);
+  let ok = 0, fail = 0;
+  for(const file of files){
+    try{
+      const periodo = await procesarArchivoXLSX(file);
+      if(periodo.warnings.length){
+        toast(`"${file.name}": ${periodo.warnings.join(' | ')}`, 'warn');
+      }
+      if(upsertPeriodo(periodo)) ok++;
+    } catch(err){
+      fail++;
+      toast(`Error en "${file.name}": ${err.message}`, 'err');
+      console.error(err);
+    }
+  }
+  computeDerivados();
+  renderAll();
+  hideSpinner();
+  toast(`${ok} período(s) cargado(s)${fail? ' · '+fail+' con error':''}`, fail?'warn':'ok');
+  evt.target.value = '';
+}
+
+function onJsonSelected(evt){
+  const file = evt.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try{
+      const parsed = JSON.parse(reader.result);
+      if(!parsed.obra || !Array.isArray(parsed.periodos)) throw new Error('Estructura de JSON inválida (se espera {obra, periodos:[...]})');
+      STATE = parsed;
+      if(!Array.isArray(STATE.notas)) STATE.notas = []; // compatibilidad con JSON viejo (sin panel de Notas)
+      computeDerivados();
+      renderAll();
+      toast(`JSON cargado: obra ${STATE.obra} · ${STATE.periodos.length} período(s)`, 'ok');
+    } catch(err){
+      toast('Error al leer JSON: ' + err.message, 'err');
+      console.error(err);
+    }
+  };
+  reader.readAsText(file);
+  evt.target.value = '';
+}
+
+function exportarJSON(){
+  if(STATE.periodos.length === 0){ toast('No hay datos para exportar', 'warn'); return; }
+  const blob = new Blob([JSON.stringify(STATE, null, 2)], { type:'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `icg_evoten_${STATE.obra}_acumulado.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+  toast('JSON exportado', 'ok');
+}
+
+// ============================================================
+// COMPONENTE PORTABLE — Panel de Notas / Conclusiones
+// Integrado desde notas_panel_demo_v1.2.html (07-jul-2026).
+// Storage: STATE.notas — viaja en el mismo JSON de exportar/cargar
+// que ya existe (exportarJSON() / onJsonSelected()), sin tocarlas.
+// ============================================================
+const NOTAS_CONFIG = {
+  maxNotas: 4,
+  almacenamiento: 'json', // 'json' | 'sheet' (a futuro, no implementado)
+  colores: ['rojo','amarillo','verde','celeste'],
+  colorPorDefecto: 'celeste'
+};
+
+function notasNuevoId(){ return 'n' + Date.now().toString(36) + Math.random().toString(36).slice(2,6); }
+
+function notasFmtFecha(iso){
+  const d = new Date(iso);
+  const pad = n => String(n).padStart(2,'0');
+  return `${pad(d.getDate())}/${pad(d.getMonth()+1)}/${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function notasAgregar(){
+  if(STATE.notas.length >= NOTAS_CONFIG.maxNotas) return;
+  STATE.notas.push({
+    id: notasNuevoId(),
+    texto: '',
+    color: NOTAS_CONFIG.colorPorDefecto,
+    creado_en: new Date().toISOString()
+  });
+  notasRender();
+}
+
+function notasBorrar(id){
+  STATE.notas = STATE.notas.filter(n => n.id !== id);
+  notasRender();
+}
+
+function notasSetColor(id, color){
+  const n = STATE.notas.find(n => n.id === id);
+  if(n) n.color = color;
+  notasRender();
+}
+
+function notasSetTexto(id, texto){
+  const n = STATE.notas.find(n => n.id === id);
+  if(n) n.texto = texto;
+}
+
+function notasAutoResize(el){
+  el.style.height = 'auto';
+  el.style.height = el.scrollHeight + 'px';
+}
+
+let notasPanelAbierto = false;
+function notasTogglePanel(){
+  notasPanelAbierto = !notasPanelAbierto;
+  document.getElementById('notas-panel-body').classList.toggle('open', notasPanelAbierto);
+  document.getElementById('notas-chev').classList.toggle('open', notasPanelAbierto);
+}
+
+function notasRender(){
+  const grid = document.getElementById('notas-grid');
+  const btnAgregar = document.getElementById('notas-btn-agregar');
+  document.getElementById('notas-contador').textContent = `${STATE.notas.length} / ${NOTAS_CONFIG.maxNotas} notas`;
+  btnAgregar.disabled = STATE.notas.length >= NOTAS_CONFIG.maxNotas;
+
+  const badge = document.getElementById('notas-badge');
+  badge.textContent = STATE.notas.length;
+  badge.classList.toggle('con-notas', STATE.notas.length > 0);
+
+  if(STATE.notas.length === 0){
+    grid.innerHTML = `<div class="notas-vacio">Sin notas todavía. Usá "+ Nueva nota" para agregar la primera.</div>`;
+    return;
+  }
+
+  grid.innerHTML = STATE.notas.map(n => `
+    <div class="notas-card color-${n.color}" data-id="${n.id}">
+      <button class="notas-close" title="Borrar nota" onclick="notasBorrar('${n.id}')">✕</button>
+      <div class="notas-swatches">
+        ${NOTAS_CONFIG.colores.map(c => `
+          <span class="notas-swatch sw-${c} ${c===n.color?'activo':''}" title="${c}" onclick="notasSetColor('${n.id}','${c}')"></span>
+        `).join('')}
+      </div>
+      <textarea class="notas-textarea" placeholder="Escribí una conclusión..."
+        oninput="notasSetTexto('${n.id}', this.value); notasAutoResize(this);"
+        onfocus="notasAutoResize(this)">${n.texto}</textarea>
+      <div class="notas-timestamp">Creada: ${notasFmtFecha(n.creado_en)}</div>
+    </div>
+  `).join('');
+
+  grid.querySelectorAll('.notas-textarea').forEach(notasAutoResize);
+}
+// ============================================================
+// FIN COMPONENTE PORTABLE — Notas / Conclusiones
+// ============================================================
+
+// ============================================================
+// RENDER
+// ============================================================
+function renderAll(){
+  const hasData = STATE.periodos.length > 0;
+  document.getElementById('empty-state').style.display = hasData ? 'none' : 'block';
+  document.getElementById('content').style.display = hasData ? 'block' : 'none';
+  if(!hasData) return;
+
+  const last = STATE.periodos[STATE.periodos.length - 1];
+  const nombreObra = NOMBRES_OBRA[STATE.obra];
+  document.getElementById('app-sub').textContent = nombreObra ? `${STATE.obra} · ${nombreObra}` : (STATE.obra ?? '');
+
+  renderTablaPeriodos();
+  renderAlertPanel();
+  notasRender();
+  renderVentana12Meses();
+  renderKPIs(last);
+  renderChartMargen();
+  renderChartResultado();
+  renderChartHH();
+  renderChartCostoHH();
+  renderChartAvance();
+  renderChartFaltante();
+  renderChartEstimActual();
+}
+
+function renderTablaPeriodos(){
+  document.getElementById('periodos-count').textContent = `${STATE.periodos.length} período(s)`;
+  document.getElementById('tbody-periodos').innerHTML = STATE.periodos.map(p => {
+    const validacion = p.warnings && p.warnings.length
+      ? `<span class="pill pill-warn"><i class="ti ti-alert-triangle"></i> ${p.warnings.length} aviso(s)</span>`
+      : `<span class="pill pill-ok"><i class="ti ti-check"></i> OK</span>`;
+    const cambios = [];
+    if(p.derivados?.margen_obra_cambio) cambios.push('Margen Obra');
+    if(p.derivados?.proyecto_estim_actual_cambio) cambios.push('Estim. Actual');
+    const control = cambios.length
+      ? `<span class="pill pill-bad"><i class="ti ti-bell"></i> ${cambios.join(', ')}</span>`
+      : `<span class="pill pill-neu">sin cambios</span>`;
+    return `<tr>
+      <td>${p.obra}</td>
+      <td>${String(p.periodo.mes).padStart(2,'0')}/${p.periodo.anio}</td>
+      <td>${p.revision}</td>
+      <td>${p.archivo_origen}</td>
+      <td>${p.fecha_emision ?? '—'}</td>
+      <td>${validacion}</td>
+      <td>${control}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ============================================================
+// MODAL DE PERÍODOS
+// ============================================================
+function abrirModalPeriodos(){ document.getElementById('modal-periodos').classList.add('open'); }
+function cerrarModalPeriodos(){ document.getElementById('modal-periodos').classList.remove('open'); }
+function cerrarModalPeriodosClickFuera(evt){ if(evt.target === document.getElementById('modal-periodos')) cerrarModalPeriodos(); }
+document.addEventListener('keydown', e => { if(e.key === 'Escape') cerrarModalPeriodos(); });
+
+// ============================================================
+// PANEL DE ALERTAS — resume avisos de validación + cambios de control de todos los períodos
+// ============================================================
+let _alertPanelOpen = false;
+function toggleAlertPanel(){
+  _alertPanelOpen = !_alertPanelOpen;
+  document.getElementById('alert-panel-body').classList.toggle('open', _alertPanelOpen);
+  document.getElementById('alert-chev').classList.toggle('open', _alertPanelOpen);
+}
+
+function renderAlertPanel(){
+  const items = [];
+  STATE.periodos.forEach(p => {
+    const per = `${String(p.periodo.mes).padStart(2,'0')}/${p.periodo.anio}`;
+    (p.warnings||[]).forEach(w => items.push({ per, archivo:p.archivo_origen, msg:w, tipo:'validacion' }));
+    if(p.derivados?.margen_obra_cambio) items.push({ per, archivo:p.archivo_origen, msg:'Margen Obra (F5) cambió respecto al mes anterior', tipo:'control' });
+    if(p.derivados?.proyecto_estim_actual_cambio) items.push({ per, archivo:p.archivo_origen, msg:'Proyecto Estim. Actual (F12) cambió respecto al mes anterior', tipo:'control' });
+  });
+
+  const badge = document.getElementById('alert-count-badge');
+  const hdr = document.getElementById('alert-panel-hdr');
+  badge.textContent = items.length;
+  badge.classList.toggle('has-alerts', items.length > 0);
+  hdr.classList.toggle('has-alerts', items.length > 0);
+
+  document.getElementById('alert-panel-body').innerHTML = items.length
+    ? items.map(it => `<div class="alert-item"><i class="ti ti-${it.tipo==='control'?'bell':'alert-triangle'}"></i><div><b>${it.per}</b> · ${it.archivo} — ${it.msg}</div></div>`).join('')
+    : `<div class="alert-item" style="border-top:none;color:#94a3b8;"><i class="ti ti-check"></i><div>Sin avisos ni cambios de control detectados.</div></div>`;
+}
+
+// ============================================================
+// VENTANA DE REPORTES — timeline rodante de 12 meses
+// Ancla: FECHA_REFERENCIA (fecha real del sistema al abrir la app).
+// Último mes visible = mes de FECHA_REFERENCIA + 1. Variable expuesta
+// para poder vincularla a un control de header más adelante.
+// ============================================================
+let FECHA_REFERENCIA = new Date();
+
+function renderVentana12Meses(){
+  const anclaAnio = FECHA_REFERENCIA.getFullYear();
+  const anclaMes = FECHA_REFERENCIA.getMonth() + 1; // 1-12
+  // último mes visible = ancla + 1
+  let ultimoAnio = anclaAnio, ultimoMes = anclaMes + 1;
+  if(ultimoMes > 12){ ultimoMes -= 12; ultimoAnio += 1; }
+
+  const meses = [];
+  for(let i=11;i>=0;i--){
+    let m = ultimoMes - i, a = ultimoAnio;
+    while(m <= 0){ m += 12; a -= 1; }
+    meses.push({ anio:a, mes:m });
+  }
+
+  const NOMBRES = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+  const cargados = new Set(STATE.periodos.map(p => `${p.periodo.anio}-${p.periodo.mes}`));
+
+  document.getElementById('timeline-row').innerHTML = meses.map(m => {
+    const conDato = cargados.has(`${m.anio}-${m.mes}`);
+    const esActual = (m.anio === anclaAnio && m.mes === anclaMes);
+    const label = `${NOMBRES[m.mes-1]}-${String(m.anio).slice(2)}`;
+    return `<div class="timeline-cell ${conDato?'con-dato':''} ${esActual?'mes-actual':''}" title="${label}${conDato?' · con datos':''}${esActual?' · mes actual':''}"><span>${label}</span></div>`;
+  }).join('');
+}
+
+function fmtN(v, dec=1){ return typeof v === 'number' ? v.toLocaleString('es-AR', {minimumFractionDigits:dec, maximumFractionDigits:dec}) : '—'; }
+function fmtPct(v, dec=1){ return typeof v === 'number' ? (v*100).toLocaleString('es-AR', {minimumFractionDigits:dec, maximumFractionDigits:dec}) + '%' : '—'; }
+
+function renderKPIs(last){
+  document.getElementById('kpi-costo').innerHTML = `
+    <div class="kpi-lbl">Costo Total Estim.</div>
+    <div class="kpi-val">${fmtN(last.datos.costo_total,0)}</div>
+    <div class="kpi-sub">MM$ · Estim. Actual</div>`;
+
+  document.getElementById('kpi-venta').innerHTML = `
+    <div class="kpi-lbl">Venta Ajustada (IGN)</div>
+    <div class="kpi-val">${fmtN(last.datos.venta_ajustada,0)}</div>
+    <div class="kpi-sub">MM$ · Estim. Actual</div>`;
+
+  document.getElementById('kpi-dotacion').innerHTML = `
+    <div class="kpi-lbl">Dotación Real</div>
+    <div class="kpi-val">${fmtN(last.datos.dotacion_actual,0)} pers.</div>
+    <div class="kpi-sub">Plan: ${fmtN(last.datos.dotacion_ppto,0)} pers.</div>`;
+
+  document.getElementById('kpi-mes').innerHTML = `
+    <div class="kpi-lbl">Mes de Proyecto</div>
+    <div class="kpi-val" style="font-size:18px;">${last.datos.mes_periodo ?? '—'}</div>
+    <div class="kpi-sub">${String(last.periodo.mes).padStart(2,'0')}/${last.periodo.anio}</div>`;
+
+  const cambioMO = last.derivados?.margen_obra_cambio;
+  document.getElementById('kpi-margenobra').innerHTML = `
+    <div class="kpi-lbl">Margen Obra (F5)</div>
+    <div class="kpi-val">${fmtPct(last.datos.margen_obra,2)}</div>
+    <div class="kpi-sub">Valor de control — histórico completo abajo</div>
+    <div class="alert-badge ${cambioMO?'':'ok'}"><i class="ti ti-${cambioMO?'alert-triangle':'check'}"></i> ${cambioMO?'Cambió este período':'Sin cambios'}</div>`;
+
+  // Resultado Estimado — último Margen Total Proyectado (F33) vs Margen Obra (F5), en pp
+  const diffPP = (typeof last.datos.margen_total_pct === 'number' && typeof last.datos.margen_obra === 'number')
+    ? (last.datos.margen_total_pct - last.datos.margen_obra) * 100 : null;
+  document.getElementById('kpi-resultadoestim').innerHTML = `
+    <div class="kpi-lbl">Resultado Estimado</div>
+    <div class="kpi-val">${fmtPct(last.datos.margen_total_pct,1)}</div>
+    <div class="kpi-sub">Dif. vs F5: ${typeof diffPP === 'number' ? fmtAR(diffPP,2)+' pp' : '—'}</div>`;
+}
+
+function destroyChart(id){ if(charts[id]){ charts[id].destroy(); delete charts[id]; } }
+
+function labelsPeriodos(){
+  return STATE.periodos.map(p => `${String(p.periodo.mes).padStart(2,'0')}/${p.periodo.anio}`);
+}
+
+const COLOR = { amber:'#d97706', blue:'#3b82f6', red:'#ef4444', green:'#22c55e', purple:'#8b5cf6', slate:'#64748b', cyan:'#06b6d4', orange:'#f97316' };
+
+// ============================================================
+// REGLAS GENERALES DE FORMATO Y ESTILO (v2.02, ampliadas en v2.03)
+// Formato Argentina: separador de miles con punto, coma decimal.
+// Negativos: texto en rojo con signo "-", 1 decimal — ejes, etiquetas de dato y tooltips.
+// ============================================================
+const ROJO_NEG = '#dc2626';
+
+function fmtAR(v, dec=1){
+  return typeof v === 'number' ? v.toLocaleString('es-AR', {minimumFractionDigits:dec, maximumFractionDigits:dec}) : '—';
+}
+function fmtARPct(v, dec=1){
+  return typeof v === 'number' ? (v*100).toLocaleString('es-AR', {minimumFractionDigits:dec, maximumFractionDigits:dec}) + '%' : '—';
+}
+// Color de texto para valores potencialmente negativos (ejes y etiquetas de dato)
+function colorNeg(v){ return (typeof v === 'number' && v < 0) ? ROJO_NEG : '#0f172a'; }
+// Para datalabels cuyo valor ya viene multiplicado por 100 u otra escala, mismo criterio
+function colorNegRaw(v){ return (typeof v === 'number' && v < 0) ? ROJO_NEG : '#0f172a'; }
+
+// Tooltip callback genérico — formatea el valor con fmtAR (1 decimal, formato Argentina).
+// esPct=true agrega el sufijo "%" (los datasets de % ya vienen multiplicados por 100 al graficar).
+function tooltipFmt(esPct){
+  return (ctx) => {
+    const v = ctx.parsed.y ?? ctx.parsed;
+    const label = ctx.dataset.label || '';
+    return `${label}: ${fmtAR(v,1)}${esPct ? '%' : ''}`;
+  };
+}
+
+// ── Defaults globales de Chart.js — leyenda unificada + nodos rellenos ──
+// v2.04: se vuelve a swatch tipo rectángulo (Ale detectó problemas de legibilidad
+// con el hack de línea fina vía generateLabels) y se reduce el texto al mínimo.
+Chart.defaults.plugins.legend.position = 'top';
+Chart.defaults.plugins.legend.align = 'start';
+Chart.defaults.plugins.legend.labels.usePointStyle = false;
+Chart.defaults.plugins.legend.labels.boxWidth = 10;
+Chart.defaults.plugins.legend.labels.boxHeight = 10;
+Chart.defaults.plugins.legend.labels.padding = 8;
+Chart.defaults.plugins.legend.labels.font = { size: 9 };
+Chart.defaults.elements.point.radius = 4;
+Chart.defaults.elements.point.hoverRadius = 5;
+// Jerarquía tipográfica (regla v2.03, sin cambios): ticks de eje más chicos que
+// las etiquetas de dato, para no competir visualmente con el dato principal.
+Chart.defaults.scale.ticks.font = { size: 9 };
+
+function renderChartMargen(){
+  destroyChart('margen');
+  const ctx = document.getElementById('chart-margen');
+  charts['margen'] = new Chart(ctx, {
+    type:'line',
+    data:{ labels:labelsPeriodos(), datasets:[{
+      label:'Margen Total Proyectado (%)',
+      data: STATE.periodos.map(p => p.datos.margen_total_pct*100),
+      borderColor: COLOR.amber, backgroundColor: COLOR.amber, tension:.3, pointRadius:4,
+      pointBackgroundColor: COLOR.amber, pointBorderColor: COLOR.amber
+    }]},
+    options:{
+      plugins:{
+        legend:{display:false},
+        datalabels:{ align:'top', color:(ctx)=>colorNeg(ctx.dataset.data[ctx.dataIndex]), font:{weight:'700',size:10}, formatter:v=>fmtAR(v,1)+'%' },
+        tooltip:{ callbacks:{ label: tooltipFmt(true) } }
+      },
+      scales:{ y:{ max:0, ticks:{ callback:v=>fmtAR(v,1)+'%', color:(ctx)=>colorNeg(ctx.tick.value) } } }
+    },
+    plugins:[ChartDataLabels]
+  });
+}
+
+function renderChartResultado(){
+  destroyChart('resultado');
+  const ctx = document.getElementById('chart-resultado');
+  charts['resultado'] = new Chart(ctx, {
+    data:{ labels:labelsPeriodos(), datasets:[
+      { type:'bar', label:'Resultado Acum. Gestión (MM$)', data: STATE.periodos.map(p=>p.datos.resultado_acum_valor),
+        backgroundColor:'#fca5a5', borderColor:'#fca5a5', yAxisID:'y' },
+      { type:'line', label:'Contribución (%)', data: STATE.periodos.map(p=>p.datos.resultado_acum_pct*100),
+        borderColor: COLOR.blue, tension:.3, yAxisID:'y1', order:-1, pointRadius:4,
+        pointBackgroundColor: COLOR.blue, pointBorderColor: COLOR.blue }
+    ]},
+    options:{
+      plugins:{ tooltip:{ callbacks:{ label: (ctx) => ctx.datasetIndex===1 ? tooltipFmt(true)(ctx) : tooltipFmt(false)(ctx) } } },
+      scales:{
+        y:{ position:'left', ticks:{ callback:v=>fmtAR(v,1), color:(ctx)=>colorNeg(ctx.tick.value) } },
+        y1:{ position:'right', grid:{drawOnChartArea:false}, ticks:{ callback:v=>fmtAR(v,1)+'%', color:(ctx)=>colorNeg(ctx.tick.value) } }
+      }
+    }
+  });
+}
+
+function renderChartHH(){
+  destroyChart('hh');
+  const ctx = document.getElementById('chart-hh');
+  const nMeses = STATE.periodos.length;
+  const soloUltimo = (val, ctx) => ctx.dataIndex === nMeses-1 ? fmtAR(val,1)+'K' : null;
+  charts['hh'] = new Chart(ctx, {
+    type:'line',
+    data:{ labels:labelsPeriodos(), datasets:[
+      { label:'Directos (miles HH)', data: STATE.periodos.map(p=>p.datos.hh_directos/1000), borderColor: COLOR.green, tension:.3, pointRadius:4,
+        pointBackgroundColor:COLOR.green, pointBorderColor:COLOR.green, clip:false,
+        datalabels:{ anchor:'end', align:'right', offset:6, clamp:false, color:COLOR.green, font:{weight:'700',size:12}, formatter:soloUltimo } },
+      { label:'Indirectos (miles HH)', data: STATE.periodos.map(p=>p.datos.hh_indirectos/1000), borderColor: COLOR.orange, tension:.3, pointRadius:4,
+        pointBackgroundColor:COLOR.orange, pointBorderColor:COLOR.orange, clip:false,
+        datalabels:{ anchor:'end', align:'right', offset:6, clamp:false, color:COLOR.orange, font:{weight:'700',size:12}, formatter:soloUltimo } },
+      { label:'Total (miles HH)', data: STATE.periodos.map(p=>p.datos.hh_total/1000), borderColor: COLOR.slate, tension:.3, pointRadius:4,
+        pointBackgroundColor:COLOR.slate, pointBorderColor:COLOR.slate, clip:false,
+        datalabels:{ anchor:'end', align:'right', offset:6, clamp:false, color:COLOR.slate, font:{weight:'700',size:12}, formatter:soloUltimo } }
+    ]},
+    options:{
+      layout:{ padding:{ right:72 } },
+      plugins:{
+        legend:{ labels:{ padding:8 } },
+        tooltip:{ callbacks:{ label: tooltipFmt(false) } }
+      },
+      scales:{ y:{ ticks:{ callback:v=>fmtAR(v,1)+'K' } } }
+    },
+    plugins:[ChartDataLabels]
+  });
+}
+
+function renderChartCostoHH(){
+  destroyChart('costohh');
+  const ctx = document.getElementById('chart-costohh');
+  const nMeses = STATE.periodos.length;
+  const excede = STATE.periodos.map(p => p.datos.costo_hh_vestida_real > p.datos.costo_hh_vestida_ppto);
+  const COLOR_REAL_OK = '#fecaca';   // salmón claro (antes #f87171 — se aclara para contrastar con la alerta)
+  const COLOR_PPTO_OK = '#93c5fd';   // azul claro (antes COLOR.blue #3b82f6 — mismo criterio)
+  const COLOR_ALERTA = '#b91c1c';    // rojo oscuro, sin cambios — Real > Ppto
+  const maxVal = Math.max(0, ...STATE.periodos.flatMap(p => [p.datos.costo_hh_vestida_real, p.datos.costo_hh_vestida_ppto].filter(v => typeof v === 'number')));
+  charts['costohh'] = new Chart(ctx, {
+    type:'bar',
+    data:{ labels:labelsPeriodos(), datasets:[
+      { label:'Real Mes', data: STATE.periodos.map(p=>p.datos.costo_hh_vestida_real),
+        backgroundColor: excede.map(e => e ? COLOR_ALERTA : COLOR_REAL_OK), borderColor: COLOR_REAL_OK, borderRadius:4,
+        datalabels:{ color:'#0f172a', font:{weight:'700',size:10}, anchor:'end', align:'top',
+          formatter:(v,ctx)=>{
+            const isLast = ctx.dataIndex === nMeses-1;
+            if(excede[ctx.dataIndex]) return isLast ? `⚠ ${fmtAR(v,1)}` : '⚠';
+            return isLast ? fmtAR(v,1) : null;
+          } } },
+      { label:'Ppto Mes', data: STATE.periodos.map(p=>p.datos.costo_hh_vestida_ppto),
+        backgroundColor: COLOR_PPTO_OK, borderColor: COLOR_PPTO_OK, borderRadius:4,
+        datalabels:{ color:'#0f172a', font:{weight:'700',size:10}, anchor:'end', align:'top',
+          formatter:(v,ctx)=> ctx.dataIndex === nMeses-1 ? fmtAR(v,1) : null } }
+    ]},
+    options:{
+      plugins:{ tooltip:{ callbacks:{ label: tooltipFmt(false) } } },
+      scales:{ y:{ suggestedMax: maxVal * 1.35, ticks:{ callback:v=>fmtAR(v,1) } } }
+    },
+    plugins:[ChartDataLabels]
+  });
+}
+
+function renderChartAvance(){
+  destroyChart('avance');
+  const ctx = document.getElementById('chart-avance');
+  const nMeses = STATE.periodos.length;
+  // Paleta específica de este gráfico (no se generaliza a otros): Real = verde, Ppto = celeste.
+  const VERDE_REAL = '#16a34a', VERDE_REAL_BAR = 'rgba(22,163,74,.35)';
+  const CELESTE_PPTO = '#0ea5e9', CELESTE_PPTO_BAR = 'rgba(14,165,233,.30)';
+  charts['avance'] = new Chart(ctx, {
+    data:{ labels:labelsPeriodos(), datasets:[
+      { type:'line', label:'Real acum. (%)', data: STATE.periodos.map(p=>p.datos.avance_fisico_real*100),
+        borderColor: VERDE_REAL, tension:.3, yAxisID:'y', pointRadius:4,
+        pointBackgroundColor:VERDE_REAL, pointBorderColor:VERDE_REAL,
+        datalabels:{ align:'top', color:VERDE_REAL, font:{weight:'700',size:9}, formatter:v=>fmtAR(v,1)+'%' } },
+      { type:'line', label:'Ppto acum. (%)', data: STATE.periodos.map(p=>p.datos.avance_fisico_ppto*100),
+        borderColor: CELESTE_PPTO, tension:.3, yAxisID:'y', pointRadius:4,
+        pointBackgroundColor:CELESTE_PPTO, pointBorderColor:CELESTE_PPTO,
+        datalabels:{ align:'bottom', color:CELESTE_PPTO, font:{weight:'700',size:9}, formatter:v=>fmtAR(v,1)+'%' } },
+      { type:'bar', label:'Δ mensual Real (pp)', yAxisID:'y1', backgroundColor:VERDE_REAL_BAR, borderColor:VERDE_REAL,
+        data: STATE.periodos.map(p => typeof p.derivados?.avance_fisico_real_delta==='number' ? p.derivados.avance_fisico_real_delta*100 : null),
+        datalabels:{ anchor:'center', align:'center', color:'#fff', font:{weight:'700',size:9},
+          formatter:(v,ctx)=> ctx.dataIndex === nMeses-1 && typeof v==='number' ? fmtAR(v,1) : null } },
+      { type:'bar', label:'Δ mensual Ppto (pp)', yAxisID:'y1', backgroundColor:CELESTE_PPTO_BAR, borderColor:CELESTE_PPTO,
+        data: STATE.periodos.map(p => typeof p.derivados?.avance_fisico_ppto_delta==='number' ? p.derivados.avance_fisico_ppto_delta*100 : null),
+        datalabels:{ anchor:'center', align:'center', color:'#fff', font:{weight:'700',size:9},
+          formatter:(v,ctx)=> ctx.dataIndex === nMeses-1 && typeof v==='number' ? fmtAR(v,1) : null } }
+    ]},
+    options:{
+      scales:{ y:{ position:'left', ticks:{callback:v=>fmtAR(v,1)+'%'} }, y1:{ position:'right', grid:{drawOnChartArea:false}, ticks:{callback:v=>fmtAR(v,1)+'pp'} } },
+      plugins:{ tooltip:{ callbacks:{
+        label: (ctx) => `${ctx.dataset.label}: ${fmtAR(ctx.parsed.y,1)}${ctx.datasetIndex<2?'%':'pp'}`,
+        afterLabel: (ctx) => {
+          const p = STATE.periodos[ctx.dataIndex];
+          const d = ctx.datasetIndex===0 ? p.derivados?.avance_fisico_real_delta : ctx.datasetIndex===1 ? p.derivados?.avance_fisico_ppto_delta : null;
+          return typeof d === 'number' ? `Δ mes: ${fmtAR(d*100,1)} pp` : '';
+        }
+      } } }
+    },
+    plugins:[ChartDataLabels]
+  });
+}
+
+function renderChartFaltante(){
+  destroyChart('faltante');
+  const ctx = document.getElementById('chart-faltante');
+  charts['faltante'] = new Chart(ctx, {
+    type:'line',
+    data:{ labels:labelsPeriodos(), datasets:[{
+      label:'Margen del Faltante (%)', data: STATE.periodos.map(p=>p.datos.margen_faltante_pct*100),
+      borderColor: COLOR.cyan, tension:.3, pointRadius:4,
+      pointBackgroundColor: COLOR.cyan, pointBorderColor: COLOR.cyan,
+      datalabels:{ align:'top', font:{weight:'700',size:10}, formatter:v=>fmtAR(v,1)+'%', color:(ctx)=>colorNeg(ctx.dataset.data[ctx.dataIndex]) }
+    }]},
+    options:{
+      plugins:{ tooltip:{ callbacks:{ label: tooltipFmt(true) } } },
+      scales:{ y:{ max:0, ticks:{ callback:v=>fmtAR(v,1)+'%', color:(ctx)=>colorNeg(ctx.tick.value) } } }
+    },
+    plugins:[ChartDataLabels]
+  });
+}
+
+function renderChartEstimActual(){
+  destroyChart('estimactual');
+  const ctx = document.getElementById('chart-estimactual');
+  charts['estimactual'] = new Chart(ctx, {
+    type:'line',
+    data:{ labels:labelsPeriodos(), datasets:[{
+      label:'Proyecto Estim. Actual (MM$)',
+      data: STATE.periodos.map(p=>Math.round(p.datos.proyecto_estim_actual*10)/10),
+      borderColor: COLOR.orange, tension:.1, pointRadius:5,
+      pointBackgroundColor: STATE.periodos.map(p => p.derivados?.proyecto_estim_actual_cambio ? COLOR.red : COLOR.orange),
+      pointBorderColor: STATE.periodos.map(p => p.derivados?.proyecto_estim_actual_cambio ? COLOR.red : COLOR.orange),
+      datalabels:{ align:'top', color:'#0f172a', font:{weight:'700',size:10}, formatter:v=>fmtAR(v,1) }
+    }]},
+    options:{
+      plugins:{
+        tooltip:{ callbacks:{
+          label: tooltipFmt(false),
+          afterLabel:(ctx)=>{
+            const p = STATE.periodos[ctx.dataIndex];
+            return p.derivados?.proyecto_estim_actual_cambio ? '⚠ Cambió respecto al mes anterior' : '';
+          }
+        } }
+      },
+      scales:{ y:{ display:false } }
+    },
+    plugins:[ChartDataLabels]
+  });
+}
+
+// ============================================================
+// TOAST / SPINNER
+// ============================================================
+function toast(msg, tipo='ok'){
+  const el = document.getElementById('toast');
+  const inner = document.getElementById('toast-inner');
+  document.getElementById('toast-msg').textContent = msg;
+  inner.className = 'toast-inner' + (tipo==='warn'?' warn':tipo==='err'?' err':'');
+  el.classList.add('show');
+  clearTimeout(window._toastTimer);
+  window._toastTimer = setTimeout(() => el.classList.remove('show'), 5000);
+}
+function showSpinner(msg){ document.getElementById('spinner-msg').textContent = msg; document.getElementById('spinner').classList.add('active'); }
+function hideSpinner(){ document.getElementById('spinner').classList.remove('active'); }
+
+document.addEventListener('DOMContentLoaded', () => { renderAll(); });
+</script>
+</body>
+</html>
