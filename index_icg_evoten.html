@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ICG EvoTen v2.08 | 1316 - Acueducto Gran Tulum</title>
+<title>ICG EvoTen v2.09 | 1316 - Acueducto Gran Tulum</title>
 <script src="https://cdn.tailwindcss.com/3.4.1"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
@@ -325,7 +325,7 @@ main { max-width:1400px; margin:0 auto; padding:24px 20px 60px; }
 
 <div id="app-header">
   <div style="display:flex;align-items:center;gap:14px;">
-    <div class="app-badge">v2.08</div>
+    <div class="app-badge">v2.09</div>
     <div>
       <div class="app-title">ICG EvoTen · Evolución y Tendencia</div>
       <div class="app-sub" id="app-sub"></div>
@@ -448,13 +448,15 @@ main { max-width:1400px; margin:0 auto; padding:24px 20px 60px; }
       </div>
     </div>
 
-    <!-- ── Fila 4: Valor de control con tendencia ── -->
-    <div class="section-title">Valor de Control · Tendencia (alerta si cambia)</div>
+    <!-- ── Fila 4: Costo Faltante / Venta - Mes ── -->
+    <div class="section-title">Costo Faltante / Venta - Mes</div>
     <div class="grid-2col" style="margin-bottom:16px;">
-      <!-- Reservado para un próximo panel de Valor de Control. Vacío a propósito. -->
-      <div></div>
+      <div class="bloque b-costos">
+        <div class="bloque-hdr"><div><h3>Costo Faltante</h3><div class="bsub">D31 · $ (alerta si sube vs. mes anterior)</div></div></div>
+        <div style="padding:16px 20px;"><div class="chart-wrap-md"><canvas id="chart-costofaltante"></canvas></div></div>
+      </div>
       <div class="bloque b-control">
-        <div class="bloque-hdr"><div><h3>Proyecto Estim. Actual</h3><div class="bsub">F12 · MM$ (control + tendencia)</div></div></div>
+        <div class="bloque-hdr"><div><h3>Proyecto Estim. Actual / Avance de Venta</h3><div class="bsub">F12 · D12 (MM$ + % mensual)</div></div></div>
         <div style="padding:16px 20px;"><div class="chart-wrap-sm"><canvas id="chart-estimactual"></canvas></div></div>
       </div>
     </div>
@@ -497,6 +499,11 @@ main { max-width:1400px; margin:0 auto; padding:24px 20px 60px; }
 // + offset de fila + columna de valor. tipo: 'directo' | 'derivado' | 'control' | 'acumulado_delta' | 'info'
 const SHEET_NAME = '2 - TC';
 
+// Versión de la app — se estampa en el JSON exportado (STATE.generado_con) para que,
+// si mañana cambia la lógica de detección/visualización, el motor pueda detectar JSON
+// generados con una versión anterior y aplicar un fallback en vez de romper.
+const APP_VERSION = 'v2.09';
+
 const PERFIL_1316 = [
   { id:'margen_total_pct',      col:'F', anclaCol:'A', anclaTexto:'Contribución c/Aj. en Vta', offset:1, tipo:'directo' },
   { id:'dotacion_ppto',         col:'E', anclaCol:'A', anclaTexto:'Dotación del mes [Cantidad]', offset:1, tipo:'directo' },
@@ -515,6 +522,8 @@ const PERFIL_1316 = [
   { id:'margen_obra',           celda:'F5', tipo:'control' },
   { id:'mes_periodo',           celda:'E1', tipo:'info' },
   { id:'proyecto_estim_actual', col:'F', anclaCol:'F', anclaTexto:'Estim. Actual', offset:1, tipo:'control' },
+  { id:'venta_saldo_faltante',  col:'D', anclaCol:'D', anclaTexto:'Estm. Gestión', offset:1, tipo:'acumulado_delta' },
+  { id:'costo_faltante',        col:'D', anclaCol:'A', anclaTexto:'TOTAL COSTO', offset:0, tipo:'directo' },
 ];
 
 // Nombres de obra por código — usado solo para el subtítulo del header (N° + nombre).
@@ -710,6 +719,14 @@ function computeDerivados(){
     p.derivados.avance_fisico_ppto_delta = anterior && typeof p.datos.avance_fisico_ppto === 'number' && typeof anterior.datos.avance_fisico_ppto === 'number'
       ? p.datos.avance_fisico_ppto - anterior.datos.avance_fisico_ppto : null;
 
+    // Punto 14 — Avance de venta mensual (%): (D12 anterior - D12 actual) / F12 actual. Null en el primer período (falta anterior).
+    p.derivados.venta_avance_pct = anterior && typeof p.datos.venta_saldo_faltante === 'number' && typeof anterior.datos.venta_saldo_faltante === 'number' && typeof p.datos.proyecto_estim_actual === 'number'
+      ? (anterior.datos.venta_saldo_faltante - p.datos.venta_saldo_faltante) / p.datos.proyecto_estim_actual : null;
+
+    // Punto 15 — Alerta de Costo Faltante: true si el faltante creció respecto al mes anterior (debería venir bajando). Null en el primer período.
+    p.derivados.costo_faltante_alerta = anterior && typeof p.datos.costo_faltante === 'number' && typeof anterior.datos.costo_faltante === 'number'
+      ? p.datos.costo_faltante > anterior.datos.costo_faltante : null;
+
     // Detección de cambio en valores de control (margen_obra, proyecto_estim_actual)
     ['margen_obra','proyecto_estim_actual'].forEach(id => {
       const actual = p.datos[id];
@@ -775,6 +792,7 @@ function onJsonSelected(evt){
 
 function exportarJSON(){
   if(STATE.periodos.length === 0){ toast('No hay datos para exportar', 'warn'); return; }
+  STATE.generado_con = APP_VERSION;
   const blob = new Blob([JSON.stringify(STATE, null, 2)], { type:'application/json' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -905,6 +923,7 @@ function renderAll(){
   renderChartCostoHH();
   renderChartAvance();
   renderChartFaltante();
+  renderChartCostoFaltante();
   renderChartEstimActual();
 }
 
@@ -1266,26 +1285,67 @@ function renderChartEstimActual(){
   destroyChart('estimactual');
   const ctx = document.getElementById('chart-estimactual');
   charts['estimactual'] = new Chart(ctx, {
-    type:'line',
-    data:{ labels:labelsPeriodos(), datasets:[{
-      label:'Proyecto Estim. Actual (MM$)',
-      data: STATE.periodos.map(p=>Math.round(p.datos.proyecto_estim_actual*10)/10),
-      borderColor: COLOR.orange, tension:.1, pointRadius:5,
-      pointBackgroundColor: STATE.periodos.map(p => p.derivados?.proyecto_estim_actual_cambio ? COLOR.red : COLOR.orange),
-      pointBorderColor: STATE.periodos.map(p => p.derivados?.proyecto_estim_actual_cambio ? COLOR.red : COLOR.orange),
-      datalabels:{ align:'top', color:'#0f172a', font:{weight:'700',size:10}, formatter:v=>fmtAR(v,1) }
-    }]},
+    data:{ labels:labelsPeriodos(), datasets:[
+      { type:'line', label:'Proyecto Estim. Actual (MM$)', yAxisID:'y',
+        data: STATE.periodos.map(p=>Math.round(p.datos.proyecto_estim_actual*10)/10),
+        borderColor: COLOR.orange, tension:.1, pointRadius:5,
+        pointBackgroundColor: STATE.periodos.map(p => p.derivados?.proyecto_estim_actual_cambio ? COLOR.red : COLOR.orange),
+        pointBorderColor: STATE.periodos.map(p => p.derivados?.proyecto_estim_actual_cambio ? COLOR.red : COLOR.orange),
+        datalabels:{ align:'top', color:'#0f172a', font:{weight:'700',size:10}, formatter:v=>fmtAR(v,1) } },
+      { type:'line', label:'Avance de Venta (%)', yAxisID:'y1',
+        data: STATE.periodos.map(p => typeof p.derivados?.venta_avance_pct==='number' ? p.derivados.venta_avance_pct*100 : null),
+        borderColor: COLOR.blue, tension:.1, pointRadius:5,
+        pointBackgroundColor: COLOR.blue, pointBorderColor: COLOR.blue,
+        datalabels:{ align:'bottom', color:COLOR.blue, font:{weight:'700',size:10}, formatter:v=> typeof v==='number' ? fmtAR(v,2)+'%' : null } }
+    ]},
     options:{
       plugins:{
         tooltip:{ callbacks:{
-          label: tooltipFmt(false),
+          label:(ctx)=> ctx.datasetIndex===0 ? `${ctx.dataset.label}: ${fmtAR(ctx.parsed.y,1)}` : `${ctx.dataset.label}: ${typeof ctx.parsed.y==='number'?fmtAR(ctx.parsed.y,2)+'%':'sin dato (falta anterior)'}`,
           afterLabel:(ctx)=>{
             const p = STATE.periodos[ctx.dataIndex];
-            return p.derivados?.proyecto_estim_actual_cambio ? '⚠ Cambió respecto al mes anterior' : '';
+            return ctx.datasetIndex===0 && p.derivados?.proyecto_estim_actual_cambio ? '⚠ Cambió respecto al mes anterior' : '';
           }
         } }
       },
-      scales:{ y:{ display:false } }
+      scales:{
+        y:{ display:false },
+        y1:{ position:'right', grid:{drawOnChartArea:false}, ticks:{callback:v=>fmtAR(v,1)+'%'} }
+      }
+    },
+    plugins:[ChartDataLabels]
+  });
+}
+
+function renderChartCostoFaltante(){
+  destroyChart('costofaltante');
+  const ctx = document.getElementById('chart-costofaltante');
+  const nMeses = STATE.periodos.length;
+  const alerta = STATE.periodos.map(p => p.derivados?.costo_faltante_alerta === true);
+  const COLOR_OK = '#93c5fd';     // azul claro, mismo criterio que Costo HH Vestida
+  const COLOR_ALERTA = '#b91c1c'; // rojo oscuro — el faltante subió vs. mes anterior
+  charts['costofaltante'] = new Chart(ctx, {
+    type:'bar',
+    data:{ labels:labelsPeriodos(), datasets:[{
+      label:'Costo Faltante ($)',
+      data: STATE.periodos.map(p=>p.datos.costo_faltante),
+      backgroundColor: alerta.map(a => a ? COLOR_ALERTA : COLOR_OK), borderColor: COLOR_OK, borderRadius:4,
+      datalabels:{ color:'#0f172a', font:{weight:'700',size:10}, anchor:'end', align:'top',
+        formatter:(v,ctx)=>{
+          const isLast = ctx.dataIndex === nMeses-1;
+          if(alerta[ctx.dataIndex]) return isLast ? `⚠ ${fmtAR(v,1)}` : '⚠';
+          return isLast ? fmtAR(v,1) : null;
+        } }
+    }]},
+    options:{
+      plugins:{ tooltip:{ callbacks:{
+        label: tooltipFmt(false),
+        afterLabel:(ctx)=>{
+          const p = STATE.periodos[ctx.dataIndex];
+          return p.derivados?.costo_faltante_alerta ? '⚠ Subió respecto al mes anterior' : '';
+        }
+      } } },
+      scales:{ y:{ ticks:{ callback:v=>fmtAR(v,1) } } }
     },
     plugins:[ChartDataLabels]
   });
