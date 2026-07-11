@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ICG EvoTen v2.09 | 1316 - Acueducto Gran Tulum</title>
+<title>ICG EvoTen v3.00 | Multi-obra</title>
 <script src="https://cdn.tailwindcss.com/3.4.1"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
@@ -119,6 +119,7 @@ input[type=file].hidden-input { display:none; }
 .pill { display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:99px;font-size:9px;font-weight:700; }
 .pill-ok   { background:#dcfce7;color:#15803d; }
 .pill-warn { background:#fef9c3;color:#a16207; }
+.pill-err  { background:#fee2e2;color:#b91c1c; }
 .pill-bad  { background:#fee2e2;color:#b91c1c; }
 .pill-neu  { background:#f1f5f9;color:#64748b; }
 
@@ -312,6 +313,68 @@ main { max-width:1400px; margin:0 auto; padding:24px 20px 60px; }
    ============================================================ */
 
 .section-title { font-size:11px;font-weight:900;text-transform:uppercase;letter-spacing:.08em;color:#64748b;margin:28px 0 12px; }
+
+/* ── v3.00 — Banners de configuración ── */
+.cfg-banner {
+  display:none; align-items:center; justify-content:space-between; gap:10px;
+  padding:10px 20px; font-size:11.5px; font-weight:700; border-bottom:1px solid;
+}
+.cfg-banner.show { display:flex; }
+.cfg-banner.tipo-fallback { background:#fffbeb; color:#92400e; border-color:#fde68a; }
+.cfg-banner.tipo-error { background:#fef2f2; color:#991b1b; border-color:#fecaca; cursor:pointer; }
+.cfg-banner.tipo-error:hover { background:#fee2e2; }
+.cfg-banner button.cfg-banner-close { background:none;border:none;color:inherit;font-size:14px;cursor:pointer;opacity:.6; }
+.cfg-banner button.cfg-banner-close:hover { opacity:1; }
+
+/* ── v3.00 — Tabs ── */
+#tab-bar { display:flex; gap:4px; padding:0 32px; background:#fff; border-bottom:1px solid #e2e8f0; position:sticky; top:70px; z-index:90; }
+.tab-btn {
+  padding:11px 18px; font-size:11.5px; font-weight:800; text-transform:uppercase; letter-spacing:.05em;
+  color:#94a3b8; background:none; border:none; border-bottom:3px solid transparent; cursor:pointer;
+}
+.tab-btn.active { color:#0f172a; border-color:#3b82f6; }
+.tab-btn:hover:not(.active) { color:#475569; }
+.tab-panel { display:none; }
+.tab-panel.active { display:block; }
+
+/* ── v3.00 — Tab Configuración ── */
+#config-tab-content { padding:20px 32px 40px; }
+.cfg-uo-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:12px; margin-bottom:20px; }
+.cfg-uo-card {
+  background:#fff; border:2px solid #e6eaf0; border-radius:14px; padding:14px 16px; cursor:pointer; transition:all .15s;
+}
+.cfg-uo-card:hover { border-color:#94a3b8; }
+.cfg-uo-card.selected { border-color:#3b82f6; background:#eff6ff; }
+.cfg-uo-card .uo-num { font-size:15px; font-weight:900; font-family:'Space Grotesk',sans-serif; }
+.cfg-uo-card .uo-nombre { font-size:10.5px; color:#64748b; margin-top:2px; }
+.cfg-uo-card .uo-estado { margin-top:8px; }
+.cfg-toolbar { display:flex; gap:10px; align-items:center; margin-bottom:14px; flex-wrap:wrap; }
+.cfg-toolbar select, .cfg-toolbar input[type=text] {
+  font-size:11.5px; padding:7px 10px; border-radius:8px; border:1px solid #cbd5e1; background:#fff;
+}
+.cfg-btn {
+  font-size:10.5px; font-weight:800; text-transform:uppercase; letter-spacing:.04em; padding:7px 14px;
+  border-radius:8px; border:1px solid #cbd5e1; background:#fff; cursor:pointer; color:#334155;
+}
+.cfg-btn:hover { background:#f1f5f9; }
+.cfg-btn.primary { background:#3b82f6; border-color:#3b82f6; color:#fff; }
+.cfg-btn.primary:hover { background:#2563eb; }
+.cfg-btn.green { background:#10b981; border-color:#10b981; color:#fff; }
+.cfg-btn.green:hover { background:#059669; }
+.tabla-cfg { width:100%; border-collapse:collapse; font-size:11px; }
+.tabla-cfg th { background:#1e293b; color:#94a3b8; font-size:9px; font-weight:900; text-transform:uppercase; letter-spacing:.05em; padding:8px 10px; text-align:left; white-space:nowrap; }
+.tabla-cfg td { padding:5px 8px; border-bottom:1px solid #f1f5f9; }
+.tabla-cfg tr.row-pendiente td { background:#fffbeb; }
+.tabla-cfg tr.row-error td { background:#fef2f2; }
+.tabla-cfg tr.row-highlight td { animation: pulseRow 1.4s ease 2; }
+@keyframes pulseRow { 0%,100%{ background:#fef2f2; } 50%{ background:#fecaca; } }
+.tabla-cfg input, .tabla-cfg select {
+  width:100%; font-size:11px; padding:4px 6px; border:1px solid transparent; border-radius:5px; background:transparent;
+}
+.tabla-cfg input:hover, .tabla-cfg select:hover, .tabla-cfg input:focus, .tabla-cfg select:focus {
+  border-color:#cbd5e1; background:#fff; outline:none;
+}
+.cfg-empty { text-align:center; padding:40px 20px; color:#94a3b8; font-size:12px; }
 </style>
 </head>
 <body>
@@ -325,7 +388,7 @@ main { max-width:1400px; margin:0 auto; padding:24px 20px 60px; }
 
 <div id="app-header">
   <div style="display:flex;align-items:center;gap:14px;">
-    <div class="app-badge">v2.09</div>
+    <div class="app-badge">v3.00</div>
     <div>
       <div class="app-title">ICG EvoTen · Evolución y Tendencia</div>
       <div class="app-sub" id="app-sub"></div>
@@ -349,7 +412,24 @@ main { max-width:1400px; margin:0 auto; padding:24px 20px 60px; }
   </div>
 </div>
 
+<div class="cfg-banner tipo-fallback" id="banner-fallback">
+  <span><i class="ti ti-alert-triangle"></i> No se pudo cargar <code>config_uo_celdas.json</code> — usando perfil de emergencia (solo obra 1316). Serví el HTML por HTTP (ej. GitHub Pages) para que el fetch funcione.</span>
+  <button class="cfg-banner-close" onclick="document.getElementById('banner-fallback').classList.remove('show')">✕</button>
+</div>
+
+<div class="cfg-banner tipo-error" id="banner-errores" onclick="irABannerErrores()">
+  <span id="banner-errores-msg"></span>
+  <button class="cfg-banner-close" onclick="event.stopPropagation(); document.getElementById('banner-errores').classList.remove('show')">✕</button>
+</div>
+
+<div id="tab-bar">
+  <button class="tab-btn active" id="tab-btn-dashboard" onclick="cambiarTab('dashboard')">Dashboard</button>
+  <button class="tab-btn" id="tab-btn-config" onclick="cambiarTab('config')">Configuración</button>
+</div>
+
 <main>
+
+<div class="tab-panel active" id="tab-panel-dashboard">
 
   <div id="empty-state">
     <i class="ti ti-database-off"></i>
@@ -462,6 +542,12 @@ main { max-width:1400px; margin:0 auto; padding:24px 20px 60px; }
     </div>
 
   </div>
+</div>
+
+<div class="tab-panel" id="tab-panel-config">
+  <div id="config-tab-content"></div>
+</div>
+
 </main>
 
 <!-- ── Modal Períodos ── -->
@@ -493,45 +579,71 @@ main { max-width:1400px; margin:0 auto; padding:24px 20px 60px; }
 
 <script>
 // ============================================================
-// PERFIL DE REGLAS — Obra 1316, hoja "2 - TC" exclusivamente
+// CONFIGURACIÓN DE PERFILES — multi-obra, externa (v3.00)
 // ============================================================
 // Cada regla define cómo ubicar un valor: ancla de texto (columna+texto)
 // + offset de fila + columna de valor. tipo: 'directo' | 'derivado' | 'control' | 'acumulado_delta' | 'info'
-const SHEET_NAME = '2 - TC';
+// La config completa (todas las UO) vive en config_uo_celdas.json, al lado de este HTML.
+// Si el fetch falla (ej. archivo abierto con file://), se usa este perfil de emergencia
+// (solo obra 1316, el mismo que existía hardcodeado hasta v2.09) y se avisa con un banner.
+const CONFIG_FALLBACK = {
+  version: 'fallback-1316',
+  obras: {
+    '1316': {
+      nombre: 'Acueducto Gran Tulum',
+      sheetName: '2 - TC',
+      estado: 'ok',
+      campos: [
+        { id:'margen_total_pct',      col:'F', anclaCol:'A', anclaTexto:'Contribución c/Aj. en Vta', offset:1, tipo:'directo' },
+        { id:'dotacion_ppto',         col:'E', anclaCol:'A', anclaTexto:'Dotación del mes [Cantidad]', offset:1, tipo:'directo' },
+        { id:'dotacion_actual',       col:'E', anclaCol:'A', anclaTexto:'Dotación del mes [Cantidad]', offset:2, tipo:'directo' },
+        { id:'resultado_acum_valor',  col:'C', anclaCol:'A', anclaTexto:'Contribución c/Aj. en Vta', offset:0, tipo:'directo' },
+        { id:'resultado_acum_pct',    col:'C', anclaCol:'A', anclaTexto:'Contribución c/Aj. en Vta', offset:1, tipo:'directo' },
+        { id:'costo_total',           col:'F', anclaCol:'A', anclaTexto:'TOTAL COSTO', offset:0, tipo:'directo' },
+        { id:'venta_ajustada',        col:'F', anclaCol:'A', anclaTexto:'VENTA AJUSTADA (IGN)', offset:0, tipo:'directo' },
+        { id:'hh_directos',           col:'C', anclaCol:'A', anclaTexto:'Horas Hombre [HH]-Jornales', offset:1, tipo:'directo' },
+        { id:'hh_indirectos',         col:'C', anclaCol:'A', anclaTexto:'Horas Hombre [HH]-Jornales', offset:2, tipo:'directo' },
+        { id:'costo_hh_vestida_real', col:'C', anclaCol:'A', anclaTexto:'Costo Prom. H de JORN del mes', offset:2, tipo:'directo' },
+        { id:'costo_hh_vestida_ppto', col:'D', anclaCol:'A', anclaTexto:'Costo Prom. H de JORN del mes', offset:2, tipo:'directo' },
+        { id:'avance_fisico_real',    col:'G', anclaCol:'F', anclaTexto:'Avances Físicos', offset:7, tipo:'acumulado_delta' },
+        { id:'avance_fisico_ppto',    col:'H', anclaCol:'F', anclaTexto:'Avances Físicos', offset:7, tipo:'acumulado_delta' },
+        { id:'margen_faltante_pct',   col:'D', anclaCol:'A', anclaTexto:'Contribución c/Aj. en Vta', offset:1, tipo:'directo' },
+        { id:'margen_obra',           celda:'F5', tipo:'control' },
+        { id:'mes_periodo',           celda:'E1', tipo:'info' },
+        { id:'proyecto_estim_actual', col:'F', anclaCol:'F', anclaTexto:'Estim. Actual', offset:1, tipo:'control' },
+        { id:'venta_saldo_faltante',  col:'D', anclaCol:'D', anclaTexto:'Estm. Gestión', offset:1, tipo:'acumulado_delta' },
+        { id:'costo_faltante',        col:'D', anclaCol:'A', anclaTexto:'TOTAL COSTO', offset:0, tipo:'directo' },
+      ],
+      auxCeldas: { periodoReporte:'H1', fechaEmision:'H2', revisionHoja:'F1', margenOferta:'H3' },
+      panelMap: {
+        'chart-margen':['margen_total_pct'], 'chart-resultado':['resultado_acum_valor','resultado_acum_pct'],
+        'chart-hh':['hh_directos','hh_indirectos'], 'chart-costohh':['costo_hh_vestida_real','costo_hh_vestida_ppto'],
+        'chart-avance':['avance_fisico_real','avance_fisico_ppto'], 'chart-faltante':['margen_faltante_pct'],
+        'chart-costofaltante':['costo_faltante'], 'chart-estimactual':['proyecto_estim_actual','venta_saldo_faltante']
+      }
+    }
+  }
+};
 
 // Versión de la app — se estampa en el JSON exportado (STATE.generado_con) para que,
 // si mañana cambia la lógica de detección/visualización, el motor pueda detectar JSON
 // generados con una versión anterior y aplicar un fallback en vez de romper.
-const APP_VERSION = 'v2.09';
+const APP_VERSION = 'v3.00';
 
-const PERFIL_1316 = [
-  { id:'margen_total_pct',      col:'F', anclaCol:'A', anclaTexto:'Contribución c/Aj. en Vta', offset:1, tipo:'directo' },
-  { id:'dotacion_ppto',         col:'E', anclaCol:'A', anclaTexto:'Dotación del mes [Cantidad]', offset:1, tipo:'directo' },
-  { id:'dotacion_actual',       col:'E', anclaCol:'A', anclaTexto:'Dotación del mes [Cantidad]', offset:2, tipo:'directo' },
-  { id:'resultado_acum_valor',  col:'C', anclaCol:'A', anclaTexto:'Contribución c/Aj. en Vta', offset:0, tipo:'directo' },
-  { id:'resultado_acum_pct',    col:'C', anclaCol:'A', anclaTexto:'Contribución c/Aj. en Vta', offset:1, tipo:'directo' },
-  { id:'costo_total',           col:'F', anclaCol:'A', anclaTexto:'TOTAL COSTO', offset:0, tipo:'directo' },
-  { id:'venta_ajustada',        col:'F', anclaCol:'A', anclaTexto:'VENTA AJUSTADA (IGN)', offset:0, tipo:'directo' },
-  { id:'hh_directos',           col:'C', anclaCol:'A', anclaTexto:'Horas Hombre [HH]-Jornales', offset:1, tipo:'directo' },
-  { id:'hh_indirectos',         col:'C', anclaCol:'A', anclaTexto:'Horas Hombre [HH]-Jornales', offset:2, tipo:'directo' },
-  { id:'costo_hh_vestida_real', col:'C', anclaCol:'A', anclaTexto:'Costo Prom. H de JORN del mes', offset:2, tipo:'directo' },
-  { id:'costo_hh_vestida_ppto', col:'D', anclaCol:'A', anclaTexto:'Costo Prom. H de JORN del mes', offset:2, tipo:'directo' },
-  { id:'avance_fisico_real',    col:'G', anclaCol:'F', anclaTexto:'Avances Físicos', offset:7, tipo:'acumulado_delta' },
-  { id:'avance_fisico_ppto',    col:'H', anclaCol:'F', anclaTexto:'Avances Físicos', offset:7, tipo:'acumulado_delta' },
-  { id:'margen_faltante_pct',   col:'D', anclaCol:'A', anclaTexto:'Contribución c/Aj. en Vta', offset:1, tipo:'directo' },
-  { id:'margen_obra',           celda:'F5', tipo:'control' },
-  { id:'mes_periodo',           celda:'E1', tipo:'info' },
-  { id:'proyecto_estim_actual', col:'F', anclaCol:'F', anclaTexto:'Estim. Actual', offset:1, tipo:'control' },
-  { id:'venta_saldo_faltante',  col:'D', anclaCol:'D', anclaTexto:'Estm. Gestión', offset:1, tipo:'acumulado_delta' },
-  { id:'costo_faltante',        col:'D', anclaCol:'A', anclaTexto:'TOTAL COSTO', offset:0, tipo:'directo' },
+// CAMPOS_BASE — plantilla de ids/tipos usada por "Nueva UO en blanco" en el tab Configuración.
+// No es un perfil de extracción (no tiene anclas propias); solo define QUÉ campos existen.
+const CAMPOS_BASE = [
+  'margen_total_pct','dotacion_ppto','dotacion_actual','resultado_acum_valor','resultado_acum_pct',
+  'costo_total','venta_ajustada','hh_directos','hh_indirectos','costo_hh_vestida_real','costo_hh_vestida_ppto',
+  'avance_fisico_real','avance_fisico_ppto','margen_faltante_pct','margen_obra','mes_periodo',
+  'proyecto_estim_actual','venta_saldo_faltante','costo_faltante'
 ];
+const TIPOS_VALIDOS = ['directo','derivado','control','acumulado_delta','info'];
 
 // Nombres de obra por código — usado solo para el subtítulo del header (N° + nombre).
 // El período/estado de carga NO va acá: se ve en la Ventana de Reportes.
+// (v3.00: ahora se resuelve preferentemente desde CONFIG.obras[uo].nombre; este objeto queda como respaldo.)
 const NOMBRES_OBRA = { '1316': 'Acueducto Gran Tulum' };
-
-// Celdas auxiliares de identidad/validación (no son paneles, sirven de cruce)
-const AUX_CELDAS = { periodoReporte:'H1', fechaEmision:'H2', revisionHoja:'F1', margenOferta:'H3' };
 
 // Tolerancia relativa para considerar "cambio real" en valores de control (evita ruido de redondeo de Excel)
 const TOL_CONTROL = 1e-4;
@@ -539,8 +651,40 @@ const TOL_CONTROL = 1e-4;
 // ============================================================
 // ESTADO — en memoria únicamente (no localStorage, no backend)
 // ============================================================
-let STATE = { obra:null, periodos:[], notas:[] }; // periodos: array de registros (ver upsertPeriodo) · notas: Panel de Notas/Conclusiones
+let STATE = { obra:null, periodos:[], notas:[], errorSeq:0, celdasResueltas:{} };
+// periodos: array de registros (ver upsertPeriodo) · notas: Panel de Notas/Conclusiones
+// errorSeq: correlativo incremental de errores de ancla (sesión actual, no persiste)
+// celdasResueltas: { campoId: 'D31' } — última celda resuelta por campo, para hover de paneles (Configuración > panelMap)
+let CONFIG = null;       // config_uo_celdas.json cargado (o CONFIG_FALLBACK si el fetch falló)
+let CONFIG_ORIGEN = '';  // 'externa' | 'fallback' — para el banner de aviso
 const charts = {};
+
+// ============================================================
+// CONFIG — carga externa y accesores
+// ============================================================
+async function cargarConfig(){
+  try{
+    const resp = await fetch('./config_uo_celdas.json', { cache:'no-store' });
+    if(!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    CONFIG = await resp.json();
+    CONFIG_ORIGEN = 'externa';
+  } catch(err){
+    console.warn('No se pudo cargar config_uo_celdas.json — usando perfil de emergencia (solo 1316).', err);
+    CONFIG = JSON.parse(JSON.stringify(CONFIG_FALLBACK));
+    CONFIG_ORIGEN = 'fallback';
+  }
+  actualizarBannerConfigOrigen();
+}
+
+function getObraConfig(uo){
+  if(CONFIG && CONFIG.obras && CONFIG.obras[uo]) return CONFIG.obras[uo];
+  return null;
+}
+
+function nombreObraDe(uo){
+  const oc = getObraConfig(uo);
+  return (oc && oc.nombre) ? oc.nombre : (NOMBRES_OBRA[uo] || '');
+}
 
 // ============================================================
 // UTILIDADES DE LECTURA XLSX
@@ -571,6 +715,11 @@ function getCell(rows, rowIdx, colLetter){
   return rows[rowIdx][colIdx];
 }
 
+// referencia letra-número de una celda (fila 0-based → 1-based, ej. col 'D' + row 30 → "D31")
+function refCelda(colLetter, rowIdx0){
+  return `${colLetter}${rowIdx0 + 1}`;
+}
+
 // ============================================================
 // PARSEO DE NOMBRE DE ARCHIVO — identidad del período
 // Patrón esperado: {obra}-ICG-{anio}-{mes}[_rev{N}].xlsx  (revisión ausente = 0)
@@ -588,26 +737,40 @@ function parseNombreArchivo(filename){
 }
 
 // ============================================================
-// EXTRACCIÓN DE UN PERÍODO A PARTIR DEL WORKBOOK
+// EXTRACCIÓN DE UN PERÍODO A PARTIR DEL WORKBOOK — generalizada por obra (v3.00)
 // ============================================================
-function extraerDatos(rows){
+// warnings: array de objetos { n, campo, celdaRef, motivo } — correlativo incremental (STATE.errorSeq),
+// referencia letra-número (o null si ni el ancla se encontró) y motivo. onXlsxSelected los formatea a texto para el toast/consola.
+function extraerDatos(rows, uo){
   const datos = {};
   const warnings = [];
+  const celdasResueltas = {};
+  const obraCfg = getObraConfig(uo);
+  const campos = obraCfg ? obraCfg.campos : [];
 
-  PERFIL_1316.forEach(regla => {
+  campos.forEach(regla => {
     let valor;
     if(regla.celda){
       const {row, col} = cellRefToRowCol(regla.celda);
-      valor = getCell(rows, row, String.fromCharCode(65+col));
       valor = rows[row] ? rows[row][col] : undefined;
-    } else {
+      celdasResueltas[regla.id] = regla.celda;
+    } else if(regla.anclaCol && regla.anclaTexto && regla.col && typeof regla.offset === 'number'){
       const anclaRow = findAnclaRow(rows, regla.anclaCol, regla.anclaTexto);
       if(anclaRow === -1){
-        warnings.push(`No se encontró ancla "${regla.anclaTexto}" (col ${regla.anclaCol}) para "${regla.id}"`);
+        STATE.errorSeq++;
+        warnings.push({ n:STATE.errorSeq, campo:regla.id, celdaRef:null, motivo:`No se encontró ancla "${regla.anclaTexto}" (col ${regla.anclaCol})` });
         datos[regla.id] = null;
         return;
       }
-      valor = getCell(rows, anclaRow + regla.offset, regla.col);
+      const filaValor = anclaRow + regla.offset;
+      valor = getCell(rows, filaValor, regla.col);
+      celdasResueltas[regla.id] = refCelda(regla.col, filaValor);
+    } else {
+      // Campo sin definición completa en la config (ej. UO recién clonada, aún "pendiente")
+      STATE.errorSeq++;
+      warnings.push({ n:STATE.errorSeq, campo:regla.id, celdaRef:null, motivo:'Campo sin configurar (pendiente en Configuración)' });
+      datos[regla.id] = null;
+      return;
     }
     datos[regla.id] = (typeof valor === 'number') ? valor : (valor ?? null);
   });
@@ -616,9 +779,13 @@ function extraerDatos(rows){
   datos['hh_total'] = (typeof datos.hh_directos === 'number' && typeof datos.hh_indirectos === 'number')
     ? datos.hh_directos + datos.hh_indirectos : null;
 
+  // Guarda la última resolución de celdas para el hover de paneles (Configuración)
+  Object.assign(STATE.celdasResueltas, celdasResueltas);
+
   // Auxiliares de identidad
+  const auxCeldas = (obraCfg && obraCfg.auxCeldas) ? obraCfg.auxCeldas : { periodoReporte:'H1', fechaEmision:'H2', revisionHoja:'F1', margenOferta:'H3' };
   const aux = {};
-  Object.entries(AUX_CELDAS).forEach(([k, ref]) => {
+  Object.entries(auxCeldas).forEach(([k, ref]) => {
     const {row, col} = cellRefToRowCol(ref);
     const v = rows[row] ? rows[row][col] : undefined;
     aux[k] = v ?? null;
@@ -639,26 +806,35 @@ function parsePeriodoReporte(str){
 // PROCESAMIENTO DE UN ARCHIVO XLSX
 // ============================================================
 async function procesarArchivoXLSX(file){
-  const buf = await file.arrayBuffer();
-  const wb = XLSX.read(buf, { type:'array', cellDates:false });
-
-  if(!wb.SheetNames.includes(SHEET_NAME)){
-    throw new Error(`"${file.name}" no tiene la hoja "${SHEET_NAME}". Hojas encontradas: ${wb.SheetNames.slice(0,5).join(', ')}...`);
-  }
-  const ws = wb.Sheets[SHEET_NAME];
-  const rows = XLSX.utils.sheet_to_json(ws, { header:1, defval:null, raw:true });
-
+  // v3.00: la obra se identifica PRIMERO por el nombre de archivo, porque de eso depende
+  // qué config (sheetName + campos) se usa para leer el workbook.
   const ident = parseNombreArchivo(file.name);
   if(!ident){
     throw new Error(`El nombre "${file.name}" no respeta el patrón esperado: {obra}-ICG-{anio}-{mes}[_rev{N}].xlsx`);
   }
 
-  const { datos, warnings, aux } = extraerDatos(rows);
+  const obraCfg = getObraConfig(ident.obra);
+  if(!obraCfg){
+    throw new Error(`La obra "${ident.obra}" no está configurada. Cargá su perfil en el tab Configuración antes de procesar este archivo.`);
+  }
+  const sheetName = obraCfg.sheetName || '2 - TC';
+
+  const buf = await file.arrayBuffer();
+  const wb = XLSX.read(buf, { type:'array', cellDates:false });
+
+  if(!wb.SheetNames.includes(sheetName)){
+    throw new Error(`"${file.name}" no tiene la hoja "${sheetName}" (configurada para obra ${ident.obra}). Hojas encontradas: ${wb.SheetNames.slice(0,5).join(', ')}...`);
+  }
+  const ws = wb.Sheets[sheetName];
+  const rows = XLSX.utils.sheet_to_json(ws, { header:1, defval:null, raw:true });
+
+  const { datos, warnings, aux } = extraerDatos(rows, ident.obra);
 
   // Validación cruzada: H1 "Período de reporte" vs nombre de archivo
   const periodoAux = parsePeriodoReporte(aux.periodoReporte);
   if(periodoAux && (periodoAux.mes !== ident.mes || periodoAux.anio !== ident.anio)){
-    warnings.push(`H1 dice "${aux.periodoReporte}" pero el archivo indica ${String(ident.mes).padStart(2,'0')}/${ident.anio} — revisar.`);
+    STATE.errorSeq++;
+    warnings.push({ n:STATE.errorSeq, campo:'mes_periodo', celdaRef:'H1', motivo:`H1 dice "${aux.periodoReporte}" pero el archivo indica ${String(ident.mes).padStart(2,'0')}/${ident.anio} — revisar.` });
   }
 
   return {
@@ -743,16 +919,24 @@ function computeDerivados(){
 // ============================================================
 // HANDLERS DE ARCHIVOS
 // ============================================================
+function fmtWarning(w){
+  return `#${w.n} [${w.campo}${w.celdaRef ? ' · '+w.celdaRef : ''}] ${w.motivo}`;
+}
+
 async function onXlsxSelected(evt){
   const files = Array.from(evt.target.files || []);
   if(files.length === 0) return;
   showSpinner(`Procesando ${files.length} archivo(s)…`);
   let ok = 0, fail = 0;
+  let warningsUO = {}; // { obra: cantidad } — para el banner al final del batch
   for(const file of files){
     try{
       const periodo = await procesarArchivoXLSX(file);
       if(periodo.warnings.length){
-        toast(`"${file.name}": ${periodo.warnings.join(' | ')}`, 'warn');
+        const texto = periodo.warnings.map(fmtWarning).join(' | ');
+        toast(`"${file.name}": ${texto}`, 'warn');
+        console.warn(`[${file.name}]`, periodo.warnings);
+        warningsUO[periodo.obra] = (warningsUO[periodo.obra] || 0) + periodo.warnings.length;
       }
       if(upsertPeriodo(periodo)) ok++;
     } catch(err){
@@ -765,6 +949,7 @@ async function onXlsxSelected(evt){
   renderAll();
   hideSpinner();
   toast(`${ok} período(s) cargado(s)${fail? ' · '+fail+' con error':''}`, fail?'warn':'ok');
+  Object.entries(warningsUO).forEach(([uo, cant]) => mostrarBannerErroresConfig(uo, cant));
   evt.target.value = '';
 }
 
@@ -778,6 +963,8 @@ function onJsonSelected(evt){
       if(!parsed.obra || !Array.isArray(parsed.periodos)) throw new Error('Estructura de JSON inválida (se espera {obra, periodos:[...]})');
       STATE = parsed;
       if(!Array.isArray(STATE.notas)) STATE.notas = []; // compatibilidad con JSON viejo (sin panel de Notas)
+      if(typeof STATE.errorSeq !== 'number') STATE.errorSeq = 0; // compatibilidad con JSON pre-v3.00
+      if(!STATE.celdasResueltas) STATE.celdasResueltas = {};
       computeDerivados();
       renderAll();
       toast(`JSON cargado: obra ${STATE.obra} · ${STATE.periodos.length} período(s)`, 'ok');
@@ -909,7 +1096,7 @@ function renderAll(){
   if(!hasData) return;
 
   const last = STATE.periodos[STATE.periodos.length - 1];
-  const nombreObra = NOMBRES_OBRA[STATE.obra];
+  const nombreObra = nombreObraDe(STATE.obra);
   document.getElementById('app-sub').textContent = nombreObra ? `${STATE.obra} · ${nombreObra}` : (STATE.obra ?? '');
 
   renderTablaPeriodos();
@@ -925,6 +1112,24 @@ function renderAll(){
   renderChartFaltante();
   renderChartCostoFaltante();
   renderChartEstimActual();
+  actualizarHoverPaneles();
+}
+
+// ============================================================
+// HOVER DE PANELES — muestra la(s) celda(s) resuelta(s) en la última carga (v3.00)
+// ============================================================
+function actualizarHoverPaneles(){
+  const obraCfg = getObraConfig(STATE.obra);
+  const panelMap = obraCfg && obraCfg.panelMap ? obraCfg.panelMap : {};
+  Object.entries(panelMap).forEach(([canvasId, campoIds]) => {
+    const canvas = document.getElementById(canvasId);
+    if(!canvas) return;
+    const bloqueHdr = canvas.closest('.bloque')?.querySelector('.bloque-hdr h3');
+    if(!bloqueHdr) return;
+    const refs = campoIds.map(id => `${id}: ${STATE.celdasResueltas[id] || '—'}`).join(' · ');
+    bloqueHdr.title = refs;
+    bloqueHdr.style.cursor = 'help';
+  });
 }
 
 function renderTablaPeriodos(){
@@ -973,7 +1178,7 @@ function renderAlertPanel(){
   const items = [];
   STATE.periodos.forEach(p => {
     const per = `${String(p.periodo.mes).padStart(2,'0')}/${p.periodo.anio}`;
-    (p.warnings||[]).forEach(w => items.push({ per, archivo:p.archivo_origen, msg:w, tipo:'validacion' }));
+    (p.warnings||[]).forEach(w => items.push({ per, archivo:p.archivo_origen, msg:fmtWarning(w), tipo:'validacion' }));
     if(p.derivados?.margen_obra_cambio) items.push({ per, archivo:p.archivo_origen, msg:'Margen Obra (F5) cambió respecto al mes anterior', tipo:'control' });
     if(p.derivados?.proyecto_estim_actual_cambio) items.push({ per, archivo:p.archivo_origen, msg:'Proyecto Estim. Actual (F12) cambió respecto al mes anterior', tipo:'control' });
   });
@@ -1366,7 +1571,218 @@ function toast(msg, tipo='ok'){
 function showSpinner(msg){ document.getElementById('spinner-msg').textContent = msg; document.getElementById('spinner').classList.add('active'); }
 function hideSpinner(){ document.getElementById('spinner').classList.remove('active'); }
 
-document.addEventListener('DOMContentLoaded', () => { renderAll(); });
+// ============================================================
+// TABS — Dashboard / Configuración (v3.00)
+// ============================================================
+function cambiarTab(nombre){
+  document.getElementById('tab-panel-dashboard').classList.toggle('active', nombre==='dashboard');
+  document.getElementById('tab-panel-config').classList.toggle('active', nombre==='config');
+  document.getElementById('tab-btn-dashboard').classList.toggle('active', nombre==='dashboard');
+  document.getElementById('tab-btn-config').classList.toggle('active', nombre==='config');
+}
+
+// ============================================================
+// BANNERS — origen de config + errores no bloqueantes (v3.00)
+// ============================================================
+function actualizarBannerConfigOrigen(){
+  document.getElementById('banner-fallback').classList.toggle('show', CONFIG_ORIGEN === 'fallback');
+}
+
+let _bannerErroresObra = null;
+function mostrarBannerErroresConfig(uo, cantidad){
+  _bannerErroresObra = uo;
+  document.getElementById('banner-errores-msg').innerHTML =
+    `<i class="ti ti-alert-triangle"></i> ${cantidad} campo(s) sin resolver en UO ${uo} — click para ir a Configuración`;
+  document.getElementById('banner-errores').classList.add('show');
+}
+
+function irABannerErrores(){
+  if(!_bannerErroresObra) return;
+  cambiarTab('config');
+  cfgSeleccionarUO(_bannerErroresObra, true);
+  document.getElementById('banner-errores').classList.remove('show');
+}
+
+// ============================================================
+// TAB CONFIGURACIÓN — CRUD del config_uo_celdas.json (v3.00, 100% local/cliente, sin backend)
+// ============================================================
+let CFG_UO_SELECCIONADA = null;
+
+function cfgEstadoObra(obraCfg){
+  if(!obraCfg || !obraCfg.campos) return 'pendiente';
+  const pendientes = obraCfg.campos.filter(c => cfgEstadoCampo(c) !== 'ok').length;
+  if(pendientes === 0) return 'ok';
+  if(pendientes === obraCfg.campos.length) return 'pendiente';
+  return 'error'; // parcialmente configurada
+}
+
+function cfgEstadoCampo(campo){
+  if(campo.celda) return campo.celda ? 'ok' : 'pendiente';
+  const completo = campo.anclaCol && campo.anclaTexto && campo.col && typeof campo.offset === 'number';
+  return completo ? 'ok' : 'pendiente';
+}
+
+function cfgPillEstado(estado){
+  const map = { ok:['pill-ok','ti-check'], pendiente:['pill-warn','ti-clock'], error:['pill-err','ti-x'] };
+  const [cls, icon] = map[estado] || map.pendiente;
+  return `<span class="pill ${cls}"><i class="ti ${icon}"></i> ${estado}</span>`;
+}
+
+function renderConfigTab(){
+  const cont = document.getElementById('config-tab-content');
+  if(!CONFIG || !CONFIG.obras){ cont.innerHTML = `<div class="cfg-empty">No hay configuración cargada.</div>`; return; }
+
+  const uos = Object.keys(CONFIG.obras);
+  if(!CFG_UO_SELECCIONADA && uos.length) CFG_UO_SELECCIONADA = uos[0];
+
+  const cardsHtml = uos.map(uo => {
+    const oc = CONFIG.obras[uo];
+    const estado = cfgEstadoObra(oc);
+    const configurados = oc.campos.filter(c => cfgEstadoCampo(c)==='ok').length;
+    return `<div class="cfg-uo-card ${uo===CFG_UO_SELECCIONADA?'selected':''}" onclick="cfgSeleccionarUO('${uo}')">
+      <div class="uo-num">UO ${uo}</div>
+      <div class="uo-nombre">${oc.nombre || '(sin nombre)'}</div>
+      <div class="uo-estado">${cfgPillEstado(estado)} <span style="font-size:9.5px;color:#94a3b8;margin-left:4px;">${configurados}/${oc.campos.length} campos</span></div>
+    </div>`;
+  }).join('');
+
+  const opcionesClon = uos.map(uo => `<option value="${uo}">UO ${uo} — ${CONFIG.obras[uo].nombre||'(sin nombre)'}</option>`).join('');
+
+  cont.innerHTML = `
+    <div class="section-title" style="margin-top:0;">UO Configuradas (${uos.length})</div>
+    <div class="cfg-uo-grid">${cardsHtml}</div>
+    <button class="cfg-btn" onclick="cfgNuevaUO()"><i class="ti ti-plus"></i> Nueva UO</button>
+
+    ${CFG_UO_SELECCIONADA ? `
+    <div class="section-title">Editando UO ${CFG_UO_SELECCIONADA}</div>
+    <div class="cfg-toolbar">
+      <input type="text" id="cfg-input-nombre" placeholder="Nombre de la obra" value="${CONFIG.obras[CFG_UO_SELECCIONADA].nombre||''}" onchange="cfgSetNombre(this.value)">
+      <input type="text" id="cfg-input-sheet" placeholder="Nombre de hoja" value="${CONFIG.obras[CFG_UO_SELECCIONADA].sheetName||''}" onchange="cfgSetSheet(this.value)" style="width:110px;">
+      <select id="cfg-select-clonar">${opcionesClon}</select>
+      <button class="cfg-btn" onclick="cfgClonarDesde()"><i class="ti ti-copy"></i> Clonar campos desde esta obra</button>
+      <button class="cfg-btn green" onclick="cfgExportar()"><i class="ti ti-download"></i> Exportar JSON de configuración</button>
+      <button class="cfg-btn" style="border-color:#ef4444;color:#ef4444;" onclick="cfgEliminarUO()"><i class="ti ti-trash"></i> Eliminar UO</button>
+    </div>
+    <table class="tabla-cfg">
+      <thead><tr><th>Campo</th><th>Tipo</th><th>Celda directa</th><th>Ancla Col</th><th>Ancla Texto</th><th>Offset</th><th>Col Valor</th><th>Estado</th></tr></thead>
+      <tbody id="cfg-tabla-body">${renderFilasConfig()}</tbody>
+    </table>
+    ` : ''}
+  `;
+}
+
+function renderFilasConfig(){
+  const oc = CONFIG.obras[CFG_UO_SELECCIONADA];
+  if(!oc) return '';
+  return oc.campos.map((c, i) => {
+    const estado = cfgEstadoCampo(c);
+    return `<tr class="row-${estado==='ok'?'ok':'pendiente'}" id="cfg-row-${i}">
+      <td style="font-weight:700;">${c.id}</td>
+      <td><select onchange="cfgSetCampo(${i},'tipo',this.value)">${TIPOS_VALIDOS.map(t=>`<option ${t===c.tipo?'selected':''}>${t}</option>`).join('')}</select></td>
+      <td><input type="text" placeholder="ej. F5" value="${c.celda||''}" onchange="cfgSetCampo(${i},'celda',this.value||null)"></td>
+      <td><input type="text" placeholder="col" value="${c.anclaCol||''}" onchange="cfgSetCampo(${i},'anclaCol',this.value||null)" style="width:44px;"></td>
+      <td><input type="text" placeholder="texto ancla" value="${c.anclaTexto||''}" onchange="cfgSetCampo(${i},'anclaTexto',this.value||null)"></td>
+      <td><input type="number" placeholder="offset" value="${c.offset ?? ''}" onchange="cfgSetCampo(${i},'offset',this.value===''?null:parseInt(this.value,10))" style="width:60px;"></td>
+      <td><input type="text" placeholder="col" value="${c.col||''}" onchange="cfgSetCampo(${i},'col',this.value||null)" style="width:44px;"></td>
+      <td>${cfgPillEstado(estado)}</td>
+    </tr>`;
+  }).join('');
+}
+
+function cfgSeleccionarUO(uo, resaltarErrores){
+  CFG_UO_SELECCIONADA = uo;
+  renderConfigTab();
+  if(resaltarErrores){
+    setTimeout(() => {
+      const oc = CONFIG.obras[uo];
+      const idxErr = oc.campos.map((c,i)=>({c,i})).filter(x => cfgEstadoCampo(x.c)!=='ok').map(x=>x.i);
+      idxErr.forEach(i => document.getElementById(`cfg-row-${i}`)?.classList.add('row-highlight','row-error'));
+      if(idxErr.length) document.getElementById(`cfg-row-${idxErr[0]}`)?.scrollIntoView({ behavior:'smooth', block:'center' });
+    }, 50);
+  }
+}
+
+function cfgSetNombre(v){ CONFIG.obras[CFG_UO_SELECCIONADA].nombre = v; }
+function cfgSetSheet(v){ CONFIG.obras[CFG_UO_SELECCIONADA].sheetName = v; }
+
+function cfgSetCampo(i, prop, valor){
+  CONFIG.obras[CFG_UO_SELECCIONADA].campos[i][prop] = valor;
+  renderConfigTab(); // re-render para refrescar estado/colores de fila
+}
+
+function cfgNuevaUO(){
+  const uo = prompt('Código de UO (ej. 1320):');
+  if(!uo) return;
+  if(CONFIG.obras[uo]){ toast(`La UO ${uo} ya existe en la configuración`, 'warn'); return; }
+  CONFIG.obras[uo] = {
+    nombre: '', sheetName: '2 - TC', estado: 'pendiente',
+    campos: CAMPOS_BASE.map(id => ({ id, col:null, anclaCol:null, anclaTexto:null, offset:null, celda:null, tipo:'directo' })),
+    auxCeldas: { periodoReporte:'H1', fechaEmision:'H2', revisionHoja:'F1', margenOferta:'H3' },
+    panelMap: {}
+  };
+  CFG_UO_SELECCIONADA = uo;
+  renderConfigTab();
+  toast(`UO ${uo} creada en blanco — completá sus celdas o cloná desde otra obra`, 'ok');
+}
+
+function cfgClonarDesde(){
+  const origen = document.getElementById('cfg-select-clonar').value;
+  if(!origen || origen === CFG_UO_SELECCIONADA){ toast('Elegí una UO de origen distinta', 'warn'); return; }
+  const src = CONFIG.obras[origen];
+  const destino = CONFIG.obras[CFG_UO_SELECCIONADA];
+  destino.sheetName = src.sheetName;
+  destino.campos = JSON.parse(JSON.stringify(src.campos));
+  destino.auxCeldas = JSON.parse(JSON.stringify(src.auxCeldas || {}));
+  destino.panelMap = JSON.parse(JSON.stringify(src.panelMap || {}));
+  renderConfigTab();
+  toast(`Campos clonados desde UO ${origen} — revisá y ajustá anclas específicas de UO ${CFG_UO_SELECCIONADA}`, 'ok');
+}
+
+function cfgEliminarUO(){
+  if(!confirm(`¿Eliminar la configuración de UO ${CFG_UO_SELECCIONADA}? Esta acción no se puede deshacer (salvo que no hayas exportado aún).`)) return;
+  delete CONFIG.obras[CFG_UO_SELECCIONADA];
+  CFG_UO_SELECCIONADA = Object.keys(CONFIG.obras)[0] || null;
+  renderConfigTab();
+}
+
+function cfgValidar(){
+  const errores = [];
+  Object.entries(CONFIG.obras).forEach(([uo, oc]) => {
+    oc.campos.forEach(c => {
+      if(!TIPOS_VALIDOS.includes(c.tipo)) errores.push(`UO ${uo} · ${c.id}: tipo "${c.tipo}" inválido`);
+      const tieneCelda = !!c.celda;
+      const tieneAncla = c.anclaCol && c.anclaTexto && c.col && typeof c.offset === 'number';
+      if(!tieneCelda && !tieneAncla && (c.celda || c.anclaCol || c.anclaTexto || c.col || c.offset)){
+        errores.push(`UO ${uo} · ${c.id}: definición incompleta (faltan datos de celda directa o de ancla)`);
+      }
+    });
+  });
+  return errores;
+}
+
+function cfgExportar(){
+  const errores = cfgValidar();
+  if(errores.length){
+    toast(`No se exportó: ${errores.length} error(es) de validación. Ver consola.`, 'err');
+    console.error('Errores de validación de config:', errores);
+    return;
+  }
+  CONFIG.actualizado = new Date().toISOString();
+  const blob = new Blob([JSON.stringify(CONFIG, null, 2)], { type:'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `config_uo_celdas_v${(parseFloat((CONFIG.version||'v1.0').replace('v',''))+0.1).toFixed(1)}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+  toast('Config exportada — subila al repo junto al HTML para que quede activa', 'ok');
+}
+
+document.addEventListener('DOMContentLoaded', async () => {
+  await cargarConfig();
+  renderAll();
+  renderConfigTab();
+});
 </script>
 </body>
 </html>
