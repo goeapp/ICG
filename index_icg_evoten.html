@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ICG EvoTen v3.01 | Multi-obra</title>
+<title>ICG EvoTen v3.02 | Multi-obra</title>
 <script src="https://cdn.tailwindcss.com/3.4.1"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
@@ -389,7 +389,7 @@ main { max-width:1400px; margin:0 auto; padding:24px 20px 60px; }
 
 <div id="app-header">
   <div style="display:flex;align-items:center;gap:14px;">
-    <div class="app-badge">v3.01</div>
+    <div class="app-badge">v3.02</div>
     <div>
       <div class="app-title">ICG EvoTen · Evolución y Tendencia</div>
       <div class="app-sub" id="app-sub"></div>
@@ -659,7 +659,7 @@ const PANEL_MAP_CANVAS = {
 // Versión de la app — se estampa en el JSON exportado (STATE.generado_con) para que,
 // si mañana cambia la lógica de detección/visualización, el motor pueda detectar JSON
 // generados con una versión anterior y aplicar un fallback en vez de romper.
-const APP_VERSION = 'v3.01';
+const APP_VERSION = 'v3.02';
 
 // CAMPOS_BASE — plantilla de ids/tipos usada por "Nueva UO en blanco" en el tab Configuración.
 // No es un perfil de extracción (no tiene anclas propias); solo define QUÉ campos existen.
@@ -741,12 +741,17 @@ function getCell(rows, rowIdx, colLetter){
 const TIPOS_ESPERAN_NUMERO = ['directo','control','acumulado_delta'];
 
 // ============================================================
-// PARSEO DE NOMBRE DE ARCHIVO — identidad del período
-// Patrón esperado: {obra}-ICG-{anio}-{mes}[_rev{N}].xlsx  (revisión ausente = 0)
+// PARSEO DE NOMBRE DE ARCHIVO — identidad del período (v3.02)
+// Patrón esperado: {obra}-ICG-{anio}-{mes}[separador]['rev'][separador]{N}.xlsx  (revisión ausente = 0)
+// Flexibilizado a partir del mismo regex ya usado en ICG Dashboard Genérico Interactivo (consistencia
+// de ecosistema): separador libre antes de "rev" (guion, espacio o guion bajo) y mayúscula/minúscula
+// libre. Acepta variantes reales como "1320-ICG-2025-09 Rev 1.xlsx" sin tener que renombrar a mano.
+// Nota: a diferencia del Dashboard Genérico (que acepta códigos de obra compuestos, ej. "1330-2"),
+// acá la obra se mantiene solo numérica porque es la clave directa de CONFIG.obras.
 // ============================================================
 function parseNombreArchivo(filename){
   const base = filename.replace(/\.xlsx$/i, '');
-  const m = base.match(/^(\d+)-ICG-(\d{4})-(\d{2})(?:[_-]rev(\d+))?$/i);
+  const m = base.match(/^(\d+)-ICG-(\d{4})-(\d{2})(?:[_\-\s]*[Rr]ev[\s_]*(\d+))?$/);
   if(!m) return null;
   return {
     obra: m[1],
@@ -831,7 +836,7 @@ async function procesarArchivoXLSX(file){
   // qué config (sheetName + campos) se usa para leer el workbook.
   const ident = parseNombreArchivo(file.name);
   if(!ident){
-    throw new Error(`El nombre "${file.name}" no respeta el patrón esperado: {obra}-ICG-{anio}-{mes}[_rev{N}].xlsx`);
+    throw new Error(`El nombre "${file.name}" no respeta el patrón esperado: {obra}-ICG-{anio}-{mes}[ -_]Rev[ -_]{N}.xlsx (ej. "1320-ICG-2025-09 Rev 1.xlsx" o "1320-ICG-2025-09_rev1.xlsx")`);
   }
 
   const obraCfg = getObraConfig(ident.obra);
