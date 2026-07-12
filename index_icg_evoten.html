@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ICG EvoTen v3.02 | Multi-obra</title>
+<title>ICG EvoTen v3.03 | Multi-obra</title>
 <script src="https://cdn.tailwindcss.com/3.4.1"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
@@ -389,7 +389,7 @@ main { max-width:1400px; margin:0 auto; padding:24px 20px 60px; }
 
 <div id="app-header">
   <div style="display:flex;align-items:center;gap:14px;">
-    <div class="app-badge">v3.02</div>
+    <div class="app-badge">v3.03</div>
     <div>
       <div class="app-title">ICG EvoTen · Evolución y Tendencia</div>
       <div class="app-sub" id="app-sub"></div>
@@ -659,7 +659,7 @@ const PANEL_MAP_CANVAS = {
 // Versión de la app — se estampa en el JSON exportado (STATE.generado_con) para que,
 // si mañana cambia la lógica de detección/visualización, el motor pueda detectar JSON
 // generados con una versión anterior y aplicar un fallback en vez de romper.
-const APP_VERSION = 'v3.02';
+const APP_VERSION = 'v3.03';
 
 // CAMPOS_BASE — plantilla de ids/tipos usada por "Nueva UO en blanco" en el tab Configuración.
 // No es un perfil de extracción (no tiene anclas propias); solo define QUÉ campos existen.
@@ -1360,7 +1360,9 @@ function renderChartMargen(){
         datalabels:{ align:'top', color:(ctx)=>colorNeg(ctx.dataset.data[ctx.dataIndex]), font:{weight:'700',size:10}, formatter:v=>fmtAR(v,1)+'%' },
         tooltip:{ callbacks:{ label: tooltipFmt(true) } }
       },
-      scales:{ y:{ max:0, ticks:{ callback:v=>fmtAR(v,1)+'%', color:(ctx)=>colorNeg(ctx.tick.value) } } }
+      // v3.03: se quitó el techo fijo "max:0" — asumía margen siempre negativo (válido para 1316 histórico,
+      // pero UO1320 tiene margen positivo y los valores quedaban fuera del área visible). Autoescala real.
+      scales:{ y:{ ticks:{ callback:v=>fmtAR(v,1)+'%', color:(ctx)=>colorNeg(ctx.tick.value) } } }
     },
     plugins:[ChartDataLabels]
   });
@@ -1504,7 +1506,8 @@ function renderChartFaltante(){
     }]},
     options:{
       plugins:{ tooltip:{ callbacks:{ label: tooltipFmt(true) } } },
-      scales:{ y:{ max:0, ticks:{ callback:v=>fmtAR(v,1)+'%', color:(ctx)=>colorNeg(ctx.tick.value) } } }
+      // v3.03: se quitó el techo fijo "max:0" (mismo motivo que chart-margen — ver comentario arriba)
+      scales:{ y:{ ticks:{ callback:v=>fmtAR(v,1)+'%', color:(ctx)=>colorNeg(ctx.tick.value) } } }
     },
     plugins:[ChartDataLabels]
   });
