@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ICG EvoTen v3.00 | Multi-obra</title>
+<title>ICG EvoTen v3.01 | Multi-obra</title>
 <script src="https://cdn.tailwindcss.com/3.4.1"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
@@ -374,6 +374,7 @@ main { max-width:1400px; margin:0 auto; padding:24px 20px 60px; }
 .tabla-cfg input:hover, .tabla-cfg select:hover, .tabla-cfg input:focus, .tabla-cfg select:focus {
   border-color:#cbd5e1; background:#fff; outline:none;
 }
+.tabla-cfg td:nth-child(3) { min-width:220px; }
 .cfg-empty { text-align:center; padding:40px 20px; color:#94a3b8; font-size:12px; }
 </style>
 </head>
@@ -388,7 +389,7 @@ main { max-width:1400px; margin:0 auto; padding:24px 20px 60px; }
 
 <div id="app-header">
   <div style="display:flex;align-items:center;gap:14px;">
-    <div class="app-badge">v3.00</div>
+    <div class="app-badge">v3.01</div>
     <div>
       <div class="app-title">ICG EvoTen · Evolución y Tendencia</div>
       <div class="app-sub" id="app-sub"></div>
@@ -579,13 +580,16 @@ main { max-width:1400px; margin:0 auto; padding:24px 20px 60px; }
 
 <script>
 // ============================================================
-// CONFIGURACIÓN DE PERFILES — multi-obra, externa (v3.00)
+// CONFIGURACIÓN DE PERFILES — multi-obra, externa (v3.00) · esquema celda directa (v3.01)
 // ============================================================
-// Cada regla define cómo ubicar un valor: ancla de texto (columna+texto)
-// + offset de fila + columna de valor. tipo: 'directo' | 'derivado' | 'control' | 'acumulado_delta' | 'info'
+// v3.01: se abandonó el esquema de ancla+offset (texto buscado en la planilla) a pedido explícito
+// de Ale: la probabilidad de que una fila se corra es baja, y si ocurre se corrige a mano y se
+// recarga el período afectado. Cada campo es ahora SOLO una celda directa por obra + una etiqueta
+// de referencia (comentario libre, no vinculante — no la usa el motor para nada, es solo recordatorio
+// de qué es esa celda para quien edite la config más adelante).
 // La config completa (todas las UO) vive en config_uo_celdas.json, al lado de este HTML.
 // Si el fetch falla (ej. archivo abierto con file://), se usa este perfil de emergencia
-// (solo obra 1316, el mismo que existía hardcodeado hasta v2.09) y se avisa con un banner.
+// (solo obra 1316) y se avisa con un banner.
 const CONFIG_FALLBACK = {
   version: 'fallback-1316',
   obras: {
@@ -594,41 +598,68 @@ const CONFIG_FALLBACK = {
       sheetName: '2 - TC',
       estado: 'ok',
       campos: [
-        { id:'margen_total_pct',      col:'F', anclaCol:'A', anclaTexto:'Contribución c/Aj. en Vta', offset:1, tipo:'directo' },
-        { id:'dotacion_ppto',         col:'E', anclaCol:'A', anclaTexto:'Dotación del mes [Cantidad]', offset:1, tipo:'directo' },
-        { id:'dotacion_actual',       col:'E', anclaCol:'A', anclaTexto:'Dotación del mes [Cantidad]', offset:2, tipo:'directo' },
-        { id:'resultado_acum_valor',  col:'C', anclaCol:'A', anclaTexto:'Contribución c/Aj. en Vta', offset:0, tipo:'directo' },
-        { id:'resultado_acum_pct',    col:'C', anclaCol:'A', anclaTexto:'Contribución c/Aj. en Vta', offset:1, tipo:'directo' },
-        { id:'costo_total',           col:'F', anclaCol:'A', anclaTexto:'TOTAL COSTO', offset:0, tipo:'directo' },
-        { id:'venta_ajustada',        col:'F', anclaCol:'A', anclaTexto:'VENTA AJUSTADA (IGN)', offset:0, tipo:'directo' },
-        { id:'hh_directos',           col:'C', anclaCol:'A', anclaTexto:'Horas Hombre [HH]-Jornales', offset:1, tipo:'directo' },
-        { id:'hh_indirectos',         col:'C', anclaCol:'A', anclaTexto:'Horas Hombre [HH]-Jornales', offset:2, tipo:'directo' },
-        { id:'costo_hh_vestida_real', col:'C', anclaCol:'A', anclaTexto:'Costo Prom. H de JORN del mes', offset:2, tipo:'directo' },
-        { id:'costo_hh_vestida_ppto', col:'D', anclaCol:'A', anclaTexto:'Costo Prom. H de JORN del mes', offset:2, tipo:'directo' },
-        { id:'avance_fisico_real',    col:'G', anclaCol:'F', anclaTexto:'Avances Físicos', offset:7, tipo:'acumulado_delta' },
-        { id:'avance_fisico_ppto',    col:'H', anclaCol:'F', anclaTexto:'Avances Físicos', offset:7, tipo:'acumulado_delta' },
-        { id:'margen_faltante_pct',   col:'D', anclaCol:'A', anclaTexto:'Contribución c/Aj. en Vta', offset:1, tipo:'directo' },
-        { id:'margen_obra',           celda:'F5', tipo:'control' },
-        { id:'mes_periodo',           celda:'E1', tipo:'info' },
-        { id:'proyecto_estim_actual', col:'F', anclaCol:'F', anclaTexto:'Estim. Actual', offset:1, tipo:'control' },
-        { id:'venta_saldo_faltante',  col:'D', anclaCol:'D', anclaTexto:'Estm. Gestión', offset:1, tipo:'acumulado_delta' },
-        { id:'costo_faltante',        col:'D', anclaCol:'A', anclaTexto:'TOTAL COSTO', offset:0, tipo:'directo' },
+        { id:'margen_total_pct',      celda:'F33', etiqueta:'Contribución c/Aj. en Vta · %', tipo:'directo' },
+        { id:'dotacion_ppto',         celda:'E49', etiqueta:'Dotación del mes · Ppto Vig. · Total', tipo:'directo' },
+        { id:'dotacion_actual',       celda:'E50', etiqueta:'Dotación del mes · Actual · Total', tipo:'directo' },
+        { id:'resultado_acum_valor',  celda:'C32', etiqueta:'Contribución c/Aj. en Vta · Gestión', tipo:'directo' },
+        { id:'resultado_acum_pct',    celda:'C33', etiqueta:'Contribución c/Aj. en Vta · % Gestión', tipo:'directo' },
+        { id:'costo_total',           celda:'F31', etiqueta:'TOTAL COSTO · Estim. Actual', tipo:'directo' },
+        { id:'venta_ajustada',        celda:'F19', etiqueta:'VENTA AJUSTADA (IGN) · Estim. Actual', tipo:'directo' },
+        { id:'hh_directos',           celda:'C41', etiqueta:'Directos Jornal. · Est. Total', tipo:'directo' },
+        { id:'hh_indirectos',         celda:'C42', etiqueta:'Indirectos Jornal. · Est. Total', tipo:'directo' },
+        { id:'costo_hh_vestida_real', celda:'C53', etiqueta:'Costo HH Vestida · Real Mes', tipo:'directo' },
+        { id:'costo_hh_vestida_ppto', celda:'D53', etiqueta:'Costo HH Vestida · Ppto. Mes', tipo:'directo' },
+        { id:'avance_fisico_real',    celda:'G47', etiqueta:'Total Proyecto · Acum. Real', tipo:'acumulado_delta' },
+        { id:'avance_fisico_ppto',    celda:'H47', etiqueta:'Total Proyecto · Acum. Ppto', tipo:'acumulado_delta' },
+        { id:'margen_faltante_pct',   celda:'D33', etiqueta:'Contribución c/Aj. en Vta · % Estim. Gestión', tipo:'directo' },
+        { id:'margen_obra',           celda:'F5',  etiqueta:'Margen (celda fija de header)', tipo:'control' },
+        { id:'mes_periodo',           celda:'E1',  etiqueta:'Mes X de Y (celda fija de header)', tipo:'info' },
+        { id:'proyecto_estim_actual', celda:'F12', etiqueta:'Venta Contractual · Estim. Actual', tipo:'control' },
+        { id:'venta_saldo_faltante',  celda:'D12', etiqueta:'Venta Contractual · Estim. Gestión', tipo:'acumulado_delta' },
+        { id:'costo_faltante',        celda:'D31', etiqueta:'TOTAL COSTO · Estim. Gestión', tipo:'directo' },
       ],
-      auxCeldas: { periodoReporte:'H1', fechaEmision:'H2', revisionHoja:'F1', margenOferta:'H3' },
-      panelMap: {
-        'chart-margen':['margen_total_pct'], 'chart-resultado':['resultado_acum_valor','resultado_acum_pct'],
-        'chart-hh':['hh_directos','hh_indirectos'], 'chart-costohh':['costo_hh_vestida_real','costo_hh_vestida_ppto'],
-        'chart-avance':['avance_fisico_real','avance_fisico_ppto'], 'chart-faltante':['margen_faltante_pct'],
-        'chart-costofaltante':['costo_faltante'], 'chart-estimactual':['proyecto_estim_actual','venta_saldo_faltante']
-      }
+      auxCeldas: { periodoReporte:'H1', fechaEmision:'H2', revisionHoja:'F1', margenOferta:'H3' }
     }
   }
+};
+
+// UBICACION_CAMPO — dónde se ve cada campo en el dashboard (panel de gráfico o tarjeta KPI).
+// Informativo únicamente: alimenta la columna "Panel/Gráfico" del tab Configuración y el hover
+// de los paneles. No participa de la extracción.
+const UBICACION_CAMPO = {
+  margen_total_pct:      'Panel "Margen Total Proyectado" · Tarjeta "Resultado Estimado"',
+  dotacion_ppto:          'Tarjeta "Dotación Real"',
+  dotacion_actual:        'Tarjeta "Dotación Real"',
+  resultado_acum_valor:   'Panel "Resultado Acumulado · Gestión"',
+  resultado_acum_pct:     'Panel "Resultado Acumulado · Gestión"',
+  costo_total:            'Tarjeta "Costo Total Estim."',
+  venta_ajustada:         'Tarjeta "Venta Ajustada (IGN)"',
+  hh_directos:            'Panel "HH Est. Total"',
+  hh_indirectos:          'Panel "HH Est. Total"',
+  costo_hh_vestida_real:  'Panel "Costo HH Vestida"',
+  costo_hh_vestida_ppto:  'Panel "Costo HH Vestida"',
+  avance_fisico_real:     'Panel "Avance Físico · Total Proyecto"',
+  avance_fisico_ppto:     'Panel "Avance Físico · Total Proyecto"',
+  margen_faltante_pct:    'Panel "Margen del Faltante"',
+  margen_obra:            'Tarjeta "Margen Obra (F5)"',
+  mes_periodo:            'Tarjeta "Mes de Proyecto"',
+  proyecto_estim_actual:  'Panel "Proyecto Estim. Actual / Avance de Venta"',
+  venta_saldo_faltante:   'Panel "Proyecto Estim. Actual / Avance de Venta"',
+  costo_faltante:         'Panel "Costo Faltante"'
+};
+
+// panelMap (canvas → campos) — se sigue usando para el hover sobre los gráficos del Dashboard.
+const PANEL_MAP_CANVAS = {
+  'chart-margen':['margen_total_pct'], 'chart-resultado':['resultado_acum_valor','resultado_acum_pct'],
+  'chart-hh':['hh_directos','hh_indirectos'], 'chart-costohh':['costo_hh_vestida_real','costo_hh_vestida_ppto'],
+  'chart-avance':['avance_fisico_real','avance_fisico_ppto'], 'chart-faltante':['margen_faltante_pct'],
+  'chart-costofaltante':['costo_faltante'], 'chart-estimactual':['proyecto_estim_actual','venta_saldo_faltante']
 };
 
 // Versión de la app — se estampa en el JSON exportado (STATE.generado_con) para que,
 // si mañana cambia la lógica de detección/visualización, el motor pueda detectar JSON
 // generados con una versión anterior y aplicar un fallback en vez de romper.
-const APP_VERSION = 'v3.00';
+const APP_VERSION = 'v3.01';
 
 // CAMPOS_BASE — plantilla de ids/tipos usada por "Nueva UO en blanco" en el tab Configuración.
 // No es un perfil de extracción (no tiene anclas propias); solo define QUÉ campos existen.
@@ -700,25 +731,14 @@ function cellRefToRowCol(ref){
   return { col: colLetterToIndex(m[1]), row: parseInt(m[2],10) - 1 };
 }
 
-function findAnclaRow(rows, colLetter, texto){
-  const colIdx = colLetterToIndex(colLetter);
-  for(let r=0;r<rows.length;r++){
-    const v = rows[r] ? rows[r][colIdx] : undefined;
-    if(typeof v === 'string' && v.trim() === texto) return r;
-  }
-  return -1;
-}
-
 function getCell(rows, rowIdx, colLetter){
   const colIdx = colLetterToIndex(colLetter);
   if(!rows[rowIdx]) return undefined;
   return rows[rowIdx][colIdx];
 }
 
-// referencia letra-número de una celda (fila 0-based → 1-based, ej. col 'D' + row 30 → "D31")
-function refCelda(colLetter, rowIdx0){
-  return `${colLetter}${rowIdx0 + 1}`;
-}
+// tipos que esperan valor numérico vs. texto/numérico libre (usado para el chequeo de tipo en extraerDatos)
+const TIPOS_ESPERAN_NUMERO = ['directo','control','acumulado_delta'];
 
 // ============================================================
 // PARSEO DE NOMBRE DE ARCHIVO — identidad del período
@@ -737,10 +757,13 @@ function parseNombreArchivo(filename){
 }
 
 // ============================================================
-// EXTRACCIÓN DE UN PERÍODO A PARTIR DEL WORKBOOK — generalizada por obra (v3.00)
+// EXTRACCIÓN DE UN PERÍODO A PARTIR DEL WORKBOOK — celda directa por obra (v3.01)
 // ============================================================
-// warnings: array de objetos { n, campo, celdaRef, motivo } — correlativo incremental (STATE.errorSeq),
-// referencia letra-número (o null si ni el ancla se encontró) y motivo. onXlsxSelected los formatea a texto para el toast/consola.
+// v3.01: cada campo es una celda fija por obra (sin ancla/offset — decisión de diseño: la fila
+// rara vez se corre, y si pasa se corrige a mano en Configuración y se recarga el período afectado).
+// La carga real de un XLSX ES la verificación: si la celda está vacía o el tipo no es el esperado,
+// sale warning con correlativo — no hay un modo "de prueba" separado.
+// warnings: array de objetos { n, campo, celdaRef, motivo }. onXlsxSelected los formatea a texto.
 function extraerDatos(rows, uo){
   const datos = {};
   const warnings = [];
@@ -749,30 +772,28 @@ function extraerDatos(rows, uo){
   const campos = obraCfg ? obraCfg.campos : [];
 
   campos.forEach(regla => {
-    let valor;
-    if(regla.celda){
-      const {row, col} = cellRefToRowCol(regla.celda);
-      valor = rows[row] ? rows[row][col] : undefined;
-      celdasResueltas[regla.id] = regla.celda;
-    } else if(regla.anclaCol && regla.anclaTexto && regla.col && typeof regla.offset === 'number'){
-      const anclaRow = findAnclaRow(rows, regla.anclaCol, regla.anclaTexto);
-      if(anclaRow === -1){
-        STATE.errorSeq++;
-        warnings.push({ n:STATE.errorSeq, campo:regla.id, celdaRef:null, motivo:`No se encontró ancla "${regla.anclaTexto}" (col ${regla.anclaCol})` });
-        datos[regla.id] = null;
-        return;
-      }
-      const filaValor = anclaRow + regla.offset;
-      valor = getCell(rows, filaValor, regla.col);
-      celdasResueltas[regla.id] = refCelda(regla.col, filaValor);
-    } else {
-      // Campo sin definición completa en la config (ej. UO recién clonada, aún "pendiente")
+    if(!regla.celda){
       STATE.errorSeq++;
-      warnings.push({ n:STATE.errorSeq, campo:regla.id, celdaRef:null, motivo:'Campo sin configurar (pendiente en Configuración)' });
+      warnings.push({ n:STATE.errorSeq, campo:regla.id, celdaRef:null, motivo:'Campo sin celda configurada (pendiente en Configuración)' });
       datos[regla.id] = null;
       return;
     }
-    datos[regla.id] = (typeof valor === 'number') ? valor : (valor ?? null);
+    const {row, col} = cellRefToRowCol(regla.celda);
+    const valor = rows[row] ? rows[row][col] : undefined;
+    celdasResueltas[regla.id] = regla.celda;
+
+    if(valor === undefined || valor === null || valor === ''){
+      STATE.errorSeq++;
+      warnings.push({ n:STATE.errorSeq, campo:regla.id, celdaRef:regla.celda, motivo:'Celda vacía' });
+      datos[regla.id] = null;
+      return;
+    }
+    const esNumero = typeof valor === 'number';
+    if(TIPOS_ESPERAN_NUMERO.includes(regla.tipo) && !esNumero){
+      STATE.errorSeq++;
+      warnings.push({ n:STATE.errorSeq, campo:regla.id, celdaRef:regla.celda, motivo:`Se esperaba número (tipo "${regla.tipo}") y se encontró "${valor}"` });
+    }
+    datos[regla.id] = esNumero ? valor : (valor ?? null);
   });
 
   // Derivado 7.c
@@ -1119,9 +1140,7 @@ function renderAll(){
 // HOVER DE PANELES — muestra la(s) celda(s) resuelta(s) en la última carga (v3.00)
 // ============================================================
 function actualizarHoverPaneles(){
-  const obraCfg = getObraConfig(STATE.obra);
-  const panelMap = obraCfg && obraCfg.panelMap ? obraCfg.panelMap : {};
-  Object.entries(panelMap).forEach(([canvasId, campoIds]) => {
+  Object.entries(PANEL_MAP_CANVAS).forEach(([canvasId, campoIds]) => {
     const canvas = document.getElementById(canvasId);
     if(!canvas) return;
     const bloqueHdr = canvas.closest('.bloque')?.querySelector('.bloque-hdr h3');
@@ -1616,10 +1635,11 @@ function cfgEstadoObra(obraCfg){
   return 'error'; // parcialmente configurada
 }
 
+// Formato válido de celda: letra(s) de columna + número de fila, ej. "F33", "AA12"
+const REGEX_CELDA = /^[A-Z]+[1-9][0-9]*$/;
+
 function cfgEstadoCampo(campo){
-  if(campo.celda) return campo.celda ? 'ok' : 'pendiente';
-  const completo = campo.anclaCol && campo.anclaTexto && campo.col && typeof campo.offset === 'number';
-  return completo ? 'ok' : 'pendiente';
+  return (campo.celda && REGEX_CELDA.test(campo.celda)) ? 'ok' : 'pendiente';
 }
 
 function cfgPillEstado(estado){
@@ -1664,9 +1684,12 @@ function renderConfigTab(){
       <button class="cfg-btn" style="border-color:#ef4444;color:#ef4444;" onclick="cfgEliminarUO()"><i class="ti ti-trash"></i> Eliminar UO</button>
     </div>
     <table class="tabla-cfg">
-      <thead><tr><th>Campo</th><th>Tipo</th><th>Celda directa</th><th>Ancla Col</th><th>Ancla Texto</th><th>Offset</th><th>Col Valor</th><th>Estado</th></tr></thead>
+      <thead><tr><th>Campo</th><th>Celda</th><th>Etiqueta (ref.)</th><th>Tipo</th><th>Panel/Gráfico</th><th>Estado</th></tr></thead>
       <tbody id="cfg-tabla-body">${renderFilasConfig()}</tbody>
     </table>
+    <div style="font-size:10px;color:#94a3b8;margin-top:8px;">
+      <i class="ti ti-info-circle"></i> "Etiqueta (ref.)" es solo un comentario tuyo para recordar qué es la celda — no la usa el motor. "Panel/Gráfico" es informativo, se genera solo.
+    </div>
     ` : ''}
   `;
 }
@@ -1676,14 +1699,13 @@ function renderFilasConfig(){
   if(!oc) return '';
   return oc.campos.map((c, i) => {
     const estado = cfgEstadoCampo(c);
+    const ubicacion = UBICACION_CAMPO[c.id] || '—';
     return `<tr class="row-${estado==='ok'?'ok':'pendiente'}" id="cfg-row-${i}">
       <td style="font-weight:700;">${c.id}</td>
+      <td><input type="text" placeholder="ej. F33" value="${c.celda||''}" onchange="cfgSetCampo(${i},'celda',this.value.toUpperCase()||null)" style="width:70px;"></td>
+      <td><input type="text" placeholder="descripción libre" value="${c.etiqueta||''}" onchange="cfgSetCampo(${i},'etiqueta',this.value||null)"></td>
       <td><select onchange="cfgSetCampo(${i},'tipo',this.value)">${TIPOS_VALIDOS.map(t=>`<option ${t===c.tipo?'selected':''}>${t}</option>`).join('')}</select></td>
-      <td><input type="text" placeholder="ej. F5" value="${c.celda||''}" onchange="cfgSetCampo(${i},'celda',this.value||null)"></td>
-      <td><input type="text" placeholder="col" value="${c.anclaCol||''}" onchange="cfgSetCampo(${i},'anclaCol',this.value||null)" style="width:44px;"></td>
-      <td><input type="text" placeholder="texto ancla" value="${c.anclaTexto||''}" onchange="cfgSetCampo(${i},'anclaTexto',this.value||null)"></td>
-      <td><input type="number" placeholder="offset" value="${c.offset ?? ''}" onchange="cfgSetCampo(${i},'offset',this.value===''?null:parseInt(this.value,10))" style="width:60px;"></td>
-      <td><input type="text" placeholder="col" value="${c.col||''}" onchange="cfgSetCampo(${i},'col',this.value||null)" style="width:44px;"></td>
+      <td style="font-size:10px;color:#64748b;">${ubicacion}</td>
       <td>${cfgPillEstado(estado)}</td>
     </tr>`;
   }).join('');
@@ -1716,9 +1738,8 @@ function cfgNuevaUO(){
   if(CONFIG.obras[uo]){ toast(`La UO ${uo} ya existe en la configuración`, 'warn'); return; }
   CONFIG.obras[uo] = {
     nombre: '', sheetName: '2 - TC', estado: 'pendiente',
-    campos: CAMPOS_BASE.map(id => ({ id, col:null, anclaCol:null, anclaTexto:null, offset:null, celda:null, tipo:'directo' })),
-    auxCeldas: { periodoReporte:'H1', fechaEmision:'H2', revisionHoja:'F1', margenOferta:'H3' },
-    panelMap: {}
+    campos: CAMPOS_BASE.map(id => ({ id, celda:null, etiqueta:'', tipo:'directo' })),
+    auxCeldas: { periodoReporte:'H1', fechaEmision:'H2', revisionHoja:'F1', margenOferta:'H3' }
   };
   CFG_UO_SELECCIONADA = uo;
   renderConfigTab();
@@ -1733,9 +1754,8 @@ function cfgClonarDesde(){
   destino.sheetName = src.sheetName;
   destino.campos = JSON.parse(JSON.stringify(src.campos));
   destino.auxCeldas = JSON.parse(JSON.stringify(src.auxCeldas || {}));
-  destino.panelMap = JSON.parse(JSON.stringify(src.panelMap || {}));
   renderConfigTab();
-  toast(`Campos clonados desde UO ${origen} — revisá y ajustá anclas específicas de UO ${CFG_UO_SELECCIONADA}`, 'ok');
+  toast(`Campos clonados desde UO ${origen} — revisá y ajustá las celdas específicas de UO ${CFG_UO_SELECCIONADA}`, 'ok');
 }
 
 function cfgEliminarUO(){
@@ -1750,11 +1770,7 @@ function cfgValidar(){
   Object.entries(CONFIG.obras).forEach(([uo, oc]) => {
     oc.campos.forEach(c => {
       if(!TIPOS_VALIDOS.includes(c.tipo)) errores.push(`UO ${uo} · ${c.id}: tipo "${c.tipo}" inválido`);
-      const tieneCelda = !!c.celda;
-      const tieneAncla = c.anclaCol && c.anclaTexto && c.col && typeof c.offset === 'number';
-      if(!tieneCelda && !tieneAncla && (c.celda || c.anclaCol || c.anclaTexto || c.col || c.offset)){
-        errores.push(`UO ${uo} · ${c.id}: definición incompleta (faltan datos de celda directa o de ancla)`);
-      }
+      if(c.celda && !REGEX_CELDA.test(c.celda)) errores.push(`UO ${uo} · ${c.id}: celda "${c.celda}" con formato inválido (ej. correcto: F33)`);
     });
   });
   return errores;
