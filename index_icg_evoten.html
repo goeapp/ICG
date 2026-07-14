@@ -741,17 +741,21 @@ function getCell(rows, rowIdx, colLetter){
 const TIPOS_ESPERAN_NUMERO = ['directo','control','acumulado_delta'];
 
 // ============================================================
-// PARSEO DE NOMBRE DE ARCHIVO — identidad del período (v3.02)
+// PARSEO DE NOMBRE DE ARCHIVO — identidad del período (v3.02 → v3.04)
 // Patrón esperado: {obra}-ICG-{anio}-{mes}[separador]['rev'][separador]{N}.xlsx  (revisión ausente = 0)
 // Flexibilizado a partir del mismo regex ya usado en ICG Dashboard Genérico Interactivo (consistencia
 // de ecosistema): separador libre antes de "rev" (guion, espacio o guion bajo) y mayúscula/minúscula
 // libre. Acepta variantes reales como "1320-ICG-2025-09 Rev 1.xlsx" sin tener que renombrar a mano.
-// Nota: a diferencia del Dashboard Genérico (que acepta códigos de obra compuestos, ej. "1330-2"),
-// acá la obra se mantiene solo numérica porque es la clave directa de CONFIG.obras.
+// v3.04: {obra} ahora acepta sub-índice opcional (ej. "1330-2", "1330-3") para obras que emiten
+// archivos correlativos mes a mes (caso real: UO1330, 13 archivos con sub-índice creciente). El
+// sub-índice pasa a formar parte del string completo de obra (ident.obra = "1330-2"), que es la
+// clave directa usada en CONFIG.obras — o sea, cada sub-índice requiere su propia entrada de
+// configuración (Ale la crea a mano en Configuración, ej. clonando campos desde la anterior).
+// Compatibilidad: obras sin sub-índice (ej. "1316", "1320") siguen matcheando igual, sin cambios.
 // ============================================================
 function parseNombreArchivo(filename){
   const base = filename.replace(/\.xlsx$/i, '');
-  const m = base.match(/^(\d+)-ICG-(\d{4})-(\d{2})(?:[_\-\s]*[Rr]ev[\s_]*(\d+))?$/);
+  const m = base.match(/^(\d+(?:-\d+)?)-ICG-(\d{4})-(\d{2})(?:[_\-\s]*[Rr]ev[\s_]*(\d+))?$/);
   if(!m) return null;
   return {
     obra: m[1],
@@ -1371,13 +1375,18 @@ function renderChartMargen(){
 function renderChartResultado(){
   destroyChart('resultado');
   const ctx = document.getElementById('chart-resultado');
+  const nMeses = STATE.periodos.length;
   charts['resultado'] = new Chart(ctx, {
     data:{ labels:labelsPeriodos(), datasets:[
       { type:'bar', label:'Resultado Acum. Gestión (MM$)', data: STATE.periodos.map(p=>p.datos.resultado_acum_valor),
-        backgroundColor:'#fca5a5', borderColor:'#fca5a5', yAxisID:'y' },
+        backgroundColor:'#fca5a5', borderColor:'#fca5a5', yAxisID:'y',
+        datalabels:{ anchor:'end', align:'top', color:'#0f172a', font:{weight:'700',size:10},
+          formatter:(v,ctx)=> ctx.dataIndex===nMeses-1 ? fmtAR(v,1) : null } },
       { type:'line', label:'Contribución (%)', data: STATE.periodos.map(p=>p.datos.resultado_acum_pct*100),
         borderColor: COLOR.blue, tension:.3, yAxisID:'y1', order:-1, pointRadius:4,
-        pointBackgroundColor: COLOR.blue, pointBorderColor: COLOR.blue }
+        pointBackgroundColor: COLOR.blue, pointBorderColor: COLOR.blue,
+        datalabels:{ align:'top', color:COLOR.blue, font:{weight:'700',size:10},
+          formatter:(v,ctx)=> ctx.dataIndex===nMeses-1 ? fmtAR(v,1)+'%' : null } }
     ]},
     options:{
       plugins:{ tooltip:{ callbacks:{ label: (ctx) => ctx.datasetIndex===1 ? tooltipFmt(true)(ctx) : tooltipFmt(false)(ctx) } } },
@@ -1385,7 +1394,8 @@ function renderChartResultado(){
         y:{ position:'left', ticks:{ callback:v=>fmtAR(v,1), color:(ctx)=>colorNeg(ctx.tick.value) } },
         y1:{ position:'right', grid:{drawOnChartArea:false}, ticks:{ callback:v=>fmtAR(v,1)+'%', color:(ctx)=>colorNeg(ctx.tick.value) } }
       }
-    }
+    },
+    plugins:[ChartDataLabels]
   });
 }
 
@@ -1540,6 +1550,7 @@ function renderChartEstimActual(){
           }
         } }
       },
+      layout:{ padding:{ top: 20 } },
       scales:{
         y:{ display:false },
         y1:{ position:'right', grid:{drawOnChartArea:false}, ticks:{callback:v=>fmtAR(v,1)+'%'} }
