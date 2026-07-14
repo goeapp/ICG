@@ -1386,6 +1386,7 @@ function renderChartResultado(){
         borderColor: COLOR.blue, tension:.3, yAxisID:'y1', order:-1, pointRadius:4,
         pointBackgroundColor: COLOR.blue, pointBorderColor: COLOR.blue,
         datalabels:{ align:'top', color:COLOR.blue, font:{weight:'700',size:10},
+          backgroundColor:'#ffffff', borderRadius:4, padding:{top:2,bottom:2,left:4,right:4},
           formatter:(v,ctx)=> ctx.dataIndex===nMeses-1 ? fmtAR(v,1)+'%' : null } }
     ]},
     options:{
@@ -1542,6 +1543,14 @@ function renderChartEstimActual(){
     ]},
     options:{
       plugins:{
+        legend:{
+          labels:{ padding:8 },
+          // v3.05: afterFit reserva altura EXTRA real para la leyenda (a diferencia de
+          // layout.padding.top en v3.04, que corría todo el bloque parejo y no separaba
+          // la leyenda del área de dibujo). Con esto el gráfico se acomoda debajo del
+          // espacio extra, generando el offset real pedido por Ale.
+          afterFit:(legend)=>{ legend.height += 20; }
+        },
         tooltip:{ callbacks:{
           label:(ctx)=> ctx.datasetIndex===0 ? `${ctx.dataset.label}: ${fmtAR(ctx.parsed.y,1)}` : `${ctx.dataset.label}: ${typeof ctx.parsed.y==='number'?fmtAR(ctx.parsed.y,2)+'%':'sin dato (falta anterior)'}`,
           afterLabel:(ctx)=>{
@@ -1550,7 +1559,6 @@ function renderChartEstimActual(){
           }
         } }
       },
-      layout:{ padding:{ top: 20 } },
       scales:{
         y:{ display:false },
         y1:{ position:'right', grid:{drawOnChartArea:false}, ticks:{callback:v=>fmtAR(v,1)+'%'} }
