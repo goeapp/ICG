@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ICG EvoTen v3.03 | Multi-obra</title>
+<title>ICG EvoTen v3.06 | Multi-obra</title>
 <script src="https://cdn.tailwindcss.com/3.4.1"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
@@ -389,7 +389,7 @@ main { max-width:1400px; margin:0 auto; padding:24px 20px 60px; }
 
 <div id="app-header">
   <div style="display:flex;align-items:center;gap:14px;">
-    <div class="app-badge">v3.03</div>
+    <div class="app-badge">v3.06</div>
     <div>
       <div class="app-title">ICG EvoTen · Evolución y Tendencia</div>
       <div class="app-sub" id="app-sub"></div>
@@ -659,7 +659,7 @@ const PANEL_MAP_CANVAS = {
 // Versión de la app — se estampa en el JSON exportado (STATE.generado_con) para que,
 // si mañana cambia la lógica de detección/visualización, el motor pueda detectar JSON
 // generados con una versión anterior y aplicar un fallback en vez de romper.
-const APP_VERSION = 'v3.03';
+const APP_VERSION = 'v3.06';
 
 // CAMPOS_BASE — plantilla de ids/tipos usada por "Nueva UO en blanco" en el tab Configuración.
 // No es un perfil de extracción (no tiene anclas propias); solo define QUÉ campos existen.
@@ -1527,10 +1527,21 @@ function renderChartFaltante(){
 function renderChartEstimActual(){
   destroyChart('estimactual');
   const ctx = document.getElementById('chart-estimactual');
+  const dataEstim = STATE.periodos.map(p=>Math.round(p.datos.proyecto_estim_actual*10)/10);
+  // v3.06: buffer superior del eje oculto 'y' — el rango real de esta serie suele ser muy
+  // angosto (ej. 69,8 a 70,2), lo que deja los puntos pegados al techo del área de dibujo
+  // y el datalabel "align:top" termina invadiendo la franja de la leyenda. Se calcula un
+  // suggestedMax por encima del máximo real, proporcional al rango de datos (con piso mínimo
+  // para el caso de serie plana, rango 0).
+  const valoresEstim = dataEstim.filter(v => typeof v === 'number');
+  const maxEstim = Math.max(...valoresEstim);
+  const minEstim = Math.min(...valoresEstim);
+  const rangoEstim = maxEstim - minEstim;
+  const bufferEstim = rangoEstim > 0 ? rangoEstim * 0.6 : Math.abs(maxEstim) * 0.02 || 1;
   charts['estimactual'] = new Chart(ctx, {
     data:{ labels:labelsPeriodos(), datasets:[
       { type:'line', label:'Proyecto Estim. Actual (MM$)', yAxisID:'y',
-        data: STATE.periodos.map(p=>Math.round(p.datos.proyecto_estim_actual*10)/10),
+        data: dataEstim,
         borderColor: COLOR.orange, tension:.1, pointRadius:5,
         pointBackgroundColor: STATE.periodos.map(p => p.derivados?.proyecto_estim_actual_cambio ? COLOR.red : COLOR.orange),
         pointBorderColor: STATE.periodos.map(p => p.derivados?.proyecto_estim_actual_cambio ? COLOR.red : COLOR.orange),
@@ -1547,8 +1558,8 @@ function renderChartEstimActual(){
           labels:{ padding:8 },
           // v3.05: afterFit reserva altura EXTRA real para la leyenda (a diferencia de
           // layout.padding.top en v3.04, que corría todo el bloque parejo y no separaba
-          // la leyenda del área de dibujo). Con esto el gráfico se acomoda debajo del
-          // espacio extra, generando el offset real pedido por Ale.
+          // la leyenda del área de dibujo). Se mantiene como margen adicional junto al
+          // buffer del eje (v3.06), que ataca la causa real del solape.
           afterFit:(legend)=>{ legend.height += 20; }
         },
         tooltip:{ callbacks:{
@@ -1560,7 +1571,7 @@ function renderChartEstimActual(){
         } }
       },
       scales:{
-        y:{ display:false },
+        y:{ display:false, suggestedMax: maxEstim + bufferEstim, suggestedMin: minEstim - bufferEstim*0.3 },
         y1:{ position:'right', grid:{drawOnChartArea:false}, ticks:{callback:v=>fmtAR(v,1)+'%'} }
       }
     },
