@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ICG EvoTen v3.06 | Multi-obra</title>
+<title>ICG EvoTen v3.07 | Multi-obra</title>
 <script src="https://cdn.tailwindcss.com/3.4.1"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
@@ -233,6 +233,9 @@ main { max-width:1400px; margin:0 auto; padding:24px 20px 60px; }
   padding:14px 20px; cursor:pointer; user-select:none; transition:background .15s;
 }
 .notas-panel-hdr:hover { background:#f8fafc; }
+/* v3.07 — Punto 5: nombre de obra a la izquierda, badge+título+chevron agrupados a la derecha */
+.notas-panel-obra { font-size:11px; font-weight:700; color:#64748b; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.notas-panel-hdr-right { display:flex; align-items:center; gap:14px; }
 .notas-panel-hdr-left { display:flex; align-items:center; gap:10px; }
 .notas-panel-hdr h2 { font-family:'Space Grotesk',sans-serif; font-size:12.5px; margin:0; text-transform:uppercase; letter-spacing:.06em; color:#0f172a; }
 .notas-badge {
@@ -376,6 +379,20 @@ main { max-width:1400px; margin:0 auto; padding:24px 20px 60px; }
 }
 .tabla-cfg td:nth-child(3) { min-width:220px; }
 .cfg-empty { text-align:center; padding:40px 20px; color:#94a3b8; font-size:12px; }
+
+/* ============================================================
+   v3.07 — Punto 3 y 4: modo impresión / exportación a PDF.
+   Punto 3: el fondo gris de la página (#eef1f6) sale celeste desteñido al imprimir
+   (el navegador respeta background-color si "Fondos gráficos" está tildado). Se fuerza
+   blanco SOLO al imprimir — no toca la experiencia normal en pantalla. Los fondos de
+   color de los headers de cada panel (rosa, naranja, etc.) NO se tocan, a pedido de Ale.
+   Punto 4: se ocultan el header superior (breadcrumb, título/versión, botones) y los
+   tabs Dashboard/Configuración, ya que no cumplen función en un PDF impreso.
+   ============================================================ */
+@media print {
+  body { background:#fff !important; }
+  #eco-header, #app-header, #tab-bar { display:none !important; }
+}
 </style>
 </head>
 <body>
@@ -389,10 +406,9 @@ main { max-width:1400px; margin:0 auto; padding:24px 20px 60px; }
 
 <div id="app-header">
   <div style="display:flex;align-items:center;gap:14px;">
-    <div class="app-badge">v3.06</div>
+    <div class="app-badge">v3.07</div>
     <div>
       <div class="app-title">ICG EvoTen · Evolución y Tendencia</div>
-      <div class="app-sub" id="app-sub"></div>
     </div>
   </div>
   <div style="display:flex;gap:8px;flex-wrap:wrap;">
@@ -443,11 +459,14 @@ main { max-width:1400px; margin:0 auto; padding:24px 20px 60px; }
     <!-- ── Panel de Notas / Conclusiones (componente portable, integrado 07-jul-2026) ── -->
     <div class="notas-panel" style="margin-bottom:14px;">
       <div class="notas-panel-hdr" id="notas-panel-hdr" onclick="notasTogglePanel()">
-        <div class="notas-panel-hdr-left">
-          <span class="notas-badge" id="notas-badge">0</span>
-          <h2>Notas / Conclusiones</h2>
+        <div class="notas-panel-obra" id="notas-panel-obra"></div>
+        <div class="notas-panel-hdr-right">
+          <div class="notas-panel-hdr-left">
+            <span class="notas-badge" id="notas-badge">0</span>
+            <h2>Notas / Conclusiones</h2>
+          </div>
+          <i class="ti ti-chevron-down notas-chev" id="notas-chev"></i>
         </div>
-        <i class="ti ti-chevron-down notas-chev" id="notas-chev"></i>
       </div>
       <div class="notas-panel-body" id="notas-panel-body">
         <div class="notas-panel-content">
@@ -529,16 +548,23 @@ main { max-width:1400px; margin:0 auto; padding:24px 20px 60px; }
       </div>
     </div>
 
-    <!-- ── Fila 4: Costo Faltante / Venta - Mes ── -->
+    <!-- ── Fila 4: Costo Faltante / Proyecto Estimado Actual / Avance de Venta ── -->
+    <!-- v3.07 — Punto 1: el panel combinado "Proyecto Estim. Actual / Avance de Venta" se separó
+         en 2 paneles independientes (uno por serie/eje), para eliminar el conflicto de escalas
+         y datalabels que arrastraban v3.04–v3.06. Fila pasa de 2 a 3 columnas. -->
     <div class="section-title">Costo Faltante / Venta - Mes</div>
-    <div class="grid-2col" style="margin-bottom:16px;">
+    <div class="grid-3col" style="margin-bottom:16px;">
       <div class="bloque b-costos">
         <div class="bloque-hdr"><div><h3>Costo Faltante</h3><div class="bsub">D31 · $ (alerta si sube vs. mes anterior)</div></div></div>
         <div style="padding:16px 20px;"><div class="chart-wrap-md"><canvas id="chart-costofaltante"></canvas></div></div>
       </div>
       <div class="bloque b-control">
-        <div class="bloque-hdr"><div><h3>Proyecto Estim. Actual / Avance de Venta</h3><div class="bsub">F12 · D12 (MM$ + % mensual)</div></div></div>
-        <div style="padding:16px 20px;"><div class="chart-wrap-sm"><canvas id="chart-estimactual"></canvas></div></div>
+        <div class="bloque-hdr"><div><h3>Proyecto Estimado Actual</h3><div class="bsub">F12 (MM$ mensual)</div></div></div>
+        <div style="padding:16px 20px;"><div class="chart-wrap-md"><canvas id="chart-estimactual"></canvas></div></div>
+      </div>
+      <div class="bloque b-control">
+        <div class="bloque-hdr"><div><h3>Avance de Venta</h3><div class="bsub">D12 (% mensual)</div></div></div>
+        <div style="padding:16px 20px;"><div class="chart-wrap-md"><canvas id="chart-avanceventa"></canvas></div></div>
       </div>
     </div>
 
@@ -643,8 +669,8 @@ const UBICACION_CAMPO = {
   margen_faltante_pct:    'Panel "Margen del Faltante"',
   margen_obra:            'Tarjeta "Margen Obra (F5)"',
   mes_periodo:            'Tarjeta "Mes de Proyecto"',
-  proyecto_estim_actual:  'Panel "Proyecto Estim. Actual / Avance de Venta"',
-  venta_saldo_faltante:   'Panel "Proyecto Estim. Actual / Avance de Venta"',
+  proyecto_estim_actual:  'Panel "Proyecto Estimado Actual"',
+  venta_saldo_faltante:   'Panel "Avance de Venta"',
   costo_faltante:         'Panel "Costo Faltante"'
 };
 
@@ -653,13 +679,14 @@ const PANEL_MAP_CANVAS = {
   'chart-margen':['margen_total_pct'], 'chart-resultado':['resultado_acum_valor','resultado_acum_pct'],
   'chart-hh':['hh_directos','hh_indirectos'], 'chart-costohh':['costo_hh_vestida_real','costo_hh_vestida_ppto'],
   'chart-avance':['avance_fisico_real','avance_fisico_ppto'], 'chart-faltante':['margen_faltante_pct'],
-  'chart-costofaltante':['costo_faltante'], 'chart-estimactual':['proyecto_estim_actual','venta_saldo_faltante']
+  'chart-costofaltante':['costo_faltante'], 'chart-estimactual':['proyecto_estim_actual'],
+  'chart-avanceventa':['venta_saldo_faltante']
 };
 
 // Versión de la app — se estampa en el JSON exportado (STATE.generado_con) para que,
 // si mañana cambia la lógica de detección/visualización, el motor pueda detectar JSON
 // generados con una versión anterior y aplicar un fallback en vez de romper.
-const APP_VERSION = 'v3.06';
+const APP_VERSION = 'v3.07';
 
 // CAMPOS_BASE — plantilla de ids/tipos usada por "Nueva UO en blanco" en el tab Configuración.
 // No es un perfil de extracción (no tiene anclas propias); solo define QUÉ campos existen.
@@ -1126,8 +1153,12 @@ function renderAll(){
   if(!hasData) return;
 
   const last = STATE.periodos[STATE.periodos.length - 1];
+  // v3.07 — Punto 5: el nombre de obra se sacó del header principal (app-sub) y ahora vive
+  // en el header del panel de Notas / Conclusiones (lado izquierdo, cambio general y permanente).
   const nombreObra = nombreObraDe(STATE.obra);
-  document.getElementById('app-sub').textContent = nombreObra ? `${STATE.obra} · ${nombreObra}` : (STATE.obra ?? '');
+  const textoObra = nombreObra ? `${STATE.obra} · ${nombreObra}` : (STATE.obra ?? '');
+  const elObraNotas = document.getElementById('notas-panel-obra');
+  if(elObraNotas) elObraNotas.textContent = textoObra;
 
   renderTablaPeriodos();
   renderAlertPanel();
@@ -1142,6 +1173,7 @@ function renderAll(){
   renderChartFaltante();
   renderChartCostoFaltante();
   renderChartEstimActual();
+  renderChartAvanceVenta();
   actualizarHoverPaneles();
 }
 
@@ -1320,6 +1352,13 @@ function fmtARPct(v, dec=1){
 function colorNeg(v){ return (typeof v === 'number' && v < 0) ? ROJO_NEG : '#0f172a'; }
 // Para datalabels cuyo valor ya viene multiplicado por 100 u otra escala, mismo criterio
 function colorNegRaw(v){ return (typeof v === 'number' && v < 0) ? ROJO_NEG : '#0f172a'; }
+// v3.07 — Punto 2: valor negativo → rojo en TEXTO (con base de color propia por serie, no solo dark)
+// y en PUNTO/BARRA (no solo el datalabel). colorSiNeg admite un color base distinto de '#0f172a'
+// para series que tienen su propio color (verde, naranja, celeste, etc.). colorSiNegCtx es el
+// wrapper para callbacks scriptable de Chart.js (pointBackgroundColor/backgroundColor), que reciben
+// el contexto y no el valor directo — se lee de ctx.dataset.data[ctx.dataIndex].
+function colorSiNeg(v, colorBase='#0f172a'){ return (typeof v === 'number' && v < 0) ? ROJO_NEG : colorBase; }
+function colorSiNegCtx(ctx, colorBase){ return colorSiNeg(ctx.dataset?.data?.[ctx.dataIndex], colorBase); }
 
 // Tooltip callback genérico — formatea el valor con fmtAR (1 decimal, formato Argentina).
 // esPct=true agrega el sufijo "%" (los datasets de % ya vienen multiplicados por 100 al graficar).
@@ -1356,7 +1395,7 @@ function renderChartMargen(){
       label:'Margen Total Proyectado (%)',
       data: STATE.periodos.map(p => p.datos.margen_total_pct*100),
       borderColor: COLOR.amber, backgroundColor: COLOR.amber, tension:.3, pointRadius:4,
-      pointBackgroundColor: COLOR.amber, pointBorderColor: COLOR.amber
+      pointBackgroundColor: (ctx)=>colorSiNegCtx(ctx, COLOR.amber), pointBorderColor: (ctx)=>colorSiNegCtx(ctx, COLOR.amber)
     }]},
     options:{
       plugins:{
@@ -1379,13 +1418,13 @@ function renderChartResultado(){
   charts['resultado'] = new Chart(ctx, {
     data:{ labels:labelsPeriodos(), datasets:[
       { type:'bar', label:'Resultado Acum. Gestión (MM$)', data: STATE.periodos.map(p=>p.datos.resultado_acum_valor),
-        backgroundColor:'#fca5a5', borderColor:'#fca5a5', yAxisID:'y',
-        datalabels:{ anchor:'end', align:'top', color:'#0f172a', font:{weight:'700',size:10},
+        backgroundColor:(ctx)=>colorSiNegCtx(ctx,'#fca5a5'), borderColor:(ctx)=>colorSiNegCtx(ctx,'#fca5a5'), yAxisID:'y',
+        datalabels:{ anchor:'end', align:'top', color:(ctx)=>colorNeg(ctx.dataset.data[ctx.dataIndex]), font:{weight:'700',size:10},
           formatter:(v,ctx)=> ctx.dataIndex===nMeses-1 ? fmtAR(v,1) : null } },
       { type:'line', label:'Contribución (%)', data: STATE.periodos.map(p=>p.datos.resultado_acum_pct*100),
         borderColor: COLOR.blue, tension:.3, yAxisID:'y1', order:-1, pointRadius:4,
-        pointBackgroundColor: COLOR.blue, pointBorderColor: COLOR.blue,
-        datalabels:{ align:'top', color:COLOR.blue, font:{weight:'700',size:10},
+        pointBackgroundColor: (ctx)=>colorSiNegCtx(ctx,COLOR.blue), pointBorderColor: (ctx)=>colorSiNegCtx(ctx,COLOR.blue),
+        datalabels:{ align:'top', color:(ctx)=>colorSiNeg(ctx.dataset.data[ctx.dataIndex],COLOR.blue), font:{weight:'700',size:10},
           backgroundColor:'#ffffff', borderRadius:4, padding:{top:2,bottom:2,left:4,right:4},
           formatter:(v,ctx)=> ctx.dataIndex===nMeses-1 ? fmtAR(v,1)+'%' : null } }
     ]},
@@ -1409,14 +1448,14 @@ function renderChartHH(){
     type:'line',
     data:{ labels:labelsPeriodos(), datasets:[
       { label:'Directos (miles HH)', data: STATE.periodos.map(p=>p.datos.hh_directos/1000), borderColor: COLOR.green, tension:.3, pointRadius:4,
-        pointBackgroundColor:COLOR.green, pointBorderColor:COLOR.green, clip:false,
-        datalabels:{ anchor:'end', align:'right', offset:6, clamp:false, color:COLOR.green, font:{weight:'700',size:12}, formatter:soloUltimo } },
+        pointBackgroundColor:(ctx)=>colorSiNegCtx(ctx,COLOR.green), pointBorderColor:(ctx)=>colorSiNegCtx(ctx,COLOR.green), clip:false,
+        datalabels:{ anchor:'end', align:'right', offset:6, clamp:false, color:(ctx)=>colorSiNeg(ctx.dataset.data[ctx.dataIndex],COLOR.green), font:{weight:'700',size:12}, formatter:soloUltimo } },
       { label:'Indirectos (miles HH)', data: STATE.periodos.map(p=>p.datos.hh_indirectos/1000), borderColor: COLOR.orange, tension:.3, pointRadius:4,
-        pointBackgroundColor:COLOR.orange, pointBorderColor:COLOR.orange, clip:false,
-        datalabels:{ anchor:'end', align:'right', offset:6, clamp:false, color:COLOR.orange, font:{weight:'700',size:12}, formatter:soloUltimo } },
+        pointBackgroundColor:(ctx)=>colorSiNegCtx(ctx,COLOR.orange), pointBorderColor:(ctx)=>colorSiNegCtx(ctx,COLOR.orange), clip:false,
+        datalabels:{ anchor:'end', align:'right', offset:6, clamp:false, color:(ctx)=>colorSiNeg(ctx.dataset.data[ctx.dataIndex],COLOR.orange), font:{weight:'700',size:12}, formatter:soloUltimo } },
       { label:'Total (miles HH)', data: STATE.periodos.map(p=>p.datos.hh_total/1000), borderColor: COLOR.slate, tension:.3, pointRadius:4,
-        pointBackgroundColor:COLOR.slate, pointBorderColor:COLOR.slate, clip:false,
-        datalabels:{ anchor:'end', align:'right', offset:6, clamp:false, color:COLOR.slate, font:{weight:'700',size:12}, formatter:soloUltimo } }
+        pointBackgroundColor:(ctx)=>colorSiNegCtx(ctx,COLOR.slate), pointBorderColor:(ctx)=>colorSiNegCtx(ctx,COLOR.slate), clip:false,
+        datalabels:{ anchor:'end', align:'right', offset:6, clamp:false, color:(ctx)=>colorSiNeg(ctx.dataset.data[ctx.dataIndex],COLOR.slate), font:{weight:'700',size:12}, formatter:soloUltimo } }
     ]},
     options:{
       layout:{ padding:{ right:72 } },
@@ -1443,16 +1482,18 @@ function renderChartCostoHH(){
     type:'bar',
     data:{ labels:labelsPeriodos(), datasets:[
       { label:'Real Mes', data: STATE.periodos.map(p=>p.datos.costo_hh_vestida_real),
-        backgroundColor: excede.map(e => e ? COLOR_ALERTA : COLOR_REAL_OK), borderColor: COLOR_REAL_OK, borderRadius:4,
-        datalabels:{ color:'#0f172a', font:{weight:'700',size:10}, anchor:'end', align:'top',
+        // v3.07 — Punto 2: negativo prevalece sobre el criterio de alerta (Real > Ppto) a la hora del color.
+        backgroundColor: (ctx)=>{ const v=ctx.dataset.data[ctx.dataIndex]; return (typeof v==='number'&&v<0) ? ROJO_NEG : (excede[ctx.dataIndex] ? COLOR_ALERTA : COLOR_REAL_OK); },
+        borderColor: COLOR_REAL_OK, borderRadius:4,
+        datalabels:{ color:(ctx)=>colorNeg(ctx.dataset.data[ctx.dataIndex]), font:{weight:'700',size:10}, anchor:'end', align:'top',
           formatter:(v,ctx)=>{
             const isLast = ctx.dataIndex === nMeses-1;
             if(excede[ctx.dataIndex]) return isLast ? `⚠ ${fmtAR(v,1)}` : '⚠';
             return isLast ? fmtAR(v,1) : null;
           } } },
       { label:'Ppto Mes', data: STATE.periodos.map(p=>p.datos.costo_hh_vestida_ppto),
-        backgroundColor: COLOR_PPTO_OK, borderColor: COLOR_PPTO_OK, borderRadius:4,
-        datalabels:{ color:'#0f172a', font:{weight:'700',size:10}, anchor:'end', align:'top',
+        backgroundColor: (ctx)=>colorSiNegCtx(ctx,COLOR_PPTO_OK), borderColor: (ctx)=>colorSiNegCtx(ctx,COLOR_PPTO_OK), borderRadius:4,
+        datalabels:{ color:(ctx)=>colorNeg(ctx.dataset.data[ctx.dataIndex]), font:{weight:'700',size:10}, anchor:'end', align:'top',
           formatter:(v,ctx)=> ctx.dataIndex === nMeses-1 ? fmtAR(v,1) : null } }
     ]},
     options:{
@@ -1474,19 +1515,19 @@ function renderChartAvance(){
     data:{ labels:labelsPeriodos(), datasets:[
       { type:'line', label:'Real acum. (%)', data: STATE.periodos.map(p=>p.datos.avance_fisico_real*100),
         borderColor: VERDE_REAL, tension:.3, yAxisID:'y', pointRadius:4,
-        pointBackgroundColor:VERDE_REAL, pointBorderColor:VERDE_REAL,
-        datalabels:{ align:'top', color:VERDE_REAL, font:{weight:'700',size:9}, formatter:v=>fmtAR(v,1)+'%' } },
+        pointBackgroundColor:(ctx)=>colorSiNegCtx(ctx,VERDE_REAL), pointBorderColor:(ctx)=>colorSiNegCtx(ctx,VERDE_REAL),
+        datalabels:{ align:'top', color:(ctx)=>colorSiNeg(ctx.dataset.data[ctx.dataIndex],VERDE_REAL), font:{weight:'700',size:9}, formatter:v=>fmtAR(v,1)+'%' } },
       { type:'line', label:'Ppto acum. (%)', data: STATE.periodos.map(p=>p.datos.avance_fisico_ppto*100),
         borderColor: CELESTE_PPTO, tension:.3, yAxisID:'y', pointRadius:4,
-        pointBackgroundColor:CELESTE_PPTO, pointBorderColor:CELESTE_PPTO,
-        datalabels:{ align:'bottom', color:CELESTE_PPTO, font:{weight:'700',size:9}, formatter:v=>fmtAR(v,1)+'%' } },
-      { type:'bar', label:'Δ mensual Real (pp)', yAxisID:'y1', backgroundColor:VERDE_REAL_BAR, borderColor:VERDE_REAL,
+        pointBackgroundColor:(ctx)=>colorSiNegCtx(ctx,CELESTE_PPTO), pointBorderColor:(ctx)=>colorSiNegCtx(ctx,CELESTE_PPTO),
+        datalabels:{ align:'bottom', color:(ctx)=>colorSiNeg(ctx.dataset.data[ctx.dataIndex],CELESTE_PPTO), font:{weight:'700',size:9}, formatter:v=>fmtAR(v,1)+'%' } },
+      { type:'bar', label:'Δ mensual Real (pp)', yAxisID:'y1', backgroundColor:(ctx)=>colorSiNegCtx(ctx,VERDE_REAL_BAR), borderColor:(ctx)=>colorSiNegCtx(ctx,VERDE_REAL),
         data: STATE.periodos.map(p => typeof p.derivados?.avance_fisico_real_delta==='number' ? p.derivados.avance_fisico_real_delta*100 : null),
-        datalabels:{ anchor:'center', align:'center', color:'#fff', font:{weight:'700',size:9},
+        datalabels:{ anchor:'center', align:'center', color:(ctx)=>colorSiNeg(ctx.dataset.data[ctx.dataIndex],'#fff'), font:{weight:'700',size:9},
           formatter:(v,ctx)=> ctx.dataIndex === nMeses-1 && typeof v==='number' ? fmtAR(v,1) : null } },
-      { type:'bar', label:'Δ mensual Ppto (pp)', yAxisID:'y1', backgroundColor:CELESTE_PPTO_BAR, borderColor:CELESTE_PPTO,
+      { type:'bar', label:'Δ mensual Ppto (pp)', yAxisID:'y1', backgroundColor:(ctx)=>colorSiNegCtx(ctx,CELESTE_PPTO_BAR), borderColor:(ctx)=>colorSiNegCtx(ctx,CELESTE_PPTO),
         data: STATE.periodos.map(p => typeof p.derivados?.avance_fisico_ppto_delta==='number' ? p.derivados.avance_fisico_ppto_delta*100 : null),
-        datalabels:{ anchor:'center', align:'center', color:'#fff', font:{weight:'700',size:9},
+        datalabels:{ anchor:'center', align:'center', color:(ctx)=>colorSiNeg(ctx.dataset.data[ctx.dataIndex],'#fff'), font:{weight:'700',size:9},
           formatter:(v,ctx)=> ctx.dataIndex === nMeses-1 && typeof v==='number' ? fmtAR(v,1) : null } }
     ]},
     options:{
@@ -1512,7 +1553,7 @@ function renderChartFaltante(){
     data:{ labels:labelsPeriodos(), datasets:[{
       label:'Margen del Faltante (%)', data: STATE.periodos.map(p=>p.datos.margen_faltante_pct*100),
       borderColor: COLOR.cyan, tension:.3, pointRadius:4,
-      pointBackgroundColor: COLOR.cyan, pointBorderColor: COLOR.cyan,
+      pointBackgroundColor: (ctx)=>colorSiNegCtx(ctx,COLOR.cyan), pointBorderColor: (ctx)=>colorSiNegCtx(ctx,COLOR.cyan),
       datalabels:{ align:'top', font:{weight:'700',size:10}, formatter:v=>fmtAR(v,1)+'%', color:(ctx)=>colorNeg(ctx.dataset.data[ctx.dataIndex]) }
     }]},
     options:{
@@ -1524,56 +1565,73 @@ function renderChartFaltante(){
   });
 }
 
+// v3.07 — Punto 1: el panel combinado se separó en 2 gráficos independientes, cada uno con
+// su propia serie y su propio eje. Ya no compiten por espacio ni por escala, así que el buffer
+// de suggestedMax/suggestedMin (v3.06, pensado para el eje OCULTO compartido) deja de ser la
+// pieza crítica — se mantiene igual como margen de aire prolijo para el datalabel superior.
 function renderChartEstimActual(){
   destroyChart('estimactual');
   const ctx = document.getElementById('chart-estimactual');
   const dataEstim = STATE.periodos.map(p=>Math.round(p.datos.proyecto_estim_actual*10)/10);
-  // v3.06: buffer superior del eje oculto 'y' — el rango real de esta serie suele ser muy
-  // angosto (ej. 69,8 a 70,2), lo que deja los puntos pegados al techo del área de dibujo
-  // y el datalabel "align:top" termina invadiendo la franja de la leyenda. Se calcula un
-  // suggestedMax por encima del máximo real, proporcional al rango de datos (con piso mínimo
-  // para el caso de serie plana, rango 0).
   const valoresEstim = dataEstim.filter(v => typeof v === 'number');
   const maxEstim = Math.max(...valoresEstim);
   const minEstim = Math.min(...valoresEstim);
   const rangoEstim = maxEstim - minEstim;
   const bufferEstim = rangoEstim > 0 ? rangoEstim * 0.6 : Math.abs(maxEstim) * 0.02 || 1;
   charts['estimactual'] = new Chart(ctx, {
+    type:'line',
     data:{ labels:labelsPeriodos(), datasets:[
-      { type:'line', label:'Proyecto Estim. Actual (MM$)', yAxisID:'y',
+      { label:'Proyecto Estim. Actual (MM$)',
         data: dataEstim,
         borderColor: COLOR.orange, tension:.1, pointRadius:5,
-        pointBackgroundColor: STATE.periodos.map(p => p.derivados?.proyecto_estim_actual_cambio ? COLOR.red : COLOR.orange),
-        pointBorderColor: STATE.periodos.map(p => p.derivados?.proyecto_estim_actual_cambio ? COLOR.red : COLOR.orange),
-        datalabels:{ align:'top', color:'#0f172a', font:{weight:'700',size:10}, formatter:v=>fmtAR(v,1) } },
-      { type:'line', label:'Avance de Venta (%)', yAxisID:'y1',
-        data: STATE.periodos.map(p => typeof p.derivados?.venta_avance_pct==='number' ? p.derivados.venta_avance_pct*100 : null),
-        borderColor: COLOR.blue, tension:.1, pointRadius:5,
-        pointBackgroundColor: COLOR.blue, pointBorderColor: COLOR.blue,
-        datalabels:{ align:'bottom', color:COLOR.blue, font:{weight:'700',size:10}, formatter:v=> typeof v==='number' ? fmtAR(v,2)+'%' : null } }
+        // v3.07 — Punto 2: el punto se pone en rojo si cambió vs. el mes anterior (alerta ya
+        // existente) O si el valor es negativo (nuevo criterio). Cualquiera de los dos casos → rojo.
+        pointBackgroundColor: (ctx)=>{ const p=STATE.periodos[ctx.dataIndex]; const v=ctx.dataset.data[ctx.dataIndex];
+          return (p?.derivados?.proyecto_estim_actual_cambio || (typeof v==='number'&&v<0)) ? ROJO_NEG : COLOR.orange; },
+        pointBorderColor: (ctx)=>{ const p=STATE.periodos[ctx.dataIndex]; const v=ctx.dataset.data[ctx.dataIndex];
+          return (p?.derivados?.proyecto_estim_actual_cambio || (typeof v==='number'&&v<0)) ? ROJO_NEG : COLOR.orange; },
+        datalabels:{ align:'top', color:(ctx)=>colorNeg(ctx.dataset.data[ctx.dataIndex]), font:{weight:'700',size:10}, formatter:v=>fmtAR(v,1) } }
     ]},
     options:{
       plugins:{
-        legend:{
-          labels:{ padding:8 },
-          // v3.05: afterFit reserva altura EXTRA real para la leyenda (a diferencia de
-          // layout.padding.top en v3.04, que corría todo el bloque parejo y no separaba
-          // la leyenda del área de dibujo). Se mantiene como margen adicional junto al
-          // buffer del eje (v3.06), que ataca la causa real del solape.
-          afterFit:(legend)=>{ legend.height += 20; }
-        },
+        legend:{ display:false },
         tooltip:{ callbacks:{
-          label:(ctx)=> ctx.datasetIndex===0 ? `${ctx.dataset.label}: ${fmtAR(ctx.parsed.y,1)}` : `${ctx.dataset.label}: ${typeof ctx.parsed.y==='number'?fmtAR(ctx.parsed.y,2)+'%':'sin dato (falta anterior)'}`,
+          label:(ctx)=> `${ctx.dataset.label}: ${fmtAR(ctx.parsed.y,1)}`,
           afterLabel:(ctx)=>{
             const p = STATE.periodos[ctx.dataIndex];
-            return ctx.datasetIndex===0 && p.derivados?.proyecto_estim_actual_cambio ? '⚠ Cambió respecto al mes anterior' : '';
+            return p.derivados?.proyecto_estim_actual_cambio ? '⚠ Cambió respecto al mes anterior' : '';
           }
         } }
       },
-      scales:{
-        y:{ display:false, suggestedMax: maxEstim + bufferEstim, suggestedMin: minEstim - bufferEstim*0.3 },
-        y1:{ position:'right', grid:{drawOnChartArea:false}, ticks:{callback:v=>fmtAR(v,1)+'%'} }
-      }
+      scales:{ y:{ suggestedMax: maxEstim + bufferEstim, suggestedMin: minEstim - bufferEstim*0.3, ticks:{ callback:v=>fmtAR(v,1), color:(ctx)=>colorNeg(ctx.tick.value) } } }
+    },
+    plugins:[ChartDataLabels]
+  });
+}
+
+function renderChartAvanceVenta(){
+  destroyChart('avanceventa');
+  const ctx = document.getElementById('chart-avanceventa');
+  const dataVenta = STATE.periodos.map(p => typeof p.derivados?.venta_avance_pct==='number' ? p.derivados.venta_avance_pct*100 : null);
+  charts['avanceventa'] = new Chart(ctx, {
+    type:'line',
+    data:{ labels:labelsPeriodos(), datasets:[
+      { label:'Avance de Venta (%)',
+        data: dataVenta,
+        borderColor: COLOR.blue, tension:.1, pointRadius:5,
+        // v3.07 — Punto 2: valor negativo (ej. -1,57%) → punto y datalabel en rojo.
+        pointBackgroundColor: (ctx)=>colorSiNegCtx(ctx,COLOR.blue), pointBorderColor: (ctx)=>colorSiNegCtx(ctx,COLOR.blue),
+        datalabels:{ align:'bottom', color:(ctx)=>colorSiNeg(ctx.dataset.data[ctx.dataIndex],COLOR.blue), font:{weight:'700',size:10},
+          formatter:v=> typeof v==='number' ? fmtAR(v,2)+'%' : null } }
+    ]},
+    options:{
+      plugins:{
+        legend:{ display:false },
+        tooltip:{ callbacks:{
+          label:(ctx)=> `${ctx.dataset.label}: ${typeof ctx.parsed.y==='number'?fmtAR(ctx.parsed.y,2)+'%':'sin dato (falta anterior)'}`
+        } }
+      },
+      scales:{ y:{ ticks:{ callback:v=>fmtAR(v,1)+'%', color:(ctx)=>colorNeg(ctx.tick.value) } } }
     },
     plugins:[ChartDataLabels]
   });
@@ -1591,8 +1649,10 @@ function renderChartCostoFaltante(){
     data:{ labels:labelsPeriodos(), datasets:[{
       label:'Costo Faltante ($)',
       data: STATE.periodos.map(p=>p.datos.costo_faltante),
-      backgroundColor: alerta.map(a => a ? COLOR_ALERTA : COLOR_OK), borderColor: COLOR_OK, borderRadius:4,
-      datalabels:{ color:'#0f172a', font:{weight:'700',size:10}, anchor:'end', align:'top',
+      // v3.07 — Punto 2: negativo prevalece sobre el criterio de alerta a la hora del color.
+      backgroundColor: (ctx)=>{ const v=ctx.dataset.data[ctx.dataIndex]; return (typeof v==='number'&&v<0) ? ROJO_NEG : (alerta[ctx.dataIndex] ? COLOR_ALERTA : COLOR_OK); },
+      borderColor: COLOR_OK, borderRadius:4,
+      datalabels:{ color:(ctx)=>colorNeg(ctx.dataset.data[ctx.dataIndex]), font:{weight:'700',size:10}, anchor:'end', align:'top',
         formatter:(v,ctx)=>{
           const isLast = ctx.dataIndex === nMeses-1;
           if(alerta[ctx.dataIndex]) return isLast ? `⚠ ${fmtAR(v,1)}` : '⚠';
