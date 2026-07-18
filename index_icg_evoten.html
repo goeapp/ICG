@@ -1841,10 +1841,16 @@ function renderAutoPaneles(){
         borderRadius: chartType === 'bar' ? 4 : undefined,
         pointBackgroundColor: chartType === 'line' ? ((ctx)=>colorSiNegCtx(ctx, colorBase)) : undefined,
         pointBorderColor: chartType === 'line' ? ((ctx)=>colorSiNegCtx(ctx, colorBase)) : undefined,
-        datalabels:{ align: chartType === 'line' ? 'top' : undefined, anchor: chartType === 'bar' ? 'end' : undefined,
+        clip: false,
+        // Mismo patrón anti-clipping que chart-hh: la etiqueta del último mes se ubica a la
+        // DERECHA del punto/barra (no arriba) — evita que se corte contra el techo del área
+        // del gráfico cuando el último valor está cerca del máximo de la escala (línea) o
+        // contra el borde derecho del canvas, al ser la barra/punto más a la derecha (barra).
+        datalabels:{ anchor:'end', align:'right', offset:6, clamp:false,
           color:(ctx)=>colorSiNeg(ctx.dataset.data[ctx.dataIndex], colorBase), font:{weight:'700',size:11}, formatter:soloUltimoAuto }
       }]},
       options:{
+        layout:{ padding:{ right:56 } },
         plugins:{
           legend:{ display:false },
           tooltip:{ callbacks:{ label: tooltipFmt(false) } }
