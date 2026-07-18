@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ICG EvoTen v3.12 | Multi-obra</title>
+<title>ICG EvoTen v3.13 | Multi-obra</title>
 <script src="https://cdn.tailwindcss.com/3.4.1"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
@@ -408,7 +408,7 @@ main { max-width:1400px; margin:0 auto; padding:24px 20px 60px; }
 
 <div id="app-header">
   <div style="display:flex;align-items:center;gap:14px;">
-    <div class="app-badge">v3.12</div>
+    <div class="app-badge">v3.13</div>
     <div>
       <div class="app-title">ICG EvoTen · Evolución y Tendencia</div>
     </div>
@@ -697,7 +697,7 @@ const PANEL_MAP_CANVAS = {
 // Versión de la app — se estampa en el JSON exportado (STATE.generado_con) para que,
 // si mañana cambia la lógica de detección/visualización, el motor pueda detectar JSON
 // generados con una versión anterior y aplicar un fallback en vez de romper.
-const APP_VERSION = 'v3.12';
+const APP_VERSION = 'v3.13';
 
 // CAMPOS_BASE — plantilla de ids/tipos usada por "Nueva UO en blanco" en el tab Configuración.
 // No es un perfil de extracción (no tiene anclas propias); solo define QUÉ campos existen.
@@ -1851,14 +1851,24 @@ function dibujarUnAutoPanel(p, colorBase){
       pointBackgroundColor: chartType === 'line' ? ((ctx)=>colorSiNegCtx(ctx, colorBase)) : undefined,
       pointBorderColor: chartType === 'line' ? ((ctx)=>colorSiNegCtx(ctx, colorBase)) : undefined,
       clip: false,
-      // v3.10: mismo anchor/align para línea y barra — "arriba" (align:'top'), pegado al dato.
-      // Ya no hace falta el truco "a la derecha" de v3.09 (era solo para el último punto en
-      // aislamiento); con TODOS los puntos etiquetados, "arriba" es lo natural y coherente con
-      // el resto de gráficos del dashboard (chart-margen, chart-avance, etc).
-      datalabels:{ anchor:'end', align:'top', clamp:false,
+      // v3.13: en BARRA, el align del datalabel depende del signo del valor. Con align:'top' fijo,
+      // una barra NEGATIVA (que crece hacia abajo desde 0) dejaba la etiqueta adentro del cuerpo
+      // rojo de la barra — rojo sobre rojo, invisible. Ahora: positivo → 'top' (afuera, arriba de
+      // la punta), negativo → 'bottom' (afuera, abajo de la punta) — siempre "hacia afuera" de la
+      // barra. En línea no aplica (el fondo detrás del punto es blanco, 'top' ya funciona bien).
+      datalabels:{ anchor:'end',
+        align: (ctx) => chartType === 'bar' && ctx.dataset.data[ctx.dataIndex] < 0 ? 'bottom' : 'top',
+        clamp:false,
         color:(ctx)=>colorSiNeg(ctx.dataset.data[ctx.dataIndex], colorBase), font:{weight:'700',size:10}, formatter:todosLosValores }
     }]},
     options:{
+      // v3.13: padding fijo en píxeles, sumado al buffer de suggestedMax/suggestedMin. El buffer
+      // da aire en la ESCALA de datos, pero Chart.js redondea el eje a números "lindos" para la
+      // grilla — a veces ese redondeo deja poco margen REAL en píxeles aunque el buffer esté bien
+      // calculado (caso "Dólar": buffer pedía ~1.527, el eje redondeó a 1.600, quedó justo). El
+      // padding fijo garantiza aire real sin depender de cómo caiga el redondeo. top/bottom por
+      // si el caso simétrico (barra muy negativa) tuviera el mismo problema.
+      layout:{ padding:{ top:24, bottom:24 } },
       plugins:{
         legend:{ display:false },
         tooltip:{ callbacks:{ label: tooltipFmt(false) } }
