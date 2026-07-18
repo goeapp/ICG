@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ICG EvoTen v3.11 | Multi-obra</title>
+<title>ICG EvoTen v3.12 | Multi-obra</title>
 <script src="https://cdn.tailwindcss.com/3.4.1"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
@@ -408,7 +408,7 @@ main { max-width:1400px; margin:0 auto; padding:24px 20px 60px; }
 
 <div id="app-header">
   <div style="display:flex;align-items:center;gap:14px;">
-    <div class="app-badge">v3.11</div>
+    <div class="app-badge">v3.12</div>
     <div>
       <div class="app-title">ICG EvoTen · Evolución y Tendencia</div>
     </div>
@@ -697,7 +697,7 @@ const PANEL_MAP_CANVAS = {
 // Versión de la app — se estampa en el JSON exportado (STATE.generado_con) para que,
 // si mañana cambia la lógica de detección/visualización, el motor pueda detectar JSON
 // generados con una versión anterior y aplicar un fallback en vez de romper.
-const APP_VERSION = 'v3.11';
+const APP_VERSION = 'v3.12';
 
 // CAMPOS_BASE — plantilla de ids/tipos usada por "Nueva UO en blanco" en el tab Configuración.
 // No es un perfil de extracción (no tiene anclas propias); solo define QUÉ campos existen.
@@ -1806,6 +1806,69 @@ function renderChartCostoFaltante(){
 // ============================================================
 const AUTO_PANEL_COLORS = [COLOR.cyan, COLOR.purple, COLOR.green, COLOR.orange, COLOR.blue, COLOR.slate, COLOR.amber, COLOR.red];
 
+function iconoAutoPanel(p){
+  const tipoEfectivo = autoPanelTipoOverride[p.id] || p.tipo;
+  const proximoTipo = tipoEfectivo === 'barra' ? 'línea' : 'barra';
+  const iconoProximo = tipoEfectivo === 'barra' ? 'ti-chart-line' : 'ti-chart-bar';
+  return { tipoEfectivo, proximoTipo, iconoProximo };
+}
+
+// v3.12: se extrae la creación de UN solo gráfico a esta función, reusada tanto en el render
+// completo (import/carga de obra) como en el toggle individual — así togglear un panel no
+// recrea las instancias de Chart.js de los demás.
+function dibujarUnAutoPanel(p, colorBase){
+  destroyChart(`auto_${p.id}`);
+  // Cruce por anio+mes: mismo timeline que el resto del dashboard (STATE.periodos), no el
+  // propio arreglo de fechas del panel — así el panel "sigue" el rango de la obra.
+  const dataSerie = STATE.periodos.map(per => {
+    const fila = p.datos.find(d => d.anio === per.periodo.anio && d.mes === per.periodo.mes);
+    return fila && typeof fila.valor === 'number' ? fila.valor : null;
+  });
+  // v3.10: se muestra el valor en TODOS los puntos/barras (no solo el último) — a pedido de
+  // Ale, ya que acá es una sola serie por panel (a diferencia de chart-hh, multi-serie, donde
+  // mostrar todo sería ilegible). Devuelve null únicamente si el dato es null (gap real).
+  const todosLosValores = (val) => typeof val === 'number' ? fmtAR(val,2) : null;
+  // Buffer de escala anti-clipping (mismo patrón que renderChartEstimActual): le da aire arriba
+  // del valor más alto de la serie para que su datalabel no choque contra el techo del gráfico.
+  const valoresNum = dataSerie.filter(v => typeof v === 'number');
+  const maxVal = valoresNum.length ? Math.max(...valoresNum) : 0;
+  const minVal = valoresNum.length ? Math.min(...valoresNum) : 0;
+  const rangoVal = maxVal - minVal;
+  const bufferVal = rangoVal > 0 ? rangoVal * 0.25 : (Math.abs(maxVal) * 0.1 || 1);
+  const ctx = document.getElementById(`chart-auto-${p.id}`);
+  if(!ctx) return;
+  const { tipoEfectivo } = iconoAutoPanel(p);
+  const chartType = tipoEfectivo === 'barra' ? 'bar' : 'line';
+  charts[`auto_${p.id}`] = new Chart(ctx, {
+    type: chartType,
+    data:{ labels:labelsPeriodos(), datasets:[{
+      label: p.titulo,
+      data: dataSerie,
+      borderColor: colorBase, backgroundColor: chartType === 'bar' ? ((ctx)=>colorSiNegCtx(ctx, colorBase)) : colorBase,
+      tension: chartType === 'line' ? .3 : undefined,
+      pointRadius: chartType === 'line' ? 4 : undefined,
+      borderRadius: chartType === 'bar' ? 4 : undefined,
+      pointBackgroundColor: chartType === 'line' ? ((ctx)=>colorSiNegCtx(ctx, colorBase)) : undefined,
+      pointBorderColor: chartType === 'line' ? ((ctx)=>colorSiNegCtx(ctx, colorBase)) : undefined,
+      clip: false,
+      // v3.10: mismo anchor/align para línea y barra — "arriba" (align:'top'), pegado al dato.
+      // Ya no hace falta el truco "a la derecha" de v3.09 (era solo para el último punto en
+      // aislamiento); con TODOS los puntos etiquetados, "arriba" es lo natural y coherente con
+      // el resto de gráficos del dashboard (chart-margen, chart-avance, etc).
+      datalabels:{ anchor:'end', align:'top', clamp:false,
+        color:(ctx)=>colorSiNeg(ctx.dataset.data[ctx.dataIndex], colorBase), font:{weight:'700',size:10}, formatter:todosLosValores }
+    }]},
+    options:{
+      plugins:{
+        legend:{ display:false },
+        tooltip:{ callbacks:{ label: tooltipFmt(false) } }
+      },
+      scales:{ y:{ suggestedMax: maxVal + bufferVal, suggestedMin: minVal - bufferVal*0.3, ticks:{ callback:v=>fmtAR(v,1), color:(ctx)=>colorNeg(ctx.tick.value) } } }
+    },
+    plugins:[ChartDataLabels]
+  });
+}
+
 function renderAutoPaneles(){
   const container = document.getElementById('autopaneles-container');
   const tituloSeccion = document.getElementById('section-title-autopaneles');
@@ -1824,14 +1887,12 @@ function renderAutoPaneles(){
   container.style.display = '';
 
   container.innerHTML = STATE.autoPaneles.map(p => {
-    const tipoEfectivo = autoPanelTipoOverride[p.id] || p.tipo;
-    const proximoTipo = tipoEfectivo === 'barra' ? 'línea' : 'barra';
-    const iconoProximo = tipoEfectivo === 'barra' ? 'ti-chart-line' : 'ti-chart-bar';
+    const { proximoTipo, iconoProximo } = iconoAutoPanel(p);
     return `
     <div class="bloque b-control">
       <div class="bloque-hdr">
         <div><h3>${p.titulo}</h3><div class="bsub">${p.subtitulo || 'Dato extra'}</div></div>
-        <i class="ti ${iconoProximo} auto-panel-toggle" title="Ver como ${proximoTipo}" onclick="toggleAutoPanelTipo('${p.id}')"></i>
+        <i class="ti ${iconoProximo} auto-panel-toggle" id="auto-panel-toggle-${p.id}" title="Ver como ${proximoTipo}" onclick="toggleAutoPanelTipo('${p.id}')"></i>
       </div>
       <div style="padding:16px 20px;"><div class="chart-wrap-md"><canvas id="chart-auto-${p.id}"></canvas></div></div>
     </div>`;
@@ -1839,67 +1900,30 @@ function renderAutoPaneles(){
 
   STATE.autoPaneles.forEach((p, i) => {
     const colorBase = AUTO_PANEL_COLORS[i % AUTO_PANEL_COLORS.length];
-    // Cruce por anio+mes: mismo timeline que el resto del dashboard (STATE.periodos), no el
-    // propio arreglo de fechas del panel — así el panel "sigue" el rango de la obra.
-    const dataSerie = STATE.periodos.map(per => {
-      const fila = p.datos.find(d => d.anio === per.periodo.anio && d.mes === per.periodo.mes);
-      return fila && typeof fila.valor === 'number' ? fila.valor : null;
-    });
-    // v3.10: se muestra el valor en TODOS los puntos/barras (no solo el último) — a pedido de
-    // Ale, ya que acá es una sola serie por panel (a diferencia de chart-hh, multi-serie, donde
-    // mostrar todo sería ilegible). Devuelve null únicamente si el dato es null (gap real).
-    const todosLosValores = (val) => typeof val === 'number' ? fmtAR(val,2) : null;
-    // Buffer de escala anti-clipping (mismo patrón que renderChartEstimActual): le da aire arriba
-    // del valor más alto de la serie para que su datalabel no choque contra el techo del gráfico —
-    // antes solo importaba para el último punto, ahora aplica a cualquiera de los 6+.
-    const valoresNum = dataSerie.filter(v => typeof v === 'number');
-    const maxVal = valoresNum.length ? Math.max(...valoresNum) : 0;
-    const minVal = valoresNum.length ? Math.min(...valoresNum) : 0;
-    const rangoVal = maxVal - minVal;
-    const bufferVal = rangoVal > 0 ? rangoVal * 0.25 : (Math.abs(maxVal) * 0.1 || 1);
-    const ctx = document.getElementById(`chart-auto-${p.id}`);
-    if(!ctx) return;
-    const tipoEfectivo = autoPanelTipoOverride[p.id] || p.tipo;
-    const chartType = tipoEfectivo === 'barra' ? 'bar' : 'line';
-    charts[`auto_${p.id}`] = new Chart(ctx, {
-      type: chartType,
-      data:{ labels:labelsPeriodos(), datasets:[{
-        label: p.titulo,
-        data: dataSerie,
-        borderColor: colorBase, backgroundColor: chartType === 'bar' ? ((ctx)=>colorSiNegCtx(ctx, colorBase)) : colorBase,
-        tension: chartType === 'line' ? .3 : undefined,
-        pointRadius: chartType === 'line' ? 4 : undefined,
-        borderRadius: chartType === 'bar' ? 4 : undefined,
-        pointBackgroundColor: chartType === 'line' ? ((ctx)=>colorSiNegCtx(ctx, colorBase)) : undefined,
-        pointBorderColor: chartType === 'line' ? ((ctx)=>colorSiNegCtx(ctx, colorBase)) : undefined,
-        clip: false,
-        // v3.10: mismo anchor/align para línea y barra — "arriba" (align:'top'), pegado al dato.
-        // Ya no hace falta el truco "a la derecha" de v3.09 (era solo para el último punto en
-        // aislamiento); con TODOS los puntos etiquetados, "arriba" es lo natural y coherente con
-        // el resto de gráficos del dashboard (chart-margen, chart-avance, etc).
-        datalabels:{ anchor:'end', align:'top', clamp:false,
-          color:(ctx)=>colorSiNeg(ctx.dataset.data[ctx.dataIndex], colorBase), font:{weight:'700',size:10}, formatter:todosLosValores }
-      }]},
-      options:{
-        plugins:{
-          legend:{ display:false },
-          tooltip:{ callbacks:{ label: tooltipFmt(false) } }
-        },
-        scales:{ y:{ suggestedMax: maxVal + bufferVal, suggestedMin: minVal - bufferVal*0.3, ticks:{ callback:v=>fmtAR(v,1), color:(ctx)=>colorNeg(ctx.tick.value) } } }
-      },
-      plugins:[ChartDataLabels]
-    });
+    dibujarUnAutoPanel(p, colorBase);
   });
 }
 
 // v3.11: toggle individual barra/línea por Auto Panel — solo visual de la sesión actual,
 // no se guarda ni viaja en el JSON exportado (ver autoPanelTipoOverride, fuera de STATE).
+// v3.12: ya no llama a renderAutoPaneles() completo — solo actualiza el ícono y redibuja
+// el canvas del panel que cambió, sin tocar los demás.
 function toggleAutoPanelTipo(id){
-  const panel = STATE.autoPaneles.find(p => p.id === id);
-  if(!panel) return;
+  const index = STATE.autoPaneles.findIndex(p => p.id === id);
+  if(index === -1) return;
+  const panel = STATE.autoPaneles[index];
   const actual = autoPanelTipoOverride[id] || panel.tipo;
   autoPanelTipoOverride[id] = actual === 'barra' ? 'linea' : 'barra';
-  renderAutoPaneles();
+
+  const { proximoTipo, iconoProximo } = iconoAutoPanel(panel);
+  const icono = document.getElementById(`auto-panel-toggle-${id}`);
+  if(icono){
+    icono.className = `ti ${iconoProximo} auto-panel-toggle`;
+    icono.title = `Ver como ${proximoTipo}`;
+  }
+
+  const colorBase = AUTO_PANEL_COLORS[index % AUTO_PANEL_COLORS.length];
+  dibujarUnAutoPanel(panel, colorBase);
 }
 
 // ============================================================
