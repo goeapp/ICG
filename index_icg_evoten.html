@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ICG EvoTen v3.08 | Multi-obra</title>
+<title>ICG EvoTen v3.09 | Multi-obra</title>
 <script src="https://cdn.tailwindcss.com/3.4.1"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
@@ -406,7 +406,7 @@ main { max-width:1400px; margin:0 auto; padding:24px 20px 60px; }
 
 <div id="app-header">
   <div style="display:flex;align-items:center;gap:14px;">
-    <div class="app-badge">v3.08</div>
+    <div class="app-badge">v3.09</div>
     <div>
       <div class="app-title">ICG EvoTen · Evolución y Tendencia</div>
     </div>
@@ -695,7 +695,7 @@ const PANEL_MAP_CANVAS = {
 // Versión de la app — se estampa en el JSON exportado (STATE.generado_con) para que,
 // si mañana cambia la lógica de detección/visualización, el motor pueda detectar JSON
 // generados con una versión anterior y aplicar un fallback en vez de romper.
-const APP_VERSION = 'v3.08';
+const APP_VERSION = 'v3.09';
 
 // CAMPOS_BASE — plantilla de ids/tipos usada por "Nueva UO en blanco" en el tab Configuración.
 // No es un perfil de extracción (no tiene anclas propias); solo define QUÉ campos existen.
@@ -1535,7 +1535,11 @@ function renderChartResultado(){
           formatter:(v,ctx)=> ctx.dataIndex===nMeses-1 ? fmtAR(v,1) : null } },
       { type:'line', label:'Contribución (%)', data: STATE.periodos.map(p=>p.datos.resultado_acum_pct*100),
         borderColor: COLOR.blue, tension:.3, yAxisID:'y1', order:-1, pointRadius:4,
-        pointBackgroundColor: (ctx)=>colorSiNegCtx(ctx,COLOR.blue), pointBorderColor: (ctx)=>colorSiNegCtx(ctx,COLOR.blue),
+        // v3.09: pointBorderColor deja de espejar el rojo/azul del relleno y pasa a blanco fijo
+        // (con borde más grueso) — cuando toda la obra da negativo, el punto y la barra de atrás
+        // quedan del mismo rojo y se camuflan; el aro blanco los separa visualmente sin perder
+        // la señal de "negativo" en el relleno (pointBackgroundColor no se toca).
+        pointBackgroundColor: (ctx)=>colorSiNegCtx(ctx,COLOR.blue), pointBorderColor:'#ffffff', pointBorderWidth:2,
         datalabels:{ align:'top', color:(ctx)=>colorSiNeg(ctx.dataset.data[ctx.dataIndex],COLOR.blue), font:{weight:'700',size:10},
           backgroundColor:'#ffffff', borderRadius:4, padding:{top:2,bottom:2,left:4,right:4},
           formatter:(v,ctx)=> ctx.dataIndex===nMeses-1 ? fmtAR(v,1)+'%' : null } }
@@ -1842,11 +1846,14 @@ function renderAutoPaneles(){
         pointBackgroundColor: chartType === 'line' ? ((ctx)=>colorSiNegCtx(ctx, colorBase)) : undefined,
         pointBorderColor: chartType === 'line' ? ((ctx)=>colorSiNegCtx(ctx, colorBase)) : undefined,
         clip: false,
-        // Mismo patrón anti-clipping que chart-hh: la etiqueta del último mes se ubica a la
-        // DERECHA del punto/barra (no arriba) — evita que se corte contra el techo del área
-        // del gráfico cuando el último valor está cerca del máximo de la escala (línea) o
-        // contra el borde derecho del canvas, al ser la barra/punto más a la derecha (barra).
-        datalabels:{ anchor:'end', align:'right', offset:6, clamp:false,
+        // v3.09: se diferencia el posicionamiento por tipo de gráfico. En LÍNEA, "a la derecha"
+        // del punto se ve natural (patrón chart-hh) y ya está validado en producción. En BARRA,
+        // ese mismo align:'right' separaba la etiqueta del cuerpo de la barra y quedaba flotando
+        // sin conexión visual — vuelve a anchor:'end'/align:'top' (pegada arriba, como el resto
+        // de los gráficos de barra del dashboard, ej. chart-costofaltante). clip:false y el
+        // padding derecho de options siguen siendo lo que evita el corte contra el borde del
+        // canvas, así que no hace falta mover la etiqueta al costado para evitarlo.
+        datalabels:{ anchor:'end', align: chartType === 'bar' ? 'top' : 'right', offset: chartType === 'bar' ? undefined : 6, clamp:false,
           color:(ctx)=>colorSiNeg(ctx.dataset.data[ctx.dataIndex], colorBase), font:{weight:'700',size:11}, formatter:soloUltimoAuto }
       }]},
       options:{
