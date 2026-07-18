@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ICG EvoTen v3.10 | Multi-obra</title>
+<title>ICG EvoTen v3.11 | Multi-obra</title>
 <script src="https://cdn.tailwindcss.com/3.4.1"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
@@ -71,6 +71,8 @@ input[type=file].hidden-input { display:none; }
 }
 .bloque-hdr h3 { font-size:12.5px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:#0f172a; }
 .bloque-hdr .bsub { font-size:9px; font-weight:700; color:#94a3b8; text-transform:uppercase; letter-spacing:.05em; margin-top:2px; }
+.auto-panel-toggle { font-size:16px; color:#94a3b8; cursor:pointer; transition:color .15s ease; }
+.auto-panel-toggle:hover { color:#475569; }
 .b-margen  .bloque-hdr { border-color:#f59e0b; background:#fffbeb; }
 .b-result  .bloque-hdr { border-color:#3b82f6; background:#eff6ff; }
 .b-avance  .bloque-hdr { border-color:#8b5cf6; background:#f5f3ff; }
@@ -406,7 +408,7 @@ main { max-width:1400px; margin:0 auto; padding:24px 20px 60px; }
 
 <div id="app-header">
   <div style="display:flex;align-items:center;gap:14px;">
-    <div class="app-badge">v3.10</div>
+    <div class="app-badge">v3.11</div>
     <div>
       <div class="app-title">ICG EvoTen · Evolución y Tendencia</div>
     </div>
@@ -695,7 +697,7 @@ const PANEL_MAP_CANVAS = {
 // Versión de la app — se estampa en el JSON exportado (STATE.generado_con) para que,
 // si mañana cambia la lógica de detección/visualización, el motor pueda detectar JSON
 // generados con una versión anterior y aplicar un fallback en vez de romper.
-const APP_VERSION = 'v3.10';
+const APP_VERSION = 'v3.11';
 
 // CAMPOS_BASE — plantilla de ids/tipos usada por "Nueva UO en blanco" en el tab Configuración.
 // No es un perfil de extracción (no tiene anclas propias); solo define QUÉ campos existen.
@@ -719,6 +721,10 @@ const TOL_CONTROL = 1e-4;
 // ESTADO — en memoria únicamente (no localStorage, no backend)
 // ============================================================
 let STATE = { obra:null, periodos:[], notas:[], errorSeq:0, celdasResueltas:{}, autoPaneles:[] };
+// v3.11: override visual de tipo de gráfico por Auto Panel (toggle barra/línea), a propósito
+// FUERA de STATE — es solo de la sesión actual, nunca viaja en el JSON exportado ni sobrevive a
+// un reload/reimport. Al reimportar (XLSX de apoyo o JSON), vuelve a mandar la config real.
+let autoPanelTipoOverride = {};
 // periodos: array de registros (ver upsertPeriodo) · notas: Panel de Notas/Conclusiones
 // errorSeq: correlativo incremental de errores de ancla (sesión actual, no persiste)
 // celdasResueltas: { campoId: 'D31' } — última celda resuelta por campo, para hover de paneles (Configuración > panelMap)
@@ -1044,6 +1050,7 @@ function onJsonSelected(evt){
       if(typeof STATE.errorSeq !== 'number') STATE.errorSeq = 0; // compatibilidad con JSON pre-v3.00
       if(!STATE.celdasResueltas) STATE.celdasResueltas = {};
       if(!Array.isArray(STATE.autoPaneles)) STATE.autoPaneles = []; // compatibilidad con JSON pre-v3.08 (sin Auto Paneles)
+      autoPanelTipoOverride = {}; // nueva carga de obra/estado, vuelve a la config real (v3.11)
       computeDerivados();
       renderAll();
       toast(`JSON cargado: obra ${STATE.obra} · ${STATE.periodos.length} período(s)`, 'ok');
@@ -1133,6 +1140,7 @@ async function onXlsxApoyoSelected(evt){
   try{
     const { autoPaneles, warnings } = await procesarArchivoXLSXApoyo(file);
     STATE.autoPaneles = autoPaneles;
+    autoPanelTipoOverride = {}; // reimport = reemplazo total, incluye resetear el toggle visual
     renderAll();
     if(warnings.length) toast(`Auto Paneles cargados con avisos: ${warnings.join(' | ')}`, 'warn');
     else toast(`${autoPaneles.length} Auto Panel(es) cargado(s) desde "${file.name}"`, 'ok');
@@ -1815,11 +1823,19 @@ function renderAutoPaneles(){
   tituloSeccion.style.display = '';
   container.style.display = '';
 
-  container.innerHTML = STATE.autoPaneles.map(p => `
+  container.innerHTML = STATE.autoPaneles.map(p => {
+    const tipoEfectivo = autoPanelTipoOverride[p.id] || p.tipo;
+    const proximoTipo = tipoEfectivo === 'barra' ? 'línea' : 'barra';
+    const iconoProximo = tipoEfectivo === 'barra' ? 'ti-chart-line' : 'ti-chart-bar';
+    return `
     <div class="bloque b-control">
-      <div class="bloque-hdr"><div><h3>${p.titulo}</h3><div class="bsub">${p.subtitulo || 'Dato extra'}</div></div></div>
+      <div class="bloque-hdr">
+        <div><h3>${p.titulo}</h3><div class="bsub">${p.subtitulo || 'Dato extra'}</div></div>
+        <i class="ti ${iconoProximo} auto-panel-toggle" title="Ver como ${proximoTipo}" onclick="toggleAutoPanelTipo('${p.id}')"></i>
+      </div>
       <div style="padding:16px 20px;"><div class="chart-wrap-md"><canvas id="chart-auto-${p.id}"></canvas></div></div>
-    </div>`).join('');
+    </div>`;
+  }).join('');
 
   STATE.autoPaneles.forEach((p, i) => {
     const colorBase = AUTO_PANEL_COLORS[i % AUTO_PANEL_COLORS.length];
@@ -1843,7 +1859,8 @@ function renderAutoPaneles(){
     const bufferVal = rangoVal > 0 ? rangoVal * 0.25 : (Math.abs(maxVal) * 0.1 || 1);
     const ctx = document.getElementById(`chart-auto-${p.id}`);
     if(!ctx) return;
-    const chartType = p.tipo === 'barra' ? 'bar' : 'line';
+    const tipoEfectivo = autoPanelTipoOverride[p.id] || p.tipo;
+    const chartType = tipoEfectivo === 'barra' ? 'bar' : 'line';
     charts[`auto_${p.id}`] = new Chart(ctx, {
       type: chartType,
       data:{ labels:labelsPeriodos(), datasets:[{
@@ -1873,6 +1890,16 @@ function renderAutoPaneles(){
       plugins:[ChartDataLabels]
     });
   });
+}
+
+// v3.11: toggle individual barra/línea por Auto Panel — solo visual de la sesión actual,
+// no se guarda ni viaja en el JSON exportado (ver autoPanelTipoOverride, fuera de STATE).
+function toggleAutoPanelTipo(id){
+  const panel = STATE.autoPaneles.find(p => p.id === id);
+  if(!panel) return;
+  const actual = autoPanelTipoOverride[id] || panel.tipo;
+  autoPanelTipoOverride[id] = actual === 'barra' ? 'linea' : 'barra';
+  renderAutoPaneles();
 }
 
 // ============================================================
