@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ICG EvoTen v3.09 | Multi-obra</title>
+<title>ICG EvoTen v3.10 | Multi-obra</title>
 <script src="https://cdn.tailwindcss.com/3.4.1"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
@@ -406,7 +406,7 @@ main { max-width:1400px; margin:0 auto; padding:24px 20px 60px; }
 
 <div id="app-header">
   <div style="display:flex;align-items:center;gap:14px;">
-    <div class="app-badge">v3.09</div>
+    <div class="app-badge">v3.10</div>
     <div>
       <div class="app-title">ICG EvoTen · Evolución y Tendencia</div>
     </div>
@@ -695,7 +695,7 @@ const PANEL_MAP_CANVAS = {
 // Versión de la app — se estampa en el JSON exportado (STATE.generado_con) para que,
 // si mañana cambia la lógica de detección/visualización, el motor pueda detectar JSON
 // generados con una versión anterior y aplicar un fallback en vez de romper.
-const APP_VERSION = 'v3.09';
+const APP_VERSION = 'v3.10';
 
 // CAMPOS_BASE — plantilla de ids/tipos usada por "Nueva UO en blanco" en el tab Configuración.
 // No es un perfil de extracción (no tiene anclas propias); solo define QUÉ campos existen.
@@ -1821,7 +1821,6 @@ function renderAutoPaneles(){
       <div style="padding:16px 20px;"><div class="chart-wrap-md"><canvas id="chart-auto-${p.id}"></canvas></div></div>
     </div>`).join('');
 
-  const nMeses = STATE.periodos.length;
   STATE.autoPaneles.forEach((p, i) => {
     const colorBase = AUTO_PANEL_COLORS[i % AUTO_PANEL_COLORS.length];
     // Cruce por anio+mes: mismo timeline que el resto del dashboard (STATE.periodos), no el
@@ -1830,7 +1829,18 @@ function renderAutoPaneles(){
       const fila = p.datos.find(d => d.anio === per.periodo.anio && d.mes === per.periodo.mes);
       return fila && typeof fila.valor === 'number' ? fila.valor : null;
     });
-    const soloUltimoAuto = (val, ctx) => (ctx.dataIndex === nMeses-1 && typeof val === 'number') ? fmtAR(val,2) : null;
+    // v3.10: se muestra el valor en TODOS los puntos/barras (no solo el último) — a pedido de
+    // Ale, ya que acá es una sola serie por panel (a diferencia de chart-hh, multi-serie, donde
+    // mostrar todo sería ilegible). Devuelve null únicamente si el dato es null (gap real).
+    const todosLosValores = (val) => typeof val === 'number' ? fmtAR(val,2) : null;
+    // Buffer de escala anti-clipping (mismo patrón que renderChartEstimActual): le da aire arriba
+    // del valor más alto de la serie para que su datalabel no choque contra el techo del gráfico —
+    // antes solo importaba para el último punto, ahora aplica a cualquiera de los 6+.
+    const valoresNum = dataSerie.filter(v => typeof v === 'number');
+    const maxVal = valoresNum.length ? Math.max(...valoresNum) : 0;
+    const minVal = valoresNum.length ? Math.min(...valoresNum) : 0;
+    const rangoVal = maxVal - minVal;
+    const bufferVal = rangoVal > 0 ? rangoVal * 0.25 : (Math.abs(maxVal) * 0.1 || 1);
     const ctx = document.getElementById(`chart-auto-${p.id}`);
     if(!ctx) return;
     const chartType = p.tipo === 'barra' ? 'bar' : 'line';
@@ -1846,23 +1856,19 @@ function renderAutoPaneles(){
         pointBackgroundColor: chartType === 'line' ? ((ctx)=>colorSiNegCtx(ctx, colorBase)) : undefined,
         pointBorderColor: chartType === 'line' ? ((ctx)=>colorSiNegCtx(ctx, colorBase)) : undefined,
         clip: false,
-        // v3.09: se diferencia el posicionamiento por tipo de gráfico. En LÍNEA, "a la derecha"
-        // del punto se ve natural (patrón chart-hh) y ya está validado en producción. En BARRA,
-        // ese mismo align:'right' separaba la etiqueta del cuerpo de la barra y quedaba flotando
-        // sin conexión visual — vuelve a anchor:'end'/align:'top' (pegada arriba, como el resto
-        // de los gráficos de barra del dashboard, ej. chart-costofaltante). clip:false y el
-        // padding derecho de options siguen siendo lo que evita el corte contra el borde del
-        // canvas, así que no hace falta mover la etiqueta al costado para evitarlo.
-        datalabels:{ anchor:'end', align: chartType === 'bar' ? 'top' : 'right', offset: chartType === 'bar' ? undefined : 6, clamp:false,
-          color:(ctx)=>colorSiNeg(ctx.dataset.data[ctx.dataIndex], colorBase), font:{weight:'700',size:11}, formatter:soloUltimoAuto }
+        // v3.10: mismo anchor/align para línea y barra — "arriba" (align:'top'), pegado al dato.
+        // Ya no hace falta el truco "a la derecha" de v3.09 (era solo para el último punto en
+        // aislamiento); con TODOS los puntos etiquetados, "arriba" es lo natural y coherente con
+        // el resto de gráficos del dashboard (chart-margen, chart-avance, etc).
+        datalabels:{ anchor:'end', align:'top', clamp:false,
+          color:(ctx)=>colorSiNeg(ctx.dataset.data[ctx.dataIndex], colorBase), font:{weight:'700',size:10}, formatter:todosLosValores }
       }]},
       options:{
-        layout:{ padding:{ right:56 } },
         plugins:{
           legend:{ display:false },
           tooltip:{ callbacks:{ label: tooltipFmt(false) } }
         },
-        scales:{ y:{ ticks:{ callback:v=>fmtAR(v,1), color:(ctx)=>colorNeg(ctx.tick.value) } } }
+        scales:{ y:{ suggestedMax: maxVal + bufferVal, suggestedMin: minVal - bufferVal*0.3, ticks:{ callback:v=>fmtAR(v,1), color:(ctx)=>colorNeg(ctx.tick.value) } } }
       },
       plugins:[ChartDataLabels]
     });
