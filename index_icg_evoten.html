@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ICG EvoTen v3.15 | Multi-obra</title>
+<title>ICG EvoTen v3.15.1 | Multi-obra</title>
 <script src="https://cdn.tailwindcss.com/3.4.1"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
@@ -408,7 +408,7 @@ main { max-width:1400px; margin:0 auto; padding:24px 20px 60px; }
 
 <div id="app-header">
   <div style="display:flex;align-items:center;gap:14px;">
-    <div class="app-badge">v3.15</div>
+    <div class="app-badge">v3.15.1</div>
     <div>
       <div class="app-title">ICG EvoTen · Evolución y Tendencia</div>
     </div>
@@ -697,7 +697,7 @@ const PANEL_MAP_CANVAS = {
 // Versión de la app — se estampa en el JSON exportado (STATE.generado_con) para que,
 // si mañana cambia la lógica de detección/visualización, el motor pueda detectar JSON
 // generados con una versión anterior y aplicar un fallback en vez de romper.
-const APP_VERSION = 'v3.15';
+const APP_VERSION = 'v3.15.1';
 
 // CAMPOS_BASE — plantilla de ids/tipos usada por "Nueva UO en blanco" en el tab Configuración.
 // No es un perfil de extracción (no tiene anclas propias); solo define QUÉ campos existen.
@@ -1083,6 +1083,19 @@ function buscarHoja(wb, nombre){
   return encontrada ? wb.Sheets[encontrada] : null;
 }
 
+// v3.15.1: infiere la cantidad de decimales a partir del código de formato de número de Excel
+// (ej. "0.00" → 2, "0" → 0, "#,##0" → 0, formatos contables tipo "_-* #,##0.00_-;..." → 2).
+// Toma solo la sección de números POSITIVOS del formato (antes del primer ";"), y busca un "."
+// seguido de dígitos "0"/"#" — la cantidad de esos dígitos es la cantidad de decimales.
+// Devuelve null si no hay info de formato (celda sin formato o "General") — el llamador decide
+// el default en ese caso (v3.15.1: 1 decimal, a pedido de Ale).
+function decimalesDesdeFormato(z){
+  if(!z || z === 'General') return null;
+  const seccionPositiva = z.split(';')[0];
+  const m = seccionPositiva.match(/\.([0#]+)/);
+  return m ? m[1].length : 0;
+}
+
 async function procesarArchivoXLSXApoyo(file){
   const ident = parseNombreArchivoApoyo(file.name);
   if(!ident){
@@ -1096,7 +1109,9 @@ async function procesarArchivoXLSXApoyo(file){
   }
 
   const buf = await file.arrayBuffer();
-  const wb = XLSX.read(buf, { type:'array', cellDates:false });
+  // v3.15.1: cellNF:true habilita la lectura del código de formato de número por celda
+  // (necesario para inferir decimales — ver decimalesDesdeFormato()).
+  const wb = XLSX.read(buf, { type:'array', cellDates:false, cellNF:true });
 
   const wsPaneles = buscarHoja(wb, 'paneles');
   const wsDatos = buscarHoja(wb, 'datos');
@@ -1129,6 +1144,22 @@ async function procesarArchivoXLSXApoyo(file){
 
   const filasValores = filasDatos.slice(1).filter(r => r && r[0] != null && r[1] != null);
 
+  // v3.15.1: decimales por columna — se toma el formato de número de la CELDA de la 1ª fila
+  // de datos (la fila de la hoja "datos" justo debajo del header, fila 2 de Excel) para cada
+  // columna de id. Si no hay celda, no tiene formato, o es "General" → default 1 decimal (a
+  // pedido de Ale — antes v3.14/v3.15 usaban 2 decimales fijos siempre, sin mirar el Excel).
+  const decimalesPorId = {};
+  defs.forEach(d => {
+    const colIdx = colIdxPorId[d.id];
+    let decimales = 1;
+    if(colIdx != null){
+      const celda = wsDatos[XLSX.utils.encode_cell({ r:1, c:colIdx })];
+      const inferidos = celda ? decimalesDesdeFormato(celda.z) : null;
+      if(inferidos != null) decimales = inferidos;
+    }
+    decimalesPorId[d.id] = decimales;
+  });
+
   // Una serie de datos por fila de "paneles" (independiente de si después se agrupa o no).
   const seriesPorFila = defs.map(d => {
     const colIdx = colIdxPorId[d.id];
@@ -1137,7 +1168,7 @@ async function procesarArchivoXLSXApoyo(file){
       mes: Number(r[1]),
       valor: (colIdx != null && typeof r[colIdx] === 'number') ? r[colIdx] : null
     }));
-    return { id: d.id, leyenda: d.leyenda, datos };
+    return { id: d.id, leyenda: d.leyenda, decimales: decimalesPorId[d.id], datos };
   });
 
   // Agrupar por "titulo" IDÉNTICO (v3.15): la 1ª fila de cada grupo (orden de aparición en la
@@ -1867,11 +1898,12 @@ function dibujarUnAutoPanel(p, panelIndex){
     return { serie: s, dataSerie, colorBase: colorAutoPanelSerie(panelIndex, i) };
   });
 
-  // v3.10: se muestra el valor en TODOS los puntos/barras (no solo el último) — a pedido de
-  // Ale. v3.15: se mantiene igual para cada serie del grupo (decisión explícita de Ale: puede
-  // saturar con 2 series, pero prioriza ver todos los valores). Devuelve null solo si el dato
-  // es null (gap real).
-  const todosLosValores = (val) => typeof val === 'number' ? fmtAR(val,2) : null;
+  // v3.10: por defecto se muestra el valor en TODOS los puntos/barras (a pedido de Ale).
+  // v3.15.1: en paneles de EXACTAMENTE 2 series se pasa a mostrar SOLO el último período —
+  // con 6 meses x 2 series (12 etiquetas) el texto se solapaba entre grupos vecinos, confirmado
+  // por Ale en producción. La lógica final de formatter/align queda definida por dataset, más
+  // abajo (depende de `dosSeries` y de los decimales propios de cada serie).
+  const dosSeries = p.series.length === 2;
 
   // Buffer de escala anti-clipping (mismo patrón que renderChartEstimActual): le da aire arriba
   // del valor más alto para que el datalabel no choque contra el techo del gráfico.
@@ -1884,26 +1916,39 @@ function dibujarUnAutoPanel(p, panelIndex){
   const ctx = document.getElementById(`chart-auto-${p.id}`);
   if(!ctx) return;
 
-  const datasets = datasetsInfo.map(({ serie, dataSerie, colorBase }) => ({
-    label: multiSerie ? (serie.leyenda || serie.id) : p.titulo,
-    data: dataSerie,
-    borderColor: colorBase, backgroundColor: chartType === 'bar' ? ((ctx)=>colorSiNegCtx(ctx, colorBase)) : colorBase,
-    tension: chartType === 'line' ? .3 : undefined,
-    pointRadius: chartType === 'line' ? 4 : undefined,
-    borderRadius: chartType === 'bar' ? 4 : undefined,
-    pointBackgroundColor: chartType === 'line' ? ((ctx)=>colorSiNegCtx(ctx, colorBase)) : undefined,
-    pointBorderColor: chartType === 'line' ? ((ctx)=>colorSiNegCtx(ctx, colorBase)) : undefined,
-    clip: false,
-    // v3.13/v3.14: en BARRA, anchor y align dependen del signo del valor — positivo → 'end'/'top'
-    // (afuera, arriba de la punta), negativo → 'start'/'bottom' (afuera, abajo de la punta real,
-    // no del cero). Ver handoff v3.14 para el detalle de por qué 'end' fijo fallaba en negativos.
-    // En línea no aplica (fondo detrás del punto es blanco, 'top' ya funciona bien).
-    datalabels:{
-      anchor: (ctx) => chartType === 'bar' && ctx.dataset.data[ctx.dataIndex] < 0 ? 'start' : 'end',
-      align: (ctx) => chartType === 'bar' && ctx.dataset.data[ctx.dataIndex] < 0 ? 'bottom' : 'top',
-      clamp:false,
-      color:(ctx)=>colorSiNeg(ctx.dataset.data[ctx.dataIndex], colorBase), font:{weight:'700',size:10}, formatter:todosLosValores }
-  }));
+  const datasets = datasetsInfo.map(({ serie, dataSerie, colorBase }, i) => {
+    const ultimoIdx = dataSerie.length - 1;
+    // v3.15.1: en paneles de 2 series el datalabel se muestra SOLO en el último período, y se
+    // justifica horizontalmente hacia el hueco entre las 2 barras del grupo (1ª serie → derecha,
+    // 2ª serie → izquierda) — a pedido de Ale, para dejar de invadir el espacio de los grupos
+    // vecinos. En panel de 1 sola serie (o 3+, caso no contemplado todavía) sigue el criterio de
+    // siempre: todos los puntos, alineado por signo arriba/abajo.
+    const formatterDatalabel = dosSeries
+      ? (val, ctx) => (ctx.dataIndex === ultimoIdx && typeof val === 'number') ? fmtAR(val, serie.decimales) : null
+      : (val) => typeof val === 'number' ? fmtAR(val, serie.decimales) : null;
+    const alignDatalabel = dosSeries
+      ? (i === 0 ? 'right' : 'left')
+      : (ctx) => chartType === 'bar' && ctx.dataset.data[ctx.dataIndex] < 0 ? 'bottom' : 'top';
+    return {
+      label: multiSerie ? (serie.leyenda || serie.id) : p.titulo,
+      data: dataSerie,
+      borderColor: colorBase, backgroundColor: chartType === 'bar' ? ((ctx)=>colorSiNegCtx(ctx, colorBase)) : colorBase,
+      tension: chartType === 'line' ? .3 : undefined,
+      pointRadius: chartType === 'line' ? 4 : undefined,
+      borderRadius: chartType === 'bar' ? 4 : undefined,
+      pointBackgroundColor: chartType === 'line' ? ((ctx)=>colorSiNegCtx(ctx, colorBase)) : undefined,
+      pointBorderColor: chartType === 'line' ? ((ctx)=>colorSiNegCtx(ctx, colorBase)) : undefined,
+      clip: false,
+      // v3.13/v3.14: en BARRA, el ANCHOR depende del signo del valor — positivo → 'end' (tip real
+      // de la barra), negativo → 'start' (sigue la punta real; 'end' fijo colapsaba en el cero,
+      // ver handoff v3.14). Esta parte NO cambia con v3.15.1 — solo cambia `align` (ver arriba).
+      datalabels:{
+        anchor: (ctx) => chartType === 'bar' && ctx.dataset.data[ctx.dataIndex] < 0 ? 'start' : 'end',
+        align: alignDatalabel,
+        clamp:false,
+        color:(ctx)=>colorSiNeg(ctx.dataset.data[ctx.dataIndex], colorBase), font:{weight:'700',size:10}, formatter: formatterDatalabel }
+    };
+  });
 
   charts[`auto_${p.id}`] = new Chart(ctx, {
     type: chartType,
@@ -1920,7 +1965,14 @@ function dibujarUnAutoPanel(p, panelIndex){
         // v3.15: leyenda visible solo cuando el panel combina 2+ series — en panel de 1 sola
         // serie sigue oculta, sin cambios visuales respecto a versiones anteriores.
         legend:{ display: multiSerie },
-        tooltip:{ callbacks:{ label: tooltipFmt(false) } }
+        // v3.15.1: tooltip con los decimales propios de CADA serie (antes: tooltipFmt(false),
+        // fijo en 1 decimal para todas). Se resuelve por ctx.datasetIndex contra datasetsInfo,
+        // en vez de reusar tooltipFmt() (compartida con el resto del dashboard, sin tocar).
+        tooltip:{ callbacks:{ label: (ctx) => {
+          const dec = datasetsInfo[ctx.datasetIndex]?.serie?.decimales ?? 1;
+          const v = ctx.parsed.y ?? ctx.parsed;
+          return `${ctx.dataset.label || ''}: ${fmtAR(v, dec)}`;
+        } } }
       },
       scales:{ y:{ suggestedMax: maxVal + bufferVal, suggestedMin: minVal - bufferVal*0.3, ticks:{ callback:v=>fmtAR(v,1), color:(ctx)=>colorNeg(ctx.tick.value) } } }
     },
