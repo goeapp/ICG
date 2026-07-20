@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ICG EvoTen v3.15.6 | Multi-obra</title>
+<title>ICG EvoTen v4.0.0 | Multi-obra</title>
 <script src="https://cdn.tailwindcss.com/3.4.1"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
@@ -313,6 +313,37 @@ main { max-width:1400px; margin:0 auto; padding:24px 20px 60px; }
 .notas-timestamp { font-size:7.5px; color:rgba(15,23,42,.5); font-weight:700; text-transform:uppercase; letter-spacing:.04em; }
 
 .notas-vacio { grid-column:1/-1; text-align:center; padding:40px 20px; color:#94a3b8; font-size:12px; }
+
+/* ============================================================
+   NOTA POR PANEL (v4.0.0) — ícono en el header de cada panel +
+   popover flotante. Distinto del panel "Notas / Conclusiones"
+   de arriba (grid fija) — esto es un comentario puntual A un
+   panel, que aparece flotando sobre un ícono al hacer click.
+   ============================================================ */
+.nota-panel-icono { font-size:15px; color:#cbd5e1; cursor:pointer; transition:color .15s ease; margin-left:8px; }
+.nota-panel-icono:hover { color:#64748b; }
+.nota-panel-icono.tiene-nota.color-rojo     { color:#ef4444; }
+.nota-panel-icono.tiene-nota.color-amarillo { color:#eab308; }
+.nota-panel-icono.tiene-nota.color-verde    { color:#22c55e; }
+.nota-panel-icono.tiene-nota.color-celeste  { color:#0ea5e9; }
+
+.nota-panel-popover {
+  position:fixed; z-index:9999; width:240px; border-radius:14px;
+  box-shadow:0 12px 32px rgba(15,23,42,.22); border:1px solid rgba(15,23,42,.08);
+  padding:14px; display:none;
+}
+.nota-panel-popover.abierto { display:block; }
+.nota-panel-popover.color-rojo     { background:#fee2e2; }
+.nota-panel-popover.color-amarillo { background:#fef9c3; }
+.nota-panel-popover.color-verde    { background:#dcfce7; }
+.nota-panel-popover.color-celeste  { background:#e0f2fe; }
+/* Dentro del popover, swatches y botón de borrar quedan SIEMPRE visibles — a diferencia de la
+   grilla de "Notas / Conclusiones" (donde aparecen solo al hover, porque están todas a la vista
+   permanentemente), acá el popover ya se abrió con un click explícito, no hace falta ocultarlos. */
+.nota-panel-popover .notas-swatches { opacity:1; margin-bottom:8px; }
+.nota-panel-popover .notas-close { opacity:1; position:absolute; top:8px; right:8px; }
+.nota-panel-popover .notas-textarea { width:100%; box-sizing:border-box; }
+.nota-panel-popover .notas-timestamp { margin-top:6px; display:block; }
 /* ============================================================
    FIN COMPONENTE PORTABLE — Notas/Conclusiones
    ============================================================ */
@@ -408,7 +439,7 @@ main { max-width:1400px; margin:0 auto; padding:24px 20px 60px; }
 
 <div id="app-header">
   <div style="display:flex;align-items:center;gap:14px;">
-    <div class="app-badge">v3.15.6</div>
+    <div class="app-badge">v4.0.0</div>
     <div>
       <div class="app-title">ICG EvoTen · Evolución y Tendencia</div>
     </div>
@@ -510,11 +541,11 @@ main { max-width:1400px; margin:0 auto; padding:24px 20px 60px; }
     <div class="section-title">Margen y Resultado</div>
     <div class="grid-2col" style="margin-bottom:16px;">
       <div class="bloque b-margen">
-        <div class="bloque-hdr"><div><h3>Margen Total Proyectado</h3><div class="bsub">F33 · % mensual</div></div></div>
+        <div class="bloque-hdr"><div><h3>Margen Total Proyectado</h3><div class="bsub">F33 · % mensual</div></div><span class="nota-panel-slot" data-clave="margen"></span></div>
         <div style="padding:16px 20px;"><div class="chart-wrap-md"><canvas id="chart-margen"></canvas></div></div>
       </div>
       <div class="bloque b-result">
-        <div class="bloque-hdr"><div><h3>Resultado Acumulado · Gestión</h3><div class="bsub">C32 valor + C33 %</div></div></div>
+        <div class="bloque-hdr"><div><h3>Resultado Acumulado · Gestión</h3><div class="bsub">C32 valor + C33 %</div></div><span class="nota-panel-slot" data-clave="resultado"></span></div>
         <div style="padding:16px 20px;"><div class="chart-wrap-md"><canvas id="chart-resultado"></canvas></div></div>
       </div>
     </div>
@@ -532,11 +563,11 @@ main { max-width:1400px; margin:0 auto; padding:24px 20px 60px; }
     <div class="section-title">Horas Hombre y Costos</div>
     <div class="grid-2col" style="margin-bottom:16px;">
       <div class="bloque b-hh">
-        <div class="bloque-hdr"><div><h3>HH Est. Total</h3><div class="bsub">C41 Directos + C42 Indirectos</div></div></div>
+        <div class="bloque-hdr"><div><h3>HH Est. Total</h3><div class="bsub">C41 Directos + C42 Indirectos</div></div><span class="nota-panel-slot" data-clave="hh"></span></div>
         <div style="padding:16px 20px;"><div class="chart-wrap-md"><canvas id="chart-hh"></canvas></div></div>
       </div>
       <div class="bloque b-costos">
-        <div class="bloque-hdr"><div><h3>Costo HH Vestida</h3><div class="bsub">C53 Real Mes · D53 Ppto Mes</div></div></div>
+        <div class="bloque-hdr"><div><h3>Costo HH Vestida</h3><div class="bsub">C53 Real Mes · D53 Ppto Mes</div></div><span class="nota-panel-slot" data-clave="costohh"></span></div>
         <div style="padding:16px 20px;"><div class="chart-wrap-md"><canvas id="chart-costohh"></canvas></div></div>
       </div>
     </div>
@@ -545,11 +576,11 @@ main { max-width:1400px; margin:0 auto; padding:24px 20px 60px; }
     <div class="section-title">Avance y Faltante</div>
     <div class="grid-2col" style="margin-bottom:16px;">
       <div class="bloque b-avance">
-        <div class="bloque-hdr"><div><h3>Avance Físico · Total Proyecto</h3><div class="bsub">G47 Real · H47 Ppto (acumulado + delta)</div></div></div>
+        <div class="bloque-hdr"><div><h3>Avance Físico · Total Proyecto</h3><div class="bsub">G47 Real · H47 Ppto (acumulado + delta)</div></div><span class="nota-panel-slot" data-clave="avance"></span></div>
         <div style="padding:16px 20px;"><div class="chart-wrap-md"><canvas id="chart-avance"></canvas></div></div>
       </div>
       <div class="bloque b-avance">
-        <div class="bloque-hdr"><div><h3>Margen del Faltante</h3><div class="bsub">D33 %</div></div></div>
+        <div class="bloque-hdr"><div><h3>Margen del Faltante</h3><div class="bsub">D33 %</div></div><span class="nota-panel-slot" data-clave="faltante"></span></div>
         <div style="padding:16px 20px;"><div class="chart-wrap-md"><canvas id="chart-faltante"></canvas></div></div>
       </div>
     </div>
@@ -561,15 +592,15 @@ main { max-width:1400px; margin:0 auto; padding:24px 20px 60px; }
     <div class="section-title">Costo Faltante / Venta - Mes</div>
     <div class="grid-3col" style="margin-bottom:16px;">
       <div class="bloque b-costos">
-        <div class="bloque-hdr"><div><h3>Costo Faltante</h3><div class="bsub">D31 · $ (alerta si sube vs. mes anterior)</div></div></div>
+        <div class="bloque-hdr"><div><h3>Costo Faltante</h3><div class="bsub">D31 · $ (alerta si sube vs. mes anterior)</div></div><span class="nota-panel-slot" data-clave="costofaltante"></span></div>
         <div style="padding:16px 20px;"><div class="chart-wrap-md"><canvas id="chart-costofaltante"></canvas></div></div>
       </div>
       <div class="bloque b-control">
-        <div class="bloque-hdr"><div><h3>Proyecto Estimado Actual</h3><div class="bsub">F12 (MM$ mensual)</div></div></div>
+        <div class="bloque-hdr"><div><h3>Proyecto Estimado Actual</h3><div class="bsub">F12 (MM$ mensual)</div></div><span class="nota-panel-slot" data-clave="estimactual"></span></div>
         <div style="padding:16px 20px;"><div class="chart-wrap-md"><canvas id="chart-estimactual"></canvas></div></div>
       </div>
       <div class="bloque b-control">
-        <div class="bloque-hdr"><div><h3>Avance de Venta</h3><div class="bsub">D12 (% mensual)</div></div></div>
+        <div class="bloque-hdr"><div><h3>Avance de Venta</h3><div class="bsub">D12 (% mensual)</div></div><span class="nota-panel-slot" data-clave="avanceventa"></span></div>
         <div style="padding:16px 20px;"><div class="chart-wrap-md"><canvas id="chart-avanceventa"></canvas></div></div>
       </div>
     </div>
@@ -697,7 +728,7 @@ const PANEL_MAP_CANVAS = {
 // Versión de la app — se estampa en el JSON exportado (STATE.generado_con) para que,
 // si mañana cambia la lógica de detección/visualización, el motor pueda detectar JSON
 // generados con una versión anterior y aplicar un fallback en vez de romper.
-const APP_VERSION = 'v3.15.6';
+const APP_VERSION = 'v4.0.0';
 
 // CAMPOS_BASE — plantilla de ids/tipos usada por "Nueva UO en blanco" en el tab Configuración.
 // No es un perfil de extracción (no tiene anclas propias); solo define QUÉ campos existen.
@@ -720,7 +751,7 @@ const TOL_CONTROL = 1e-4;
 // ============================================================
 // ESTADO — en memoria únicamente (no localStorage, no backend)
 // ============================================================
-let STATE = { obra:null, periodos:[], notas:[], errorSeq:0, celdasResueltas:{}, autoPaneles:[] };
+let STATE = { obra:null, periodos:[], notas:[], errorSeq:0, celdasResueltas:{}, autoPaneles:[], notasPaneles:{} };
 // v3.11: override visual de tipo de gráfico por Auto Panel (toggle barra/línea), a propósito
 // FUERA de STATE — es solo de la sesión actual, nunca viaja en el JSON exportado ni sobrevive a
 // un reload/reimport. Al reimportar (XLSX de apoyo o JSON), vuelve a mandar la config real.
@@ -1050,6 +1081,7 @@ function onJsonSelected(evt){
       if(typeof STATE.errorSeq !== 'number') STATE.errorSeq = 0; // compatibilidad con JSON pre-v3.00
       if(!STATE.celdasResueltas) STATE.celdasResueltas = {};
       if(!Array.isArray(STATE.autoPaneles)) STATE.autoPaneles = []; // compatibilidad con JSON pre-v3.08 (sin Auto Paneles)
+      if(!STATE.notasPaneles || typeof STATE.notasPaneles !== 'object' || Array.isArray(STATE.notasPaneles)) STATE.notasPaneles = {}; // compatibilidad con JSON pre-v4.0.0 (sin nota por panel)
       autoPanelTipoOverride = {}; // nueva carga de obra/estado, vuelve a la config real (v3.11)
       computeDerivados();
       renderAll();
@@ -1315,6 +1347,149 @@ function notasRender(){
 }
 // ============================================================
 // FIN COMPONENTE PORTABLE — Notas / Conclusiones
+// ============================================================
+
+// ============================================================
+// NOTA POR PANEL (v4.0.0)
+// Storage: STATE.notasPaneles — mapa { clave: {texto,color,editado_en} }, UNA sola nota por
+// panel — viaja en el mismo JSON de exportar/cargar que ya existe. Distinto del componente de
+// arriba (STATE.notas, hasta 4 notas sueltas en su propio panel) — esto es un comentario puntual
+// A un panel específico del dashboard, pensado "para el momento de exponer" (Ale, sesión v4.0.0).
+//
+// Clave de cada panel:
+// - Paneles FIJOS del dashboard: un slug fijo, igual al id de su canvas (ej. 'avanceventa',
+//   'costohh') — estable, nunca cambia.
+// - Auto Paneles (Datos Extra, vienen del XLSX de apoyo): se usa el `titulo` del panel (decisión
+//   explícita de Ale) — sobrevive mejor que el `id` técnico a una recarga del XLSX con filas
+//   reordenadas, PERO si el panel se renombra en el Excel, la nota vieja queda huérfana (no se
+//   borra, simplemente deja de aparecer asociada a ningún panel visible). Trade-off aceptado.
+//
+// Interacción: un solo click en el ícono abre/cierra un popover flotante (position:fixed, para
+// escapar el overflow:hidden de las cards .bloque) con color (4 swatches, misma paleta que
+// Notas/Conclusiones), textarea y botón de borrar. Solo un popover abierto a la vez.
+// ============================================================
+const NOTA_PANEL_COLORES = ['rojo','amarillo','verde','celeste'];
+const NOTA_PANEL_COLOR_DEFECTO = 'celeste';
+let notaPanelAbiertaClave = null;
+
+function notaPanelGet(clave){
+  return STATE.notasPaneles[clave] || null;
+}
+
+function escAttr(s){
+  return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
+}
+
+// Ícono a insertar en el header de cada panel (fijo o Auto Panel). `data-clave` en vez de
+// embeber la clave dentro del onclick evita cualquier problema de escaping si el título de un
+// Auto Panel trae comillas, apóstrofes, etc. — el navegador decodifica el atributo por su cuenta.
+function notaPanelIcono(clave){
+  const n = notaPanelGet(clave);
+  const tieneNota = !!(n && n.texto && n.texto.trim() !== '');
+  const colorClase = tieneNota ? `tiene-nota color-${n.color}` : '';
+  return `<i class="ti ti-note nota-panel-icono ${colorClase}" data-clave="${escAttr(clave)}"
+    title="${tieneNota ? 'Ver nota del panel' : 'Agregar nota al panel'}"
+    onclick="event.stopPropagation(); notaPanelToggle(this.dataset.clave, this)"></i>`;
+}
+
+function notaPanelToggle(clave, iconEl){
+  if(notaPanelAbiertaClave === clave){ notaPanelCerrar(); return; }
+  notaPanelAbiertaClave = clave;
+  const pop = document.getElementById('nota-panel-popover');
+  const n = notaPanelGet(clave) || { texto:'', color: NOTA_PANEL_COLOR_DEFECTO };
+  pop.className = `nota-panel-popover abierto color-${n.color}`;
+  pop.innerHTML = `
+    <button class="notas-close" title="Borrar nota" onclick="notaPanelBorrar()">✕</button>
+    <div class="notas-swatches">
+      ${NOTA_PANEL_COLORES.map(c => `<span class="notas-swatch sw-${c} ${c===n.color?'activo':''}" title="${c}" onclick="notaPanelSetColor('${c}')"></span>`).join('')}
+    </div>
+    <textarea class="notas-textarea" placeholder="Escribí un comentario para este panel..."
+      oninput="notaPanelSetTexto(this.value); notasAutoResize(this);"
+      onfocus="notasAutoResize(this)">${n.texto || ''}</textarea>
+    ${n.editado_en ? `<span class="notas-timestamp">Editada: ${notasFmtFecha(n.editado_en)}</span>` : ''}
+  `;
+  pop.querySelectorAll('.notas-textarea').forEach(notasAutoResize);
+  notaPanelPosicionar(iconEl, pop);
+}
+
+// Posiciona el popover cerca del ícono, evitando que se corte contra los bordes de la pantalla
+// (lo mide contra window.innerWidth/innerHeight, no contra el .bloque — el popover es
+// position:fixed y vive fuera de cualquier contenedor con overflow:hidden).
+function notaPanelPosicionar(iconEl, pop){
+  const r = iconEl.getBoundingClientRect();
+  const anchoPop = 240, altoEstimado = pop.offsetHeight || 170;
+  let left = r.left;
+  let top = r.bottom + 6;
+  if(left + anchoPop > window.innerWidth - 12) left = window.innerWidth - anchoPop - 12;
+  if(top + altoEstimado > window.innerHeight - 12) top = r.top - altoEstimado - 6;
+  pop.style.left = `${Math.max(12,left)}px`;
+  pop.style.top = `${Math.max(12,top)}px`;
+}
+
+function notaPanelCerrar(){
+  notaPanelAbiertaClave = null;
+  const pop = document.getElementById('nota-panel-popover');
+  pop.className = 'nota-panel-popover';
+  pop.innerHTML = '';
+  notaPanelActualizarIconos();
+}
+
+function notaPanelAsegurar(clave){
+  if(!STATE.notasPaneles[clave]) STATE.notasPaneles[clave] = { texto:'', color: NOTA_PANEL_COLOR_DEFECTO, editado_en: new Date().toISOString() };
+  return STATE.notasPaneles[clave];
+}
+
+function notaPanelSetColor(color){
+  if(!notaPanelAbiertaClave) return;
+  const n = notaPanelAsegurar(notaPanelAbiertaClave);
+  n.color = color; n.editado_en = new Date().toISOString();
+  const pop = document.getElementById('nota-panel-popover');
+  pop.className = `nota-panel-popover abierto color-${color}`;
+  pop.querySelectorAll('.notas-swatch').forEach(s => s.classList.toggle('activo', s.classList.contains(`sw-${color}`)));
+  notaPanelActualizarIconos();
+}
+
+function notaPanelSetTexto(texto){
+  if(!notaPanelAbiertaClave) return;
+  const n = notaPanelAsegurar(notaPanelAbiertaClave);
+  n.texto = texto; n.editado_en = new Date().toISOString();
+  notaPanelActualizarIconos();
+}
+
+function notaPanelBorrar(){
+  if(!notaPanelAbiertaClave) return;
+  delete STATE.notasPaneles[notaPanelAbiertaClave];
+  notaPanelCerrar();
+}
+
+// Re-sincroniza el color/estado "tiene nota" de TODOS los íconos visibles (después de cualquier
+// cambio) — barato, son a lo sumo un par de decenas de íconos en pantalla.
+function notaPanelActualizarIconos(){
+  document.querySelectorAll('.nota-panel-icono').forEach(icono => {
+    const clave = icono.dataset.clave;
+    const n = notaPanelGet(clave);
+    const tieneNota = !!(n && n.texto && n.texto.trim() !== '');
+    icono.classList.toggle('tiene-nota', tieneNota);
+    NOTA_PANEL_COLORES.forEach(c => icono.classList.remove(`color-${c}`));
+    if(tieneNota) icono.classList.add(`color-${n.color}`);
+  });
+}
+
+// Cierre por click afuera del popover (y de cualquier ícono, que ya maneja su propio toggle) +
+// tecla Escape — patrón estándar de popover, distinto del modal de períodos (que usa un backdrop
+// de pantalla completa; acá no hay backdrop, es una tarjeta chica flotando).
+document.addEventListener('click', (e) => {
+  if(!notaPanelAbiertaClave) return;
+  const pop = document.getElementById('nota-panel-popover');
+  if(pop.contains(e.target)) return;
+  if(e.target.classList && e.target.classList.contains('nota-panel-icono')) return;
+  notaPanelCerrar();
+});
+document.addEventListener('keydown', (e) => {
+  if(e.key === 'Escape' && notaPanelAbiertaClave) notaPanelCerrar();
+});
+// ============================================================
+// FIN NOTA POR PANEL
 // ============================================================
 
 // ============================================================
@@ -2116,6 +2291,7 @@ function dibujarUnAutoPanel(p, panelIndex){
 function renderAutoPaneles(){
   const container = document.getElementById('autopaneles-container');
   const tituloSeccion = document.getElementById('section-title-autopaneles');
+  notaPanelCerrar(); // v4.0.0: evita que quede un popover huérfano si se recarga el XLSX de apoyo con una nota abierta
 
   // Destruir instancias previas de Chart.js antes de reconstruir el HTML (evita memory leak
   // de canvases huérfanos al recargar un XLSX de apoyo distinto o con menos paneles).
@@ -2136,7 +2312,10 @@ function renderAutoPaneles(){
     <div class="bloque b-control">
       <div class="bloque-hdr">
         <div><h3>${p.titulo}</h3><div class="bsub">${p.subtitulo || 'Dato extra'}</div></div>
-        <i class="ti ${iconoProximo} auto-panel-toggle" id="auto-panel-toggle-${p.id}" title="Ver como ${proximoTipo}" onclick="toggleAutoPanelTipo('${p.id}')"></i>
+        <div style="display:flex;align-items:center;">
+          <i class="ti ${iconoProximo} auto-panel-toggle" id="auto-panel-toggle-${p.id}" title="Ver como ${proximoTipo}" onclick="toggleAutoPanelTipo('${p.id}')"></i>
+          ${notaPanelIcono(p.titulo)}
+        </div>
       </div>
       <div style="padding:16px 20px;"><div class="chart-wrap-md"><canvas id="chart-auto-${p.id}"></canvas></div></div>
     </div>`;
@@ -2391,7 +2570,13 @@ document.addEventListener('DOMContentLoaded', async () => {
   await cargarConfig();
   renderAll();
   renderConfigTab();
+  // v4.0.0: los 9 paneles fijos del dashboard son HTML estático (no se recrean con cada render,
+  // a diferencia de los Auto Paneles) — sus íconos de nota se inicializan una sola vez acá.
+  document.querySelectorAll('.nota-panel-slot').forEach(slot => {
+    slot.outerHTML = notaPanelIcono(slot.dataset.clave);
+  });
 });
 </script>
+<div id="nota-panel-popover" class="nota-panel-popover"></div>
 </body>
 </html>
