@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ICG EvoTen v3.15.3 | Multi-obra</title>
+<title>ICG EvoTen v3.15.4 | Multi-obra</title>
 <script src="https://cdn.tailwindcss.com/3.4.1"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
@@ -408,7 +408,7 @@ main { max-width:1400px; margin:0 auto; padding:24px 20px 60px; }
 
 <div id="app-header">
   <div style="display:flex;align-items:center;gap:14px;">
-    <div class="app-badge">v3.15.3</div>
+    <div class="app-badge">v3.15.4</div>
     <div>
       <div class="app-title">ICG EvoTen · Evolución y Tendencia</div>
     </div>
@@ -697,7 +697,7 @@ const PANEL_MAP_CANVAS = {
 // Versión de la app — se estampa en el JSON exportado (STATE.generado_con) para que,
 // si mañana cambia la lógica de detección/visualización, el motor pueda detectar JSON
 // generados con una versión anterior y aplicar un fallback en vez de romper.
-const APP_VERSION = 'v3.15.3';
+const APP_VERSION = 'v3.15.4';
 
 // CAMPOS_BASE — plantilla de ids/tipos usada por "Nueva UO en blanco" en el tab Configuración.
 // No es un perfil de extracción (no tiene anclas propias); solo define QUÉ campos existen.
@@ -1933,10 +1933,13 @@ function dibujarUnAutoPanel(p, panelIndex){
   const CAJA_BORDE = 1.5, CAJA_PAD_H = 5, CAJA_PAD_V = 3, CAJA_RADIO = 6;
   const FONT_SIZE_LABEL = 10, FONT_WEIGHT_LABEL = 700;
 
-  // v3.15.3: SOLUCIÓN DE RAÍZ — offset por serie y padding del layout calculados MIDIENDO el
-  // texto real (medirTextoDatalabel), en vez de los números fijos "adivinados" de v3.15.1/v3.15.2
-  // (offset 6/32, padding.right:72) que solo andaban para el panel con el que se probaron y
-  // fallaban en paneles con textos/anchos distintos (confirmado por Ale con "Costo Industrial").
+  // v3.15.3: SOLUCIÓN DE RAÍZ — offset por serie (apilado) y padding horizontal calculados
+  // MIDIENDO el texto real (medirTextoDatalabel), en vez de los números fijos "adivinados" de
+  // v3.15.1/v3.15.2 (offset 6/32, padding.right:72). v3.15.4: el "cielo" VERTICAL para el
+  // escalonado deja de salir de `layout.padding.top/bottom` (achicaba el gráfico entero dentro
+  // del contenedor de altura fija — confirmado por Ale) y pasa a salir de la escala del eje Y
+  // (`bufferVal` más abajo), igual que ya hacen "Costo HH Vestida" y "HH Est. Total" en esta app.
+  // El padding horizontal (`right`) SÍ sigue siendo medido — no hay equivalente de "escala X".
   let offsetPorSerie = [];
   let paddingDinamico;
   if(dosSeries){
@@ -1963,9 +1966,15 @@ function dibujarUnAutoPanel(p, panelIndex){
       acumulado += caja.altoCaja + MARGEN_ENTRE_CAJAS;
     });
     const maxAnchoCaja = Math.max(...cajas.map(c => c.anchoCaja), 0);
+    // v3.15.4: se deja de reservar `top`/`bottom` extra en el LAYOUT (eso achicaba el gráfico
+    // entero dentro del contenedor de altura fija .chart-wrap-md, 220px — confirmado por Ale con
+    // captura de DevTools). En cambio, el aire para el escalonado de cajas sale de la ESCALA del
+    // eje Y (ver `bufferVal` más abajo) — mismo mecanismo que ya usan "Costo HH Vestida" y "HH
+    // Est. Total" en esta misma app (ninguno de los dos toca `layout.padding.top/bottom`). El
+    // rectángulo del gráfico queda a tamaño completo; lo que cambia es cuánto "cielo" reserva la
+    // escala arriba del valor más alto.
     paddingDinamico = {
-      top: Math.ceil(acumulado) + 4,
-      bottom: Math.ceil(acumulado) + 4,
+      top: 24, bottom: 24,
       right: Math.ceil(maxAnchoCaja/2) + MARGEN_CORRIMIENTO_BARRA
     };
   } else {
@@ -1987,7 +1996,16 @@ function dibujarUnAutoPanel(p, panelIndex){
   const maxVal = valoresNum.length ? Math.max(...valoresNum) : 0;
   const minVal = valoresNum.length ? Math.min(...valoresNum) : 0;
   const rangoVal = maxVal - minVal;
-  const bufferVal = rangoVal > 0 ? rangoVal * 0.25 : (Math.abs(maxVal) * 0.1 || 1);
+  let bufferVal = rangoVal > 0 ? rangoVal * 0.25 : (Math.abs(maxVal) * 0.1 || 1);
+  // v3.15.4: en paneles de 2 series, el "cielo" para el escalonado de las 2 cajas sale de acá
+  // (agrandar la escala del eje Y), no de `layout.padding` — mismo mecanismo que ya usa "Costo HH
+  // Vestida" en esta app (`suggestedMax: maxVal*1.35`, un 35% de cielo). Nuestro caso es más
+  // exigente (Venta/Costo con 3-4% de diferencia entre sí, contra ~11% en Costo HH Vestida), así
+  // que el piso mínimo es un poco más generoso (40% de maxVal) — validado con Chart.js real más
+  // abajo en la sesión, no es un número tirado al azar.
+  if(dosSeries){
+    bufferVal = Math.max(bufferVal, Math.abs(maxVal) * 0.4);
+  }
   const ctx = document.getElementById(`chart-auto-${p.id}`);
   if(!ctx) return;
 
@@ -2042,13 +2060,12 @@ function dibujarUnAutoPanel(p, panelIndex){
     type: chartType,
     data:{ labels:labelsPeriodos(), datasets },
     options:{
-      // v3.13: padding para que el datalabel no choque contra los bordes del canvas — el buffer
-      // de suggestedMax/suggestedMin da aire en la ESCALA de datos, pero Chart.js redondea el eje
-      // a números "lindos" para la grilla y a veces ese redondeo deja poco margen REAL en píxeles.
-      // v3.15.3: en vez de números fijos "adivinados" (24/24/72, que solo andaban para el panel
-      // puntual con el que se probaron — ver handoff v3.15.2), `paddingDinamico` se calcula más
-      // arriba MIDIENDO el texto real de cada panel (medirTextoDatalabel) — se ajusta solo sea
-      // cual sea el ancho de los valores, la cantidad de series, o el tipo de gráfico.
+      // v3.13: `right` da margen para que el último punto/barra no se corte contra el borde del
+      // canvas. v3.15.3: medido con texto real (medirTextoDatalabel) en vez de un número fijo.
+      // v3.15.4: `top`/`bottom` vuelven a 24 fijo (como el resto de los paneles) — el "cielo"
+      // vertical para el escalonado de cajas en paneles de 2 series ya NO sale de acá, sale de
+      // la escala del eje Y (`bufferVal`, ver más arriba) — así el rectángulo del gráfico no se
+      // achica dentro del contenedor de altura fija (confirmado por Ale, ver handoff v3.15.4).
       layout:{ padding: paddingDinamico },
       plugins:{
         // v3.15: leyenda visible solo cuando el panel combina 2+ series — en panel de 1 sola
