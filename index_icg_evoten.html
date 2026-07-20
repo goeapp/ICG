@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ICG EvoTen v3.15.5 | Multi-obra</title>
+<title>ICG EvoTen v3.15.6 | Multi-obra</title>
 <script src="https://cdn.tailwindcss.com/3.4.1"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
@@ -408,7 +408,7 @@ main { max-width:1400px; margin:0 auto; padding:24px 20px 60px; }
 
 <div id="app-header">
   <div style="display:flex;align-items:center;gap:14px;">
-    <div class="app-badge">v3.15.5</div>
+    <div class="app-badge">v3.15.6</div>
     <div>
       <div class="app-title">ICG EvoTen · Evolución y Tendencia</div>
     </div>
@@ -697,7 +697,7 @@ const PANEL_MAP_CANVAS = {
 // Versión de la app — se estampa en el JSON exportado (STATE.generado_con) para que,
 // si mañana cambia la lógica de detección/visualización, el motor pueda detectar JSON
 // generados con una versión anterior y aplicar un fallback en vez de romper.
-const APP_VERSION = 'v3.15.5';
+const APP_VERSION = 'v3.15.6';
 
 // CAMPOS_BASE — plantilla de ids/tipos usada por "Nueva UO en blanco" en el tab Configuración.
 // No es un perfil de extracción (no tiene anclas propias); solo define QUÉ campos existen.
@@ -1525,6 +1525,27 @@ function fmtARPct(v, dec=1){
 }
 // Color de texto para valores potencialmente negativos (ejes y etiquetas de dato)
 function colorNeg(v){ return (typeof v === 'number' && v < 0) ? ROJO_NEG : '#0f172a'; }
+
+// v3.15.6: helper reusable — decide 'top'/'bottom' para el datalabel de un punto de línea según
+// la FORMA de la curva en ese punto (pico → 'top', valle → 'bottom'), en vez de un align fijo
+// para toda la serie. Con align fijo, en una curva con zigzag (sube-baja-sube-baja) el label
+// termina chocando contra la propia línea en los picos o valles según toque (confirmado por Ale
+// en "Avance de Venta": 'bottom' fijo hacía que el label de los picos quedara pisando la bajada).
+// Reusable para cualquier gráfico de línea con esta misma forma de problema.
+function alignPicoValle(datos, i){
+  const prev = i > 0 ? datos[i-1] : null;
+  const next = i < datos.length-1 ? datos[i+1] : null;
+  const v = datos[i];
+  if(typeof v !== 'number') return 'top';
+  const hayPrev = typeof prev === 'number', hayNext = typeof next === 'number';
+  if(!hayPrev && !hayNext) return 'top';
+  if(!hayPrev) return v >= next ? 'top' : 'bottom';
+  if(!hayNext) return v >= prev ? 'top' : 'bottom';
+  if(v >= prev && v >= next) return 'top';    // pico (o meseta alta) — arriba está libre
+  if(v <= prev && v <= next) return 'bottom'; // valle (o meseta baja) — abajo está libre
+  return v > prev ? 'top' : 'bottom';         // tramo en pendiente (no es extremo local)
+}
+
 // Para datalabels cuyo valor ya viene multiplicado por 100 u otra escala, mismo criterio
 function colorNegRaw(v){ return (typeof v === 'number' && v < 0) ? ROJO_NEG : '#0f172a'; }
 // v3.07 — Punto 2: valor negativo → rojo en TEXTO (con base de color propia por serie, no solo dark)
@@ -1792,6 +1813,15 @@ function renderChartAvanceVenta(){
   destroyChart('avanceventa');
   const ctx = document.getElementById('chart-avanceventa');
   const dataVenta = STATE.periodos.map(p => typeof p.derivados?.venta_avance_pct==='number' ? p.derivados.venta_avance_pct*100 : null);
+  // v3.15.6: buffer de escala (mismo patrón que renderChartEstimActual) — necesario ahora que el
+  // align es dinámico en ambas direcciones (pico → arriba, valle → abajo): antes, con 'bottom'
+  // fijo, solo hacía falta aire abajo; ahora los picos también necesitan aire arriba para que su
+  // datalabel no choque contra el techo del gráfico.
+  const valoresVenta = dataVenta.filter(v => typeof v === 'number');
+  const maxVenta = valoresVenta.length ? Math.max(...valoresVenta) : 0;
+  const minVenta = valoresVenta.length ? Math.min(...valoresVenta) : 0;
+  const rangoVenta = maxVenta - minVenta;
+  const bufferVenta = rangoVenta > 0 ? rangoVenta * 0.25 : (Math.abs(maxVenta) * 0.1 || 1);
   charts['avanceventa'] = new Chart(ctx, {
     type:'line',
     data:{ labels:labelsPeriodos(), datasets:[
@@ -1800,7 +1830,10 @@ function renderChartAvanceVenta(){
         borderColor: COLOR.blue, tension:.1, pointRadius:5,
         // v3.07 — Punto 2: valor negativo (ej. -1,57%) → punto y datalabel en rojo.
         pointBackgroundColor: (ctx)=>colorSiNegCtx(ctx,COLOR.blue), pointBorderColor: (ctx)=>colorSiNegCtx(ctx,COLOR.blue),
-        datalabels:{ align:'bottom', color:(ctx)=>colorSiNeg(ctx.dataset.data[ctx.dataIndex],COLOR.blue), font:{weight:'700',size:10},
+        // v3.15.6: align dinámico según pico/valle (antes 'bottom' fijo — en los picos de esta
+        // serie, ej. 03/2026 y 05/2026, el label quedaba pisando la bajada de la línea, y al ser
+        // del mismo azul que la línea, prácticamente desaparecía — confirmado por Ale).
+        datalabels:{ align:(ctx)=>alignPicoValle(dataVenta, ctx.dataIndex), color:(ctx)=>colorSiNeg(ctx.dataset.data[ctx.dataIndex],COLOR.blue), font:{weight:'700',size:10},
           formatter:v=> typeof v==='number' ? fmtAR(v,2)+'%' : null } }
     ]},
     options:{
@@ -1810,7 +1843,7 @@ function renderChartAvanceVenta(){
           label:(ctx)=> `${ctx.dataset.label}: ${typeof ctx.parsed.y==='number'?fmtAR(ctx.parsed.y,2)+'%':'sin dato (falta anterior)'}`
         } }
       },
-      scales:{ y:{ ticks:{ callback:v=>fmtAR(v,1)+'%', color:(ctx)=>colorNeg(ctx.tick.value) } } }
+      scales:{ y:{ suggestedMax: maxVenta + bufferVenta, suggestedMin: minVenta - bufferVenta*0.3, ticks:{ callback:v=>fmtAR(v,1)+'%', color:(ctx)=>colorNeg(ctx.tick.value) } } }
     },
     plugins:[ChartDataLabels]
   });
@@ -1940,14 +1973,6 @@ function dibujarUnAutoPanel(p, panelIndex){
   // del contenedor de altura fija — confirmado por Ale) y pasa a salir de la escala del eje Y
   // (`bufferVal` más abajo), igual que ya hacen "Costo HH Vestida" y "HH Est. Total" en esta app.
   // El padding horizontal (`right`) SÍ sigue siendo medido — no hay equivalente de "escala X".
-  // Mapa de color hex (paleta AUTO_PANEL_COLORS) a un "cuadradito" de emoji equivalente — se usa
-  // como indicador visual de a qué serie corresponde cada línea dentro de la caja combinada
-  // (v3.15.5), ya que el plugin de datalabels NO soporta color distinto por línea dentro de una
-  // misma etiqueta (confirmado: issue oficial #198 del repo, cerrado como "wontfix").
-  const EMOJI_POR_COLOR = {
-    '#06b6d4':'🔵', '#a855f7':'🟣', '#22c55e':'🟢', '#f97316':'🟠',
-    '#3b82f6':'🔵', '#64748b':'🔘', '#f59e0b':'🟡', '#ef4444':'🔴'
-  };
 
   let paddingDinamico;
   let lineasCombinadas = null;
@@ -1958,11 +1983,18 @@ function dibujarUnAutoPanel(p, panelIndex){
     // anclada a la 1ª serie del grupo (misma serie que ya manda en título/subtítulo/tipo — v3.15).
     // La 2ª serie no dibuja nada por su cuenta (datalabels:{display:false} en el dataset). Una
     // sola caja = un solo lugar donde posicionarla, sin competencia de espacio entre 2 elementos.
+    // v3.15.6: se reemplaza el emoji de "cuadradito de color" (v3.15.5) por el NOMBRE real de la
+    // serie en texto plano — el emoji de cuadrado de color es relativamente nuevo en el estándar
+    // Unicode (2019) y en sistemas con fuente de emoji desactualizada se ve como un cuadrado negro
+    // genérico ("tofu") en vez del color real — confirmado por Ale en captura real (Venta se veía
+    // con un cuadrado negro, Costo bien, porque 🔴 es un emoji mucho más viejo con mejor soporte).
+    // Texto plano no depende de qué emoji soporte el sistema operativo del usuario.
     const MARGEN_CORRIMIENTO_BARRA = chartType === 'bar' ? 24 : 0;
-    const lineas = datasetsInfo.map(({ serie, dataSerie, colorBase }) => {
+    const lineas = datasetsInfo.map(({ serie, dataSerie }) => {
       const ultimoVal = dataSerie[dataSerie.length - 1];
       const texto = typeof ultimoVal === 'number' ? fmtAR(ultimoVal, serie.decimales) : '—';
-      return `${EMOJI_POR_COLOR[colorBase] || '⬛'} ${texto}`;
+      const nombre = serie.leyenda || serie.id;
+      return `${nombre} ${texto}`;
     });
     lineasCombinadas = lineas;
     const medidas = lineas.map(linea => medirTextoDatalabel(linea, FONT_WEIGHT_LABEL, FONT_SIZE_LABEL));
@@ -2008,11 +2040,12 @@ function dibujarUnAutoPanel(p, panelIndex){
     // v3.15.2: el intento de v3.15.1 de separar horizontalmente (align 'right'/'left') NO alcanzó
     // en la práctica — con Venta y Costo de valores parecidos, las barras quedan casi a la misma
     // altura y los textos se siguen pisando aunque apunten a lados opuestos. Se reemplaza por
-    // v3.15.5: en paneles de 2 series, la caja combinada (2 líneas, con el cuadradito de color de
-    // cada serie) se dibuja UNA sola vez, anclada a la 1ª serie del grupo (misma que ya manda en
-    // título/subtítulo/tipo — v3.15). La 2ª serie no dibuja datalabel propio (`display:false`),
-    // reemplaza el escalonado de 2 cajas de v3.15.1-v3.15.4 (que necesitaba inflar la escala Y y
-    // "achataba" la curva — confirmado por Ale).
+    // v3.15.5: en paneles de 2 series, la caja combinada (2 líneas, con el nombre de cada serie
+    // — v3.15.6: antes un cuadradito de color, ver comentario más arriba) se dibuja UNA sola vez,
+    // anclada a la 1ª serie del grupo (misma que ya manda en título/subtítulo/tipo — v3.15). La
+    // 2ª serie no dibuja datalabel propio (`display:false`), reemplaza el escalonado de 2 cajas
+    // de v3.15.1-v3.15.4 (que necesitaba inflar la escala Y y "achataba" la curva — confirmado
+    // por Ale).
     const esAncla = dosSeries && i === 0;
     const formatterDatalabel = dosSeries
       ? (val, ctx) => (esAncla && ctx.dataIndex === ultimoIdx) ? lineasCombinadas : null
