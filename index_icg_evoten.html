@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ICG EvoTen v3.15.1 | Multi-obra</title>
+<title>ICG EvoTen v3.15.2 | Multi-obra</title>
 <script src="https://cdn.tailwindcss.com/3.4.1"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
@@ -408,7 +408,7 @@ main { max-width:1400px; margin:0 auto; padding:24px 20px 60px; }
 
 <div id="app-header">
   <div style="display:flex;align-items:center;gap:14px;">
-    <div class="app-badge">v3.15.1</div>
+    <div class="app-badge">v3.15.2</div>
     <div>
       <div class="app-title">ICG EvoTen · Evolución y Tendencia</div>
     </div>
@@ -697,7 +697,7 @@ const PANEL_MAP_CANVAS = {
 // Versión de la app — se estampa en el JSON exportado (STATE.generado_con) para que,
 // si mañana cambia la lógica de detección/visualización, el motor pueda detectar JSON
 // generados con una versión anterior y aplicar un fallback en vez de romper.
-const APP_VERSION = 'v3.15.1';
+const APP_VERSION = 'v3.15.2';
 
 // CAMPOS_BASE — plantilla de ids/tipos usada por "Nueva UO en blanco" en el tab Configuración.
 // No es un perfil de extracción (no tiene anclas propias); solo define QUÉ campos existen.
@@ -1918,17 +1918,20 @@ function dibujarUnAutoPanel(p, panelIndex){
 
   const datasets = datasetsInfo.map(({ serie, dataSerie, colorBase }, i) => {
     const ultimoIdx = dataSerie.length - 1;
-    // v3.15.1: en paneles de 2 series el datalabel se muestra SOLO en el último período, y se
-    // justifica horizontalmente hacia el hueco entre las 2 barras del grupo (1ª serie → derecha,
-    // 2ª serie → izquierda) — a pedido de Ale, para dejar de invadir el espacio de los grupos
-    // vecinos. En panel de 1 sola serie (o 3+, caso no contemplado todavía) sigue el criterio de
-    // siempre: todos los puntos, alineado por signo arriba/abajo.
+    // v3.15.1: en paneles de 2 series el datalabel se muestra SOLO en el último período (evita
+    // el solapamiento de 12 etiquetas — 6 meses x 2 series — confirmado por Ale en producción).
+    // v3.15.2: el intento de v3.15.1 de separar horizontalmente (align 'right'/'left') NO alcanzó
+    // en la práctica — con Venta y Costo de valores parecidos, las barras quedan casi a la misma
+    // altura y los textos se siguen pisando aunque apunten a lados opuestos. Se reemplaza por
+    // ESCALONADO VERTICAL: mismo align por signo que siempre (top/bottom), pero con `offset` MUY
+    // distinto por serie (la 1ª cerca de su barra, la 2ª mucho más arriba/abajo) — así una caja
+    // queda flotando por encima de la otra, nunca a la misma altura. Estilo "caja" (fondo blanco,
+    // borde del color de la serie, esquinas redondeadas) — mismo patrón que ya usa "Contribución
+    // (%)" en chart-hh (línea ~1607), no es una idea nueva en la app.
     const formatterDatalabel = dosSeries
       ? (val, ctx) => (ctx.dataIndex === ultimoIdx && typeof val === 'number') ? fmtAR(val, serie.decimales) : null
       : (val) => typeof val === 'number' ? fmtAR(val, serie.decimales) : null;
-    const alignDatalabel = dosSeries
-      ? (i === 0 ? 'right' : 'left')
-      : (ctx) => chartType === 'bar' && ctx.dataset.data[ctx.dataIndex] < 0 ? 'bottom' : 'top';
+    const offsetDatalabel = dosSeries ? (i === 0 ? 6 : 32) : undefined;
     return {
       label: multiSerie ? (serie.leyenda || serie.id) : p.titulo,
       data: dataSerie,
@@ -1941,11 +1944,19 @@ function dibujarUnAutoPanel(p, panelIndex){
       clip: false,
       // v3.13/v3.14: en BARRA, el ANCHOR depende del signo del valor — positivo → 'end' (tip real
       // de la barra), negativo → 'start' (sigue la punta real; 'end' fijo colapsaba en el cero,
-      // ver handoff v3.14). Esta parte NO cambia con v3.15.1 — solo cambia `align` (ver arriba).
+      // ver handoff v3.14). No cambia con v3.15.2.
       datalabels:{
         anchor: (ctx) => chartType === 'bar' && ctx.dataset.data[ctx.dataIndex] < 0 ? 'start' : 'end',
-        align: alignDatalabel,
+        align: (ctx) => chartType === 'bar' && ctx.dataset.data[ctx.dataIndex] < 0 ? 'bottom' : 'top',
+        offset: offsetDatalabel,
         clamp:false,
+        // v3.15.2: caja visual SOLO en paneles de 2 series (panel de 1 sola serie sigue como
+        // siempre, sin caja, sin cambios visuales).
+        backgroundColor: dosSeries ? '#ffffff' : undefined,
+        borderColor: dosSeries ? colorBase : undefined,
+        borderWidth: dosSeries ? 1.5 : undefined,
+        borderRadius: dosSeries ? 6 : undefined,
+        padding: dosSeries ? {top:3,bottom:3,left:5,right:5} : undefined,
         color:(ctx)=>colorSiNeg(ctx.dataset.data[ctx.dataIndex], colorBase), font:{weight:'700',size:10}, formatter: formatterDatalabel }
     };
   });
@@ -1960,7 +1971,11 @@ function dibujarUnAutoPanel(p, panelIndex){
       // calculado (caso "Dólar": buffer pedía ~1.527, el eje redondeó a 1.600, quedó justo). El
       // padding fijo garantiza aire real sin depender de cómo caiga el redondeo. top/bottom por
       // si el caso simétrico (barra muy negativa) tuviera el mismo problema.
-      layout:{ padding:{ top:24, bottom:24 } },
+      // v3.15.2: se agrega `right` — el último punto (línea o barra) queda pegado al borde
+      // derecho del canvas sin margen, cortando el datalabel del último período (confirmado por
+      // Ale en modo línea). Mismo patrón y mismo valor (72px) que ya usa renderChartHH() más
+      // arriba para su datalabel "solo último".
+      layout:{ padding:{ top:24, bottom:24, right:72 } },
       plugins:{
         // v3.15: leyenda visible solo cuando el panel combina 2+ series — en panel de 1 sola
         // serie sigue oculta, sin cambios visuales respecto a versiones anteriores.
