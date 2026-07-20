@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ICG EvoTen v3.15.4 | Multi-obra</title>
+<title>ICG EvoTen v3.15.5 | Multi-obra</title>
 <script src="https://cdn.tailwindcss.com/3.4.1"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
@@ -408,7 +408,7 @@ main { max-width:1400px; margin:0 auto; padding:24px 20px 60px; }
 
 <div id="app-header">
   <div style="display:flex;align-items:center;gap:14px;">
-    <div class="app-badge">v3.15.4</div>
+    <div class="app-badge">v3.15.5</div>
     <div>
       <div class="app-title">ICG EvoTen · Evolución y Tendencia</div>
     </div>
@@ -697,7 +697,7 @@ const PANEL_MAP_CANVAS = {
 // Versión de la app — se estampa en el JSON exportado (STATE.generado_con) para que,
 // si mañana cambia la lógica de detección/visualización, el motor pueda detectar JSON
 // generados con una versión anterior y aplicar un fallback en vez de romper.
-const APP_VERSION = 'v3.15.4';
+const APP_VERSION = 'v3.15.5';
 
 // CAMPOS_BASE — plantilla de ids/tipos usada por "Nueva UO en blanco" en el tab Configuración.
 // No es un perfil de extracción (no tiene anclas propias); solo define QUÉ campos existen.
@@ -1940,42 +1940,36 @@ function dibujarUnAutoPanel(p, panelIndex){
   // del contenedor de altura fija — confirmado por Ale) y pasa a salir de la escala del eje Y
   // (`bufferVal` más abajo), igual que ya hacen "Costo HH Vestida" y "HH Est. Total" en esta app.
   // El padding horizontal (`right`) SÍ sigue siendo medido — no hay equivalente de "escala X".
-  let offsetPorSerie = [];
+  // Mapa de color hex (paleta AUTO_PANEL_COLORS) a un "cuadradito" de emoji equivalente — se usa
+  // como indicador visual de a qué serie corresponde cada línea dentro de la caja combinada
+  // (v3.15.5), ya que el plugin de datalabels NO soporta color distinto por línea dentro de una
+  // misma etiqueta (confirmado: issue oficial #198 del repo, cerrado como "wontfix").
+  const EMOJI_POR_COLOR = {
+    '#06b6d4':'🔵', '#a855f7':'🟣', '#22c55e':'🟢', '#f97316':'🟠',
+    '#3b82f6':'🔵', '#64748b':'🔘', '#f59e0b':'🟡', '#ef4444':'🔴'
+  };
+
   let paddingDinamico;
+  let lineasCombinadas = null;
   if(dosSeries){
-    const MARGEN_ENTRE_CAJAS = 6; // aire entre una caja y la de al lado apilada arriba
-    // v3.15.3: en BARRA, la última barra de un grupo de 2 queda corrida a la derecha del centro
-    // de su período (las barras agrupadas se reparten el ancho de la categoría) — ese corrimiento
-    // depende del ancho final del gráfico, que todavía no existe en este punto (se calcula recién
-    // al crear el Chart), así que no se puede medir con precisión de antemano. Se reserva un
-    // margen fijo chico y documentado para ese caso puntual — el resto del padding SÍ es 100%
-    // medido. En línea no aplica (los puntos de las 2 series comparten la misma posición X).
+    // v3.15.5: en vez de 2 cajas apiladas con offset (v3.15.1-v3.15.4 — necesitaban inflar la
+    // escala Y para no competir por espacio, lo cual "achataba" la curva — confirmado por Ale,
+    // "truco poco profesional"), se dibuja UNA sola caja combinada con las 2 líneas de valor,
+    // anclada a la 1ª serie del grupo (misma serie que ya manda en título/subtítulo/tipo — v3.15).
+    // La 2ª serie no dibuja nada por su cuenta (datalabels:{display:false} en el dataset). Una
+    // sola caja = un solo lugar donde posicionarla, sin competencia de espacio entre 2 elementos.
     const MARGEN_CORRIMIENTO_BARRA = chartType === 'bar' ? 24 : 0;
-    const cajas = datasetsInfo.map(({ serie, dataSerie }) => {
+    const lineas = datasetsInfo.map(({ serie, dataSerie, colorBase }) => {
       const ultimoVal = dataSerie[dataSerie.length - 1];
-      const texto = typeof ultimoVal === 'number' ? fmtAR(ultimoVal, serie.decimales) : '';
-      const { ancho, alto } = medirTextoDatalabel(texto, FONT_WEIGHT_LABEL, FONT_SIZE_LABEL);
-      return {
-        anchoCaja: ancho + CAJA_PAD_H*2 + CAJA_BORDE*2,
-        altoCaja: alto + CAJA_PAD_V*2 + CAJA_BORDE*2
-      };
+      const texto = typeof ultimoVal === 'number' ? fmtAR(ultimoVal, serie.decimales) : '—';
+      return `${EMOJI_POR_COLOR[colorBase] || '⬛'} ${texto}`;
     });
-    let acumulado = 6; // 1ª serie, pegada a su barra/punto (igual criterio que siempre)
-    cajas.forEach((caja) => {
-      offsetPorSerie.push(acumulado);
-      acumulado += caja.altoCaja + MARGEN_ENTRE_CAJAS;
-    });
-    const maxAnchoCaja = Math.max(...cajas.map(c => c.anchoCaja), 0);
-    // v3.15.4: se deja de reservar `top`/`bottom` extra en el LAYOUT (eso achicaba el gráfico
-    // entero dentro del contenedor de altura fija .chart-wrap-md, 220px — confirmado por Ale con
-    // captura de DevTools). En cambio, el aire para el escalonado de cajas sale de la ESCALA del
-    // eje Y (ver `bufferVal` más abajo) — mismo mecanismo que ya usan "Costo HH Vestida" y "HH
-    // Est. Total" en esta misma app (ninguno de los dos toca `layout.padding.top/bottom`). El
-    // rectángulo del gráfico queda a tamaño completo; lo que cambia es cuánto "cielo" reserva la
-    // escala arriba del valor más alto.
+    lineasCombinadas = lineas;
+    const medidas = lineas.map(linea => medirTextoDatalabel(linea, FONT_WEIGHT_LABEL, FONT_SIZE_LABEL));
+    const anchoCaja = Math.max(...medidas.map(m => m.ancho)) + CAJA_PAD_H*2 + CAJA_BORDE*2;
     paddingDinamico = {
       top: 24, bottom: 24,
-      right: Math.ceil(maxAnchoCaja/2) + MARGEN_CORRIMIENTO_BARRA
+      right: Math.ceil(anchoCaja/2) + MARGEN_CORRIMIENTO_BARRA
     };
   } else {
     // Panel de 1 sola serie: sin caja, todos los puntos muestran etiqueta (v3.10). Se mide el
@@ -1997,14 +1991,12 @@ function dibujarUnAutoPanel(p, panelIndex){
   const minVal = valoresNum.length ? Math.min(...valoresNum) : 0;
   const rangoVal = maxVal - minVal;
   let bufferVal = rangoVal > 0 ? rangoVal * 0.25 : (Math.abs(maxVal) * 0.1 || 1);
-  // v3.15.4: en paneles de 2 series, el "cielo" para el escalonado de las 2 cajas sale de acá
-  // (agrandar la escala del eje Y), no de `layout.padding` — mismo mecanismo que ya usa "Costo HH
-  // Vestida" en esta app (`suggestedMax: maxVal*1.35`, un 35% de cielo). Nuestro caso es más
-  // exigente (Venta/Costo con 3-4% de diferencia entre sí, contra ~11% en Costo HH Vestida), así
-  // que el piso mínimo es un poco más generoso (40% de maxVal) — validado con Chart.js real más
-  // abajo en la sesión, no es un número tirado al azar.
+  // v3.15.5: con la caja ÚNICA combinada (2 líneas, una sola posición) el "cielo" necesario baja
+  // bastante respecto al escalonado de 2 cajas de v3.15.4 (que necesitaba 40% de maxVal para no
+  // competir consigo mismo) — el piso baja a 20%, validado con Chart.js real más abajo en la
+  // sesión contra el caso puntual de Ale (Venta/Costo, 3-4% de diferencia entre sí).
   if(dosSeries){
-    bufferVal = Math.max(bufferVal, Math.abs(maxVal) * 0.4);
+    bufferVal = Math.max(bufferVal, Math.abs(maxVal) * 0.2);
   }
   const ctx = document.getElementById(`chart-auto-${p.id}`);
   if(!ctx) return;
@@ -2016,15 +2008,15 @@ function dibujarUnAutoPanel(p, panelIndex){
     // v3.15.2: el intento de v3.15.1 de separar horizontalmente (align 'right'/'left') NO alcanzó
     // en la práctica — con Venta y Costo de valores parecidos, las barras quedan casi a la misma
     // altura y los textos se siguen pisando aunque apunten a lados opuestos. Se reemplaza por
-    // ESCALONADO VERTICAL: mismo align por signo que siempre (top/bottom), pero con `offset` MUY
-    // distinto por serie (la 1ª cerca de su barra, la 2ª mucho más arriba/abajo) — así una caja
-    // queda flotando por encima de la otra, nunca a la misma altura. Estilo "caja" (fondo blanco,
-    // borde del color de la serie, esquinas redondeadas) — mismo patrón que ya usa "Contribución
-    // (%)" en chart-hh (línea ~1607), no es una idea nueva en la app.
+    // v3.15.5: en paneles de 2 series, la caja combinada (2 líneas, con el cuadradito de color de
+    // cada serie) se dibuja UNA sola vez, anclada a la 1ª serie del grupo (misma que ya manda en
+    // título/subtítulo/tipo — v3.15). La 2ª serie no dibuja datalabel propio (`display:false`),
+    // reemplaza el escalonado de 2 cajas de v3.15.1-v3.15.4 (que necesitaba inflar la escala Y y
+    // "achataba" la curva — confirmado por Ale).
+    const esAncla = dosSeries && i === 0;
     const formatterDatalabel = dosSeries
-      ? (val, ctx) => (ctx.dataIndex === ultimoIdx && typeof val === 'number') ? fmtAR(val, serie.decimales) : null
+      ? (val, ctx) => (esAncla && ctx.dataIndex === ultimoIdx) ? lineasCombinadas : null
       : (val) => typeof val === 'number' ? fmtAR(val, serie.decimales) : null;
-    const offsetDatalabel = dosSeries ? offsetPorSerie[i] : undefined;
     return {
       label: multiSerie ? (serie.leyenda || serie.id) : p.titulo,
       data: dataSerie,
@@ -2037,22 +2029,24 @@ function dibujarUnAutoPanel(p, panelIndex){
       clip: false,
       // v3.13/v3.14: en BARRA, el ANCHOR depende del signo del valor — positivo → 'end' (tip real
       // de la barra), negativo → 'start' (sigue la punta real; 'end' fijo colapsaba en el cero,
-      // ver handoff v3.14). No cambia con v3.15.2.
-      datalabels:{
+      // ver handoff v3.14). No cambia con v3.15.5.
+      datalabels: (dosSeries && !esAncla) ? { display:false } : {
         anchor: (ctx) => chartType === 'bar' && ctx.dataset.data[ctx.dataIndex] < 0 ? 'start' : 'end',
         align: (ctx) => chartType === 'bar' && ctx.dataset.data[ctx.dataIndex] < 0 ? 'bottom' : 'top',
-        offset: offsetDatalabel,
+        offset: dosSeries ? 6 : undefined,
         clamp:false,
         // v3.15.2: caja visual SOLO en paneles de 2 series (panel de 1 sola serie sigue como
-        // siempre, sin caja, sin cambios visuales). v3.15.3: mismas constantes que usa la
-        // medición de arriba (CAJA_*) — si se cambia el padding/borde de la caja, la medición
-        // de offset/padding del layout se ajusta sola, sin quedar desincronizada.
+        // siempre, sin caja, sin cambios visuales). v3.15.5: el color de borde pasa a ser neutro
+        // (no el de una serie puntual) porque la caja ahora combina las 2 — la identificación por
+        // serie queda en el cuadradito de color de cada línea, no en el borde de la caja.
         backgroundColor: dosSeries ? '#ffffff' : undefined,
-        borderColor: dosSeries ? colorBase : undefined,
+        borderColor: dosSeries ? '#94a3b8' : undefined,
         borderWidth: dosSeries ? CAJA_BORDE : undefined,
         borderRadius: dosSeries ? CAJA_RADIO : undefined,
         padding: dosSeries ? {top:CAJA_PAD_V,bottom:CAJA_PAD_V,left:CAJA_PAD_H,right:CAJA_PAD_H} : undefined,
-        color:(ctx)=>colorSiNeg(ctx.dataset.data[ctx.dataIndex], colorBase), font:{weight:FONT_WEIGHT_LABEL,size:FONT_SIZE_LABEL}, formatter: formatterDatalabel }
+        textAlign: dosSeries ? 'left' : undefined,
+        color: dosSeries ? '#0f172a' : (ctx)=>colorSiNeg(ctx.dataset.data[ctx.dataIndex], colorBase),
+        font:{weight:FONT_WEIGHT_LABEL,size:FONT_SIZE_LABEL}, formatter: formatterDatalabel }
     };
   });
 
