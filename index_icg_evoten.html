@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ICG EvoTen v3.14 | Multi-obra</title>
+<title>ICG EvoTen v3.15 | Multi-obra</title>
 <script src="https://cdn.tailwindcss.com/3.4.1"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
@@ -408,7 +408,7 @@ main { max-width:1400px; margin:0 auto; padding:24px 20px 60px; }
 
 <div id="app-header">
   <div style="display:flex;align-items:center;gap:14px;">
-    <div class="app-badge">v3.14</div>
+    <div class="app-badge">v3.15</div>
     <div>
       <div class="app-title">ICG EvoTen · Evolución y Tendencia</div>
     </div>
@@ -697,7 +697,7 @@ const PANEL_MAP_CANVAS = {
 // Versión de la app — se estampa en el JSON exportado (STATE.generado_con) para que,
 // si mañana cambia la lógica de detección/visualización, el motor pueda detectar JSON
 // generados con una versión anterior y aplicar un fallback en vez de romper.
-const APP_VERSION = 'v3.14';
+const APP_VERSION = 'v3.15';
 
 // CAMPOS_BASE — plantilla de ids/tipos usada por "Nueva UO en blanco" en el tab Configuración.
 // No es un perfil de extracción (no tiene anclas propias); solo define QUÉ campos existen.
@@ -1065,12 +1065,18 @@ function onJsonSelected(evt){
 
 // ============================================================
 // AUTO PANELES — procesamiento del XLSX de apoyo
-// Hoja "paneles": id | titulo | subtitulo | tipo (una fila por panel)
+// Hoja "paneles": id | titulo | subtitulo | tipo | leyenda (una fila = una serie)
 // Hoja "datos":   anio | mes | <id1> | <id2> | ... (una fila por período, lectura por POSICIÓN
 // de columna para año/mes — el texto del header es solo decorativo — y por NOMBRE de columna
 // para cada serie, matcheado contra el id de la hoja "paneles").
 // v3.08: reemplazo total — cada import pisa STATE.autoPaneles completo (no hay merge por id),
 // consistente con "se recarga el archivo entero" acordado con Ale.
+// v3.15: filas con "titulo" IDÉNTICO se combinan en un solo panel multi-serie (2+ series en el
+// mismo gráfico, siempre del mismo tipo — barra o línea, nunca mixto). La 1ª fila del grupo
+// (en orden de aparición) define título de bloque, subtítulo y tipo para TODAS sus series; las
+// filas siguientes del grupo solo aportan una serie más (su propio id → columna en "datos", y
+// su propio texto de leyenda vía la columna "leyenda"). Filas con título único no agrupan y
+// siguen funcionando exactamente como antes (panel de 1 sola serie, leyenda oculta).
 // ============================================================
 function buscarHoja(wb, nombre){
   const encontrada = wb.SheetNames.find(n => n.trim().toLowerCase() === nombre);
@@ -1097,7 +1103,9 @@ async function procesarArchivoXLSXApoyo(file){
   if(!wsPaneles) throw new Error(`"${file.name}" no tiene la hoja "paneles".`);
   if(!wsDatos) throw new Error(`"${file.name}" no tiene la hoja "datos".`);
 
-  // Hoja "paneles": fila 1 = header (descartada), desde fila 2: id, titulo, subtitulo, tipo — por posición.
+  // Hoja "paneles": fila 1 = header (descartada), desde fila 2: id, titulo, subtitulo, tipo,
+  // leyenda — por posición. "leyenda" (5ta col) es opcional: solo se usa cuando la fila queda
+  // agrupada con otra(s) de igual "titulo" (v3.15); en paneles de 1 sola serie no tiene efecto.
   const filasPaneles = XLSX.utils.sheet_to_json(wsPaneles, { header:1, defval:null, raw:true });
   const defs = filasPaneles.slice(1)
     .filter(r => r && r[0] != null && String(r[0]).trim() !== '')
@@ -1105,7 +1113,8 @@ async function procesarArchivoXLSXApoyo(file){
       id: String(r[0]).trim(),
       titulo: r[1] != null ? String(r[1]).trim() : '(sin título)',
       subtitulo: r[2] != null ? String(r[2]).trim() : '',
-      tipo: (r[3] != null ? String(r[3]).trim().toLowerCase() : 'linea') === 'barra' ? 'barra' : 'linea'
+      tipo: (r[3] != null ? String(r[3]).trim().toLowerCase() : 'linea') === 'barra' ? 'barra' : 'linea',
+      leyenda: r[4] != null ? String(r[4]).trim() : ''
     }));
   if(defs.length === 0) throw new Error(`"${file.name}": la hoja "paneles" no tiene filas de datos.`);
 
@@ -1120,14 +1129,29 @@ async function procesarArchivoXLSXApoyo(file){
 
   const filasValores = filasDatos.slice(1).filter(r => r && r[0] != null && r[1] != null);
 
-  const autoPaneles = defs.map(d => {
+  // Una serie de datos por fila de "paneles" (independiente de si después se agrupa o no).
+  const seriesPorFila = defs.map(d => {
     const colIdx = colIdxPorId[d.id];
     const datos = filasValores.map(r => ({
       anio: Number(r[0]),
       mes: Number(r[1]),
       valor: (colIdx != null && typeof r[colIdx] === 'number') ? r[colIdx] : null
     }));
-    return { ...d, datos };
+    return { id: d.id, leyenda: d.leyenda, datos };
+  });
+
+  // Agrupar por "titulo" IDÉNTICO (v3.15): la 1ª fila de cada grupo (orden de aparición en la
+  // hoja) define título/subtítulo/tipo del panel combinado; las siguientes solo suman una serie.
+  // Sin duplicados de título → 1 fila = 1 panel, comportamiento idéntico a versiones anteriores.
+  const autoPaneles = [];
+  const indicePorTitulo = new Map();
+  defs.forEach((d, i) => {
+    if(indicePorTitulo.has(d.titulo)){
+      autoPaneles[indicePorTitulo.get(d.titulo)].series.push(seriesPorFila[i]);
+    } else {
+      indicePorTitulo.set(d.titulo, autoPaneles.length);
+      autoPaneles.push({ id: d.id, titulo: d.titulo, subtitulo: d.subtitulo, tipo: d.tipo, series: [seriesPorFila[i]] });
+    }
   });
 
   return { obra: ident.obra, autoPaneles, warnings };
@@ -1813,60 +1837,77 @@ function iconoAutoPanel(p){
   return { tipoEfectivo, proximoTipo, iconoProximo };
 }
 
+// v3.15: color determinístico por (panel, serie-dentro-del-panel), reusando la misma paleta
+// AUTO_PANEL_COLORS de siempre — evita agregar una paleta nueva solo para la 2da+ serie.
+function colorAutoPanelSerie(panelIndex, serieIndex){
+  return AUTO_PANEL_COLORS[(panelIndex + serieIndex) % AUTO_PANEL_COLORS.length];
+}
+
 // v3.12: se extrae la creación de UN solo gráfico a esta función, reusada tanto en el render
 // completo (import/carga de obra) como en el toggle individual — así togglear un panel no
 // recrea las instancias de Chart.js de los demás.
-function dibujarUnAutoPanel(p, colorBase){
+// v3.15: p.series ahora es SIEMPRE un arreglo (antes p.datos era la serie única). Con 1 sola
+// fila en el grupo el resultado visual es idéntico a versiones anteriores (leyenda oculta,
+// 1 dataset); con 2+ filas agrupadas por "titulo" se dibujan N datasets del MISMO chartType
+// (nunca mixto barra/línea, por diseño), con leyenda visible para poder distinguirlas.
+function dibujarUnAutoPanel(p, panelIndex){
   destroyChart(`auto_${p.id}`);
+  const { tipoEfectivo } = iconoAutoPanel(p);
+  const chartType = tipoEfectivo === 'barra' ? 'bar' : 'line';
+  const multiSerie = p.series.length > 1;
+
   // Cruce por anio+mes: mismo timeline que el resto del dashboard (STATE.periodos), no el
-  // propio arreglo de fechas del panel — así el panel "sigue" el rango de la obra.
-  const dataSerie = STATE.periodos.map(per => {
-    const fila = p.datos.find(d => d.anio === per.periodo.anio && d.mes === per.periodo.mes);
-    return fila && typeof fila.valor === 'number' ? fila.valor : null;
+  // propio arreglo de fechas del panel — así el panel "sigue" el rango de la obra. Se hace
+  // una vez por cada serie del grupo.
+  const datasetsInfo = p.series.map((s, i) => {
+    const dataSerie = STATE.periodos.map(per => {
+      const fila = s.datos.find(d => d.anio === per.periodo.anio && d.mes === per.periodo.mes);
+      return fila && typeof fila.valor === 'number' ? fila.valor : null;
+    });
+    return { serie: s, dataSerie, colorBase: colorAutoPanelSerie(panelIndex, i) };
   });
+
   // v3.10: se muestra el valor en TODOS los puntos/barras (no solo el último) — a pedido de
-  // Ale, ya que acá es una sola serie por panel (a diferencia de chart-hh, multi-serie, donde
-  // mostrar todo sería ilegible). Devuelve null únicamente si el dato es null (gap real).
+  // Ale. v3.15: se mantiene igual para cada serie del grupo (decisión explícita de Ale: puede
+  // saturar con 2 series, pero prioriza ver todos los valores). Devuelve null solo si el dato
+  // es null (gap real).
   const todosLosValores = (val) => typeof val === 'number' ? fmtAR(val,2) : null;
+
   // Buffer de escala anti-clipping (mismo patrón que renderChartEstimActual): le da aire arriba
-  // del valor más alto de la serie para que su datalabel no choque contra el techo del gráfico.
-  const valoresNum = dataSerie.filter(v => typeof v === 'number');
+  // del valor más alto para que el datalabel no choque contra el techo del gráfico.
+  // v3.15: calculado sobre el COMBINADO de todas las series del panel (antes era 1 sola serie).
+  const valoresNum = datasetsInfo.flatMap(di => di.dataSerie.filter(v => typeof v === 'number'));
   const maxVal = valoresNum.length ? Math.max(...valoresNum) : 0;
   const minVal = valoresNum.length ? Math.min(...valoresNum) : 0;
   const rangoVal = maxVal - minVal;
   const bufferVal = rangoVal > 0 ? rangoVal * 0.25 : (Math.abs(maxVal) * 0.1 || 1);
   const ctx = document.getElementById(`chart-auto-${p.id}`);
   if(!ctx) return;
-  const { tipoEfectivo } = iconoAutoPanel(p);
-  const chartType = tipoEfectivo === 'barra' ? 'bar' : 'line';
+
+  const datasets = datasetsInfo.map(({ serie, dataSerie, colorBase }) => ({
+    label: multiSerie ? (serie.leyenda || serie.id) : p.titulo,
+    data: dataSerie,
+    borderColor: colorBase, backgroundColor: chartType === 'bar' ? ((ctx)=>colorSiNegCtx(ctx, colorBase)) : colorBase,
+    tension: chartType === 'line' ? .3 : undefined,
+    pointRadius: chartType === 'line' ? 4 : undefined,
+    borderRadius: chartType === 'bar' ? 4 : undefined,
+    pointBackgroundColor: chartType === 'line' ? ((ctx)=>colorSiNegCtx(ctx, colorBase)) : undefined,
+    pointBorderColor: chartType === 'line' ? ((ctx)=>colorSiNegCtx(ctx, colorBase)) : undefined,
+    clip: false,
+    // v3.13/v3.14: en BARRA, anchor y align dependen del signo del valor — positivo → 'end'/'top'
+    // (afuera, arriba de la punta), negativo → 'start'/'bottom' (afuera, abajo de la punta real,
+    // no del cero). Ver handoff v3.14 para el detalle de por qué 'end' fijo fallaba en negativos.
+    // En línea no aplica (fondo detrás del punto es blanco, 'top' ya funciona bien).
+    datalabels:{
+      anchor: (ctx) => chartType === 'bar' && ctx.dataset.data[ctx.dataIndex] < 0 ? 'start' : 'end',
+      align: (ctx) => chartType === 'bar' && ctx.dataset.data[ctx.dataIndex] < 0 ? 'bottom' : 'top',
+      clamp:false,
+      color:(ctx)=>colorSiNeg(ctx.dataset.data[ctx.dataIndex], colorBase), font:{weight:'700',size:10}, formatter:todosLosValores }
+  }));
+
   charts[`auto_${p.id}`] = new Chart(ctx, {
     type: chartType,
-    data:{ labels:labelsPeriodos(), datasets:[{
-      label: p.titulo,
-      data: dataSerie,
-      borderColor: colorBase, backgroundColor: chartType === 'bar' ? ((ctx)=>colorSiNegCtx(ctx, colorBase)) : colorBase,
-      tension: chartType === 'line' ? .3 : undefined,
-      pointRadius: chartType === 'line' ? 4 : undefined,
-      borderRadius: chartType === 'bar' ? 4 : undefined,
-      pointBackgroundColor: chartType === 'line' ? ((ctx)=>colorSiNegCtx(ctx, colorBase)) : undefined,
-      pointBorderColor: chartType === 'line' ? ((ctx)=>colorSiNegCtx(ctx, colorBase)) : undefined,
-      clip: false,
-      // v3.13: en BARRA, el align del datalabel depende del signo del valor. Con align:'top' fijo,
-      // una barra NEGATIVA (que crece hacia abajo desde 0) dejaba la etiqueta adentro del cuerpo
-      // rojo de la barra — rojo sobre rojo, invisible. Ahora: positivo → 'top' (afuera, arriba de
-      // la punta), negativo → 'bottom' (afuera, abajo de la punta) — siempre "hacia afuera" de la
-      // barra. En línea no aplica (el fondo detrás del punto es blanco, 'top' ya funciona bien).
-      // v3.14: el ANCHOR también depende del signo (antes fijo en 'end'). Verificado con Chart.js
-      // real (headless, interceptando fillText): en barra NEGATIVA, anchor:'end' fijo no ancla en
-      // la punta de cada barra — colapsa siempre en la línea base (el cero), igual para todos los
-      // valores. anchor:'start' sí sigue la punta real de cada barra negativa. En positivo, 'end'
-      // funciona correctamente (ya validado con "Dólar"), así que se mantiene solo para ese caso.
-      datalabels:{
-        anchor: (ctx) => chartType === 'bar' && ctx.dataset.data[ctx.dataIndex] < 0 ? 'start' : 'end',
-        align: (ctx) => chartType === 'bar' && ctx.dataset.data[ctx.dataIndex] < 0 ? 'bottom' : 'top',
-        clamp:false,
-        color:(ctx)=>colorSiNeg(ctx.dataset.data[ctx.dataIndex], colorBase), font:{weight:'700',size:10}, formatter:todosLosValores }
-    }]},
+    data:{ labels:labelsPeriodos(), datasets },
     options:{
       // v3.13: padding fijo en píxeles, sumado al buffer de suggestedMax/suggestedMin. El buffer
       // da aire en la ESCALA de datos, pero Chart.js redondea el eje a números "lindos" para la
@@ -1876,7 +1917,9 @@ function dibujarUnAutoPanel(p, colorBase){
       // si el caso simétrico (barra muy negativa) tuviera el mismo problema.
       layout:{ padding:{ top:24, bottom:24 } },
       plugins:{
-        legend:{ display:false },
+        // v3.15: leyenda visible solo cuando el panel combina 2+ series — en panel de 1 sola
+        // serie sigue oculta, sin cambios visuales respecto a versiones anteriores.
+        legend:{ display: multiSerie },
         tooltip:{ callbacks:{ label: tooltipFmt(false) } }
       },
       scales:{ y:{ suggestedMax: maxVal + bufferVal, suggestedMin: minVal - bufferVal*0.3, ticks:{ callback:v=>fmtAR(v,1), color:(ctx)=>colorNeg(ctx.tick.value) } } }
@@ -1915,8 +1958,7 @@ function renderAutoPaneles(){
   }).join('');
 
   STATE.autoPaneles.forEach((p, i) => {
-    const colorBase = AUTO_PANEL_COLORS[i % AUTO_PANEL_COLORS.length];
-    dibujarUnAutoPanel(p, colorBase);
+    dibujarUnAutoPanel(p, i);
   });
 }
 
@@ -1938,8 +1980,7 @@ function toggleAutoPanelTipo(id){
     icono.title = `Ver como ${proximoTipo}`;
   }
 
-  const colorBase = AUTO_PANEL_COLORS[index % AUTO_PANEL_COLORS.length];
-  dibujarUnAutoPanel(panel, colorBase);
+  dibujarUnAutoPanel(panel, index);
 }
 
 // ============================================================
