@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ICG EvoTen v3.15.2 | Multi-obra</title>
+<title>ICG EvoTen v3.15.3 | Multi-obra</title>
 <script src="https://cdn.tailwindcss.com/3.4.1"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
@@ -408,7 +408,7 @@ main { max-width:1400px; margin:0 auto; padding:24px 20px 60px; }
 
 <div id="app-header">
   <div style="display:flex;align-items:center;gap:14px;">
-    <div class="app-badge">v3.15.2</div>
+    <div class="app-badge">v3.15.3</div>
     <div>
       <div class="app-title">ICG EvoTen · Evolución y Tendencia</div>
     </div>
@@ -697,7 +697,7 @@ const PANEL_MAP_CANVAS = {
 // Versión de la app — se estampa en el JSON exportado (STATE.generado_con) para que,
 // si mañana cambia la lógica de detección/visualización, el motor pueda detectar JSON
 // generados con una versión anterior y aplicar un fallback en vez de romper.
-const APP_VERSION = 'v3.15.2';
+const APP_VERSION = 'v3.15.3';
 
 // CAMPOS_BASE — plantilla de ids/tipos usada por "Nueva UO en blanco" en el tab Configuración.
 // No es un perfil de extracción (no tiene anclas propias); solo define QUÉ campos existen.
@@ -1881,6 +1881,27 @@ function colorAutoPanelSerie(panelIndex, serieIndex){
 // fila en el grupo el resultado visual es idéntico a versiones anteriores (leyenda oculta,
 // 1 dataset); con 2+ filas agrupadas por "titulo" se dibujan N datasets del MISMO chartType
 // (nunca mixto barra/línea, por diseño), con leyenda visible para poder distinguirlas.
+// v3.15.3: SOLUCIÓN DE RAÍZ contra el corte/solapamiento de datalabels — en vez de padding/offset
+// fijos "adivinados" para un caso puntual (v3.15.1/v3.15.2), se MIDE el texto real que se va a
+// dibujar, con la fuente real que usa Chart.js en esta app (no se asume ningún nombre de fuente:
+// se lee de Chart.defaults.font.family en tiempo de ejecución). Investigado contra la
+// documentación oficial de chartjs-plugin-datalabels antes de implementar: la librería NO calcula
+// esto automáticamente (hay issues abiertos sin resolver pidiéndolo) — la única forma robusta es
+// medirlo nosotros mismos con ctx.measureText().
+function medirTextoDatalabel(texto, fontWeight=700, fontSize=10){
+  const familia = (typeof Chart !== 'undefined' && Chart.defaults?.font?.family) || 'sans-serif';
+  if(!medirTextoDatalabel._canvas) medirTextoDatalabel._canvas = document.createElement('canvas');
+  const ctx = medirTextoDatalabel._canvas.getContext('2d');
+  ctx.font = `${fontWeight} ${fontSize}px ${familia}`;
+  const m = ctx.measureText(String(texto ?? ''));
+  // Alto real de la fuente (no todos los navegadores exponen actualBoundingBox*, fallback a una
+  // estimación estándar de line-height ~1.2x el tamaño de fuente).
+  const alto = (typeof m.actualBoundingBoxAscent === 'number' && typeof m.actualBoundingBoxDescent === 'number')
+    ? m.actualBoundingBoxAscent + m.actualBoundingBoxDescent
+    : fontSize * 1.2;
+  return { ancho: m.width, alto };
+}
+
 function dibujarUnAutoPanel(p, panelIndex){
   destroyChart(`auto_${p.id}`);
   const { tipoEfectivo } = iconoAutoPanel(p);
@@ -1904,6 +1925,60 @@ function dibujarUnAutoPanel(p, panelIndex){
   // por Ale en producción. La lógica final de formatter/align queda definida por dataset, más
   // abajo (depende de `dosSeries` y de los decimales propios de cada serie).
   const dosSeries = p.series.length === 2;
+
+  // v3.15.2: estilo "caja" (fondo blanco, borde de color, esquinas redondeadas) SOLO en paneles
+  // de 2 series — mismo patrón que ya usa "Contribución (%)" en chart-hh. Constantes acá arriba
+  // (una sola vez) para que la medición de v3.15.3 y el estilo real de la caja usen EXACTAMENTE
+  // los mismos números — si mañana se cambia el padding de la caja, la medición se ajusta sola.
+  const CAJA_BORDE = 1.5, CAJA_PAD_H = 5, CAJA_PAD_V = 3, CAJA_RADIO = 6;
+  const FONT_SIZE_LABEL = 10, FONT_WEIGHT_LABEL = 700;
+
+  // v3.15.3: SOLUCIÓN DE RAÍZ — offset por serie y padding del layout calculados MIDIENDO el
+  // texto real (medirTextoDatalabel), en vez de los números fijos "adivinados" de v3.15.1/v3.15.2
+  // (offset 6/32, padding.right:72) que solo andaban para el panel con el que se probaron y
+  // fallaban en paneles con textos/anchos distintos (confirmado por Ale con "Costo Industrial").
+  let offsetPorSerie = [];
+  let paddingDinamico;
+  if(dosSeries){
+    const MARGEN_ENTRE_CAJAS = 6; // aire entre una caja y la de al lado apilada arriba
+    // v3.15.3: en BARRA, la última barra de un grupo de 2 queda corrida a la derecha del centro
+    // de su período (las barras agrupadas se reparten el ancho de la categoría) — ese corrimiento
+    // depende del ancho final del gráfico, que todavía no existe en este punto (se calcula recién
+    // al crear el Chart), así que no se puede medir con precisión de antemano. Se reserva un
+    // margen fijo chico y documentado para ese caso puntual — el resto del padding SÍ es 100%
+    // medido. En línea no aplica (los puntos de las 2 series comparten la misma posición X).
+    const MARGEN_CORRIMIENTO_BARRA = chartType === 'bar' ? 24 : 0;
+    const cajas = datasetsInfo.map(({ serie, dataSerie }) => {
+      const ultimoVal = dataSerie[dataSerie.length - 1];
+      const texto = typeof ultimoVal === 'number' ? fmtAR(ultimoVal, serie.decimales) : '';
+      const { ancho, alto } = medirTextoDatalabel(texto, FONT_WEIGHT_LABEL, FONT_SIZE_LABEL);
+      return {
+        anchoCaja: ancho + CAJA_PAD_H*2 + CAJA_BORDE*2,
+        altoCaja: alto + CAJA_PAD_V*2 + CAJA_BORDE*2
+      };
+    });
+    let acumulado = 6; // 1ª serie, pegada a su barra/punto (igual criterio que siempre)
+    cajas.forEach((caja) => {
+      offsetPorSerie.push(acumulado);
+      acumulado += caja.altoCaja + MARGEN_ENTRE_CAJAS;
+    });
+    const maxAnchoCaja = Math.max(...cajas.map(c => c.anchoCaja), 0);
+    paddingDinamico = {
+      top: Math.ceil(acumulado) + 4,
+      bottom: Math.ceil(acumulado) + 4,
+      right: Math.ceil(maxAnchoCaja/2) + MARGEN_CORRIMIENTO_BARRA
+    };
+  } else {
+    // Panel de 1 sola serie: sin caja, todos los puntos muestran etiqueta (v3.10). Se mide el
+    // ancho de TODOS los valores (cualquiera podría ser el más ancho) para el padding derecho;
+    // top/bottom quedan en 24 fijo, como siempre — ahí nunca se reportó problema y no hay caja
+    // que le agregue altura extra que dependa del contenido.
+    const anchos = datasetsInfo[0].dataSerie
+      .filter(v => typeof v === 'number')
+      .map(v => medirTextoDatalabel(fmtAR(v, datasetsInfo[0].serie.decimales), FONT_WEIGHT_LABEL, FONT_SIZE_LABEL).ancho);
+    const maxAnchoSimple = anchos.length ? Math.max(...anchos) : 0;
+    paddingDinamico = { top:24, bottom:24, right: Math.ceil(maxAnchoSimple/2) + 8 };
+  }
 
   // Buffer de escala anti-clipping (mismo patrón que renderChartEstimActual): le da aire arriba
   // del valor más alto para que el datalabel no choque contra el techo del gráfico.
@@ -1931,7 +2006,7 @@ function dibujarUnAutoPanel(p, panelIndex){
     const formatterDatalabel = dosSeries
       ? (val, ctx) => (ctx.dataIndex === ultimoIdx && typeof val === 'number') ? fmtAR(val, serie.decimales) : null
       : (val) => typeof val === 'number' ? fmtAR(val, serie.decimales) : null;
-    const offsetDatalabel = dosSeries ? (i === 0 ? 6 : 32) : undefined;
+    const offsetDatalabel = dosSeries ? offsetPorSerie[i] : undefined;
     return {
       label: multiSerie ? (serie.leyenda || serie.id) : p.titulo,
       data: dataSerie,
@@ -1951,13 +2026,15 @@ function dibujarUnAutoPanel(p, panelIndex){
         offset: offsetDatalabel,
         clamp:false,
         // v3.15.2: caja visual SOLO en paneles de 2 series (panel de 1 sola serie sigue como
-        // siempre, sin caja, sin cambios visuales).
+        // siempre, sin caja, sin cambios visuales). v3.15.3: mismas constantes que usa la
+        // medición de arriba (CAJA_*) — si se cambia el padding/borde de la caja, la medición
+        // de offset/padding del layout se ajusta sola, sin quedar desincronizada.
         backgroundColor: dosSeries ? '#ffffff' : undefined,
         borderColor: dosSeries ? colorBase : undefined,
-        borderWidth: dosSeries ? 1.5 : undefined,
-        borderRadius: dosSeries ? 6 : undefined,
-        padding: dosSeries ? {top:3,bottom:3,left:5,right:5} : undefined,
-        color:(ctx)=>colorSiNeg(ctx.dataset.data[ctx.dataIndex], colorBase), font:{weight:'700',size:10}, formatter: formatterDatalabel }
+        borderWidth: dosSeries ? CAJA_BORDE : undefined,
+        borderRadius: dosSeries ? CAJA_RADIO : undefined,
+        padding: dosSeries ? {top:CAJA_PAD_V,bottom:CAJA_PAD_V,left:CAJA_PAD_H,right:CAJA_PAD_H} : undefined,
+        color:(ctx)=>colorSiNeg(ctx.dataset.data[ctx.dataIndex], colorBase), font:{weight:FONT_WEIGHT_LABEL,size:FONT_SIZE_LABEL}, formatter: formatterDatalabel }
     };
   });
 
@@ -1965,17 +2042,14 @@ function dibujarUnAutoPanel(p, panelIndex){
     type: chartType,
     data:{ labels:labelsPeriodos(), datasets },
     options:{
-      // v3.13: padding fijo en píxeles, sumado al buffer de suggestedMax/suggestedMin. El buffer
-      // da aire en la ESCALA de datos, pero Chart.js redondea el eje a números "lindos" para la
-      // grilla — a veces ese redondeo deja poco margen REAL en píxeles aunque el buffer esté bien
-      // calculado (caso "Dólar": buffer pedía ~1.527, el eje redondeó a 1.600, quedó justo). El
-      // padding fijo garantiza aire real sin depender de cómo caiga el redondeo. top/bottom por
-      // si el caso simétrico (barra muy negativa) tuviera el mismo problema.
-      // v3.15.2: se agrega `right` — el último punto (línea o barra) queda pegado al borde
-      // derecho del canvas sin margen, cortando el datalabel del último período (confirmado por
-      // Ale en modo línea). Mismo patrón y mismo valor (72px) que ya usa renderChartHH() más
-      // arriba para su datalabel "solo último".
-      layout:{ padding:{ top:24, bottom:24, right:72 } },
+      // v3.13: padding para que el datalabel no choque contra los bordes del canvas — el buffer
+      // de suggestedMax/suggestedMin da aire en la ESCALA de datos, pero Chart.js redondea el eje
+      // a números "lindos" para la grilla y a veces ese redondeo deja poco margen REAL en píxeles.
+      // v3.15.3: en vez de números fijos "adivinados" (24/24/72, que solo andaban para el panel
+      // puntual con el que se probaron — ver handoff v3.15.2), `paddingDinamico` se calcula más
+      // arriba MIDIENDO el texto real de cada panel (medirTextoDatalabel) — se ajusta solo sea
+      // cual sea el ancho de los valores, la cantidad de series, o el tipo de gráfico.
+      layout:{ padding: paddingDinamico },
       plugins:{
         // v3.15: leyenda visible solo cuando el panel combina 2+ series — en panel de 1 sola
         // serie sigue oculta, sin cambios visuales respecto a versiones anteriores.
