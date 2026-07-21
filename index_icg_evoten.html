@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ICG EvoTen v4.0.0 | Multi-obra</title>
+<title>ICG EvoTen v4.1.0 | Multi-obra</title>
 <script src="https://cdn.tailwindcss.com/3.4.1"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
@@ -439,7 +439,7 @@ main { max-width:1400px; margin:0 auto; padding:24px 20px 60px; }
 
 <div id="app-header">
   <div style="display:flex;align-items:center;gap:14px;">
-    <div class="app-badge">v4.0.0</div>
+    <div class="app-badge">v4.1.0</div>
     <div>
       <div class="app-title">ICG EvoTen · Evolución y Tendencia</div>
     </div>
@@ -463,6 +463,10 @@ main { max-width:1400px; margin:0 auto; padding:24px 20px 60px; }
     <button class="btn-hdr btn-export" onclick="exportarJSON()">
       <i class="ti ti-download"></i> Exportar JSON
     </button>
+    <button class="btn-hdr btn-json" onclick="document.getElementById('input-json-xlsx').click()" title="Convierte un JSON exportado de EvoTen (de cualquier obra) a un XLSX con los 9 paneles fijos, uno por hoja">
+      <i class="ti ti-file-type-xls"></i> Convertir JSON a XLSX
+    </button>
+    <input type="file" id="input-json-xlsx" class="hidden-input" accept=".json" onchange="onJsonToXlsxSelected(event)">
   </div>
 </div>
 
@@ -728,7 +732,7 @@ const PANEL_MAP_CANVAS = {
 // Versión de la app — se estampa en el JSON exportado (STATE.generado_con) para que,
 // si mañana cambia la lógica de detección/visualización, el motor pueda detectar JSON
 // generados con una versión anterior y aplicar un fallback en vez de romper.
-const APP_VERSION = 'v4.0.0';
+const APP_VERSION = 'v4.1.0';
 
 // CAMPOS_BASE — plantilla de ids/tipos usada por "Nueva UO en blanco" en el tab Configuración.
 // No es un perfil de extracción (no tiene anclas propias); solo define QUÉ campos existen.
@@ -1240,6 +1244,14 @@ async function onXlsxApoyoSelected(evt){
   }
 }
 
+// v4.1.0: timestamp en el nombre de archivo (YYYYMMDD_HHMMSS) — evita que exportaciones
+// sucesivas se pisen entre sí y elimina la necesidad de versionar manualmente cada descarga.
+function timestampArchivo(){
+  const d = new Date();
+  const pad = n => String(n).padStart(2,'0');
+  return `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}_${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}`;
+}
+
 function exportarJSON(){
   if(STATE.periodos.length === 0){ toast('No hay datos para exportar', 'warn'); return; }
   STATE.generado_con = APP_VERSION;
@@ -1247,10 +1259,117 @@ function exportarJSON(){
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `icg_evoten_${STATE.obra}_acumulado.json`;
+  a.download = `icg_evoten_${STATE.obra}_acumulado_${timestampArchivo()}.json`;
   a.click();
   URL.revokeObjectURL(url);
   toast('JSON exportado', 'ok');
+}
+
+// ============================================================
+// CONVERSOR JSON → XLSX (v4.1.0)
+// Toma cualquier JSON exportado de EvoTen (no necesariamente la obra cargada en
+// pantalla — no toca STATE) y lo convierte a un XLSX con 9 hojas fijas, una por
+// cada panel del dashboard, en el mismo orden en que aparecen en pantalla.
+// Auto Paneles quedan fuera a propósito (Ale ya los tiene en XLSX aparte).
+// Formato de valor por celda: el mismo número que ve en el gráfico (ej. porcentajes
+// ya multiplicados x100, sin redondear a 1 decimal — precisión completa para poder
+// seguir operando en Excel). Cuando el dato no existe (ej. Δ mensual del primer
+// período, que no tiene mes anterior contra el cual calcularse), la celda queda
+// vacía (null), no en 0 — decisión explícita de Ale (sesión 21-jul-2026).
+// ============================================================
+
+// Definición de las 9 hojas fijas: clave del panel, título de hoja/fila 1, y la
+// lista de series con su columna de datos (misma fuente que las funciones
+// renderChartXxx() del dashboard — ver STATE.periodos[i].datos / .derivados).
+const PANELES_XLSX_FIJOS = [
+  { clave:'margen', titulo:'Margen Total Proyectado (%)', series:[
+    { col:'Margen Total Proyectado (%)', get:p => typeof p.datos.margen_total_pct==='number' ? p.datos.margen_total_pct*100 : null }
+  ]},
+  { clave:'resultado', titulo:'Resultado Acumulado de Gestión', series:[
+    { col:'Resultado Acum. Gestión (MM$)', get:p => p.datos.resultado_acum_valor ?? null },
+    { col:'Contribución (%)', get:p => typeof p.datos.resultado_acum_pct==='number' ? p.datos.resultado_acum_pct*100 : null }
+  ]},
+  { clave:'hh', titulo:'Horas Hombre', series:[
+    { col:'Directos (miles HH)', get:p => typeof p.datos.hh_directos==='number' ? p.datos.hh_directos/1000 : null },
+    { col:'Indirectos (miles HH)', get:p => typeof p.datos.hh_indirectos==='number' ? p.datos.hh_indirectos/1000 : null },
+    { col:'Total (miles HH)', get:p => typeof p.datos.hh_total==='number' ? p.datos.hh_total/1000 : null }
+  ]},
+  { clave:'costohh', titulo:'Costo HH Vestida', series:[
+    { col:'Real Mes', get:p => p.datos.costo_hh_vestida_real ?? null },
+    { col:'Ppto Mes', get:p => p.datos.costo_hh_vestida_ppto ?? null }
+  ]},
+  { clave:'avance', titulo:'Avance Físico Real vs. Ppto', series:[
+    { col:'Real acum. (%)', get:p => typeof p.datos.avance_fisico_real==='number' ? p.datos.avance_fisico_real*100 : null },
+    { col:'Ppto acum. (%)', get:p => typeof p.datos.avance_fisico_ppto==='number' ? p.datos.avance_fisico_ppto*100 : null },
+    { col:'Δ mensual Real (pp)', get:p => typeof p.derivados?.avance_fisico_real_delta==='number' ? p.derivados.avance_fisico_real_delta*100 : null },
+    { col:'Δ mensual Ppto (pp)', get:p => typeof p.derivados?.avance_fisico_ppto_delta==='number' ? p.derivados.avance_fisico_ppto_delta*100 : null }
+  ]},
+  { clave:'faltante', titulo:'Margen del Faltante (%)', series:[
+    { col:'Margen del Faltante (%)', get:p => typeof p.datos.margen_faltante_pct==='number' ? p.datos.margen_faltante_pct*100 : null }
+  ]},
+  { clave:'costofaltante', titulo:'Costo Faltante ($)', series:[
+    { col:'Costo Faltante ($)', get:p => p.datos.costo_faltante ?? null }
+  ]},
+  { clave:'estimactual', titulo:'Proyecto Estimado Actual (MM$)', series:[
+    { col:'Proyecto Estim. Actual (MM$)', get:p => p.datos.proyecto_estim_actual ?? null }
+  ]},
+  { clave:'avanceventa', titulo:'Avance de Venta (%)', series:[
+    { col:'Avance de Venta (%)', get:p => typeof p.derivados?.venta_avance_pct==='number' ? p.derivados.venta_avance_pct*100 : null }
+  ]}
+];
+
+// dd/mm/yyyy con día fijo en 01 (el período solo tiene año/mes) — formato pedido
+// por Ale para la fila 2 de cada hoja (sesión 21-jul-2026).
+function fechaDDMMYYYY(anio, mes){
+  return `01/${String(mes).padStart(2,'0')}/${anio}`;
+}
+
+function construirWorkbookFijos(json){
+  const periodos = json.periodos; // ya vienen ordenados cronológicamente (upsertPeriodo los ordena al cargar)
+  const wb = XLSX.utils.book_new();
+
+  const rangoTexto = periodos.length
+    ? `${fechaDDMMYYYY(periodos[0].periodo.anio, periodos[0].periodo.mes)} a ${fechaDDMMYYYY(periodos[periodos.length-1].periodo.anio, periodos[periodos.length-1].periodo.mes)}`
+    : '';
+
+  for(const panel of PANELES_XLSX_FIJOS){
+    const filas = [];
+    filas.push([panel.titulo]);
+    filas.push([rangoTexto]);
+    filas.push(['Año', 'Mes', ...panel.series.map(s => s.col)]);
+    for(const p of periodos){
+      filas.push([p.periodo.anio, p.periodo.mes, ...panel.series.map(s => s.get(p))]);
+    }
+    const ws = XLSX.utils.aoa_to_sheet(filas);
+    XLSX.utils.book_append_sheet(wb, ws, panel.clave);
+  }
+  return wb;
+}
+
+function onJsonToXlsxSelected(evt){
+  const file = evt.target.files[0];
+  if(!file) return;
+  showSpinner('Convirtiendo JSON a XLSX…');
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try{
+      const json = JSON.parse(e.target.result);
+      if(!json.obra || !Array.isArray(json.periodos)) throw new Error('Estructura de JSON inválida (se espera {obra, periodos:[...]})');
+      if(json.periodos.length === 0){ toast('El JSON no tiene períodos cargados', 'warn'); return; }
+
+      const wb = construirWorkbookFijos(json);
+      XLSX.writeFile(wb, `icg_evoten_${json.obra}_datos_${timestampArchivo()}.xlsx`);
+      toast(`XLSX generado (${PANELES_XLSX_FIJOS.length} hojas) para obra ${json.obra}`, 'ok');
+    } catch(err){
+      toast('Error al convertir JSON a XLSX: ' + err.message, 'err');
+      console.error(err);
+    } finally{
+      hideSpinner();
+      evt.target.value = '';
+    }
+  };
+  reader.onerror = () => { toast('Error al leer el archivo', 'err'); hideSpinner(); evt.target.value = ''; };
+  reader.readAsText(file);
 }
 
 // ============================================================
