@@ -425,7 +425,21 @@ main { max-width:1400px; margin:0 auto; padding:24px 20px 60px; }
 @media print {
   body { background:#fff !important; }
   #eco-header, #app-header, #tab-bar { display:none !important; }
+  .print-notas-footer { display:block !important; margin-top:24px; }
+  body.no-print-notas .print-notas-footer { display:none !important; }
 }
+
+/* v4.2.0 — Notas al pie (punto c): oculto siempre en pantalla, visible solo en @media print
+   (salvo que el toggle del header lo desactive, ver body.no-print-notas arriba). */
+.print-notas-footer { display:none; }
+.tabla-notas-pie { width:100%; border-collapse:collapse; font-size:10px; }
+.tabla-notas-pie th, .tabla-notas-pie td { border:1px solid #cbd5e1; padding:6px 8px; text-align:left; vertical-align:top; }
+.tabla-notas-pie th { background:#f1f5f9; font-weight:700; text-transform:uppercase; letter-spacing:.04em; font-size:9px; color:#64748b; }
+.tabla-notas-pie td:first-child { font-weight:700; white-space:nowrap; }
+.tabla-notas-pie td:last-child { white-space:nowrap; color:#64748b; }
+
+/* Botón toggle de notas al pie — mismo estilo base btn-hdr, con estado "activo" en verde */
+#btn-toggle-notas-impresion.activo { border-color:#10b981; color:#10b981; }
 </style>
 </head>
 <body>
@@ -439,7 +453,7 @@ main { max-width:1400px; margin:0 auto; padding:24px 20px 60px; }
 
 <div id="app-header">
   <div style="display:flex;align-items:center;gap:14px;">
-    <div class="app-badge">v4.1.0</div>
+    <div class="app-badge">v4.2.0</div>
     <div>
       <div class="app-title">ICG EvoTen · Evolución y Tendencia</div>
     </div>
@@ -463,10 +477,13 @@ main { max-width:1400px; margin:0 auto; padding:24px 20px 60px; }
     <button class="btn-hdr btn-export" onclick="exportarJSON()">
       <i class="ti ti-download"></i> Exportar JSON
     </button>
-    <button class="btn-hdr btn-json" onclick="document.getElementById('input-json-xlsx').click()" title="Convierte un JSON exportado de EvoTen (de cualquier obra) a un XLSX con los 9 paneles fijos, uno por hoja">
+    <button class="btn-hdr btn-json" onclick="document.getElementById('input-json-xlsx').click()" title="Convierte un JSON exportado de EvoTen a un XLSX con los 9 paneles fijos (mismo nombre que el JSON elegido). En Chrome/Edge elegís carpeta destino; otros navegadores van a Descargas.">
       <i class="ti ti-file-type-xls"></i> Convertir JSON a XLSX
     </button>
     <input type="file" id="input-json-xlsx" class="hidden-input" accept=".json" onchange="onJsonToXlsxSelected(event)">
+    <button class="btn-hdr activo" id="btn-toggle-notas-impresion" onclick="toggleNotasImpresion()">
+      <i class="ti ti-notes"></i> Notas al pie (impresión): ON
+    </button>
   </div>
 </div>
 
@@ -614,6 +631,11 @@ main { max-width:1400px; margin:0 auto; padding:24px 20px 60px; }
     <div id="section-title-autopaneles" class="section-title" style="display:none;">Datos Extra</div>
     <div class="grid-3col" id="autopaneles-container" style="margin-bottom:16px;"></div>
 
+    <!-- ── Notas al pie — SOLO visible en impresión/PDF (v4.2.0, punto c) ── -->
+    <!-- Se arma justo antes de imprimir (evento beforeprint) para reflejar el estado real de
+         STATE.notasPaneles al momento de imprimir, no el de cuando se cargó la página. -->
+    <div id="print-notas-footer" class="print-notas-footer"></div>
+
   </div>
 </div>
 
@@ -732,7 +754,7 @@ const PANEL_MAP_CANVAS = {
 // Versión de la app — se estampa en el JSON exportado (STATE.generado_con) para que,
 // si mañana cambia la lógica de detección/visualización, el motor pueda detectar JSON
 // generados con una versión anterior y aplicar un fallback en vez de romper.
-const APP_VERSION = 'v4.1.0';
+const APP_VERSION = 'v4.2.0';
 
 // CAMPOS_BASE — plantilla de ids/tipos usada por "Nueva UO en blanco" en el tab Configuración.
 // No es un perfil de extracción (no tiene anclas propias); solo define QUÉ campos existen.
@@ -1346,20 +1368,49 @@ function construirWorkbookFijos(json){
   return wb;
 }
 
+// v4.2.0 — Punto a): antes el XLSX salía con nombre propio (icg_evoten_{obra}_datos_{timestamp
+// de la conversión}.xlsx) y siempre a la carpeta de Descargas (única opción de <a download>).
+// Ahora: mismo nombre base que el JSON elegido, y en Chrome/Edge se puede elegir la carpeta
+// destino (File System Access API). Firefox/Safari no soportan showSaveFilePicker — ahí no hay
+// forma de elegir carpeta desde el navegador, cae al comportamiento clásico (Descargas).
+async function guardarWorkbookComoXlsx(wb, nombreSugerido){
+  if('showSaveFilePicker' in window){
+    try{
+      const handle = await window.showSaveFilePicker({
+        suggestedName: nombreSugerido,
+        types: [{ description:'Libro de Excel', accept:{ 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet':['.xlsx'] } }]
+      });
+      const arrayBuffer = XLSX.write(wb, { bookType:'xlsx', type:'array' });
+      const writable = await handle.createWritable();
+      await writable.write(new Blob([arrayBuffer], { type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
+      await writable.close();
+      return true;
+    } catch(err){
+      // El usuario cerró/canceló el diálogo de guardado — no es un error, silencio total (sin toast).
+      if(err && err.name === 'AbortError') return false;
+      throw err;
+    }
+  }
+  // Fallback: navegador sin soporte de File System Access API.
+  XLSX.writeFile(wb, nombreSugerido);
+  return true;
+}
+
 function onJsonToXlsxSelected(evt){
   const file = evt.target.files[0];
   if(!file) return;
   showSpinner('Convirtiendo JSON a XLSX…');
   const reader = new FileReader();
-  reader.onload = (e) => {
+  reader.onload = async (e) => {
     try{
       const json = JSON.parse(e.target.result);
       if(!json.obra || !Array.isArray(json.periodos)) throw new Error('Estructura de JSON inválida (se espera {obra, periodos:[...]})');
       if(json.periodos.length === 0){ toast('El JSON no tiene períodos cargados', 'warn'); return; }
 
       const wb = construirWorkbookFijos(json);
-      XLSX.writeFile(wb, `icg_evoten_${json.obra}_datos_${timestampArchivo()}.xlsx`);
-      toast(`XLSX generado (${PANELES_XLSX_FIJOS.length} hojas) para obra ${json.obra}`, 'ok');
+      const nombreSalida = file.name.replace(/\.json$/i, '') + '.xlsx'; // v4.2.0: mismo nombre base que el JSON elegido
+      const guardado = await guardarWorkbookComoXlsx(wb, nombreSalida);
+      if(guardado) toast(`XLSX generado (${PANELES_XLSX_FIJOS.length} hojas) para obra ${json.obra}`, 'ok');
     } catch(err){
       toast('Error al convertir JSON a XLSX: ' + err.message, 'err');
       console.error(err);
@@ -1593,6 +1644,65 @@ function notaPanelActualizarIconos(){
     if(tieneNota) icono.classList.add(`color-${n.color}`);
   });
 }
+
+// ============================================================
+// NOTAS AL PIE — solo impresión/PDF (v4.2.0, punto c)
+// Tabla con TODOS los paneles que tengan nota cargada (fijos + Auto Paneles, sin distinción),
+// en el mismo orden en que aparecen en el dashboard. El orden sale gratis recorriendo el DOM
+// real (document.querySelectorAll ya devuelve los nodos en orden de aparición) — no hay que
+// mantener un array manual de claves que se podría desincronizar si mañana se reordena una
+// sección o se agregan paneles nuevos.
+// Toggle: NO persiste entre sesiones/recargas (mismo criterio que autoPanelTipoOverride) —
+// arranca siempre en ON. Si más adelante Ale quiere que se recuerde, es un solo cambio
+// (guardar/leer de localStorage en vez de esta variable en memoria).
+// ============================================================
+let notasImpresionActivas = true;
+
+function toggleNotasImpresion(){
+  notasImpresionActivas = !notasImpresionActivas;
+  document.body.classList.toggle('no-print-notas', !notasImpresionActivas);
+  actualizarBotonNotasImpresion();
+}
+
+function actualizarBotonNotasImpresion(){
+  const btn = document.getElementById('btn-toggle-notas-impresion');
+  if(!btn) return;
+  btn.classList.toggle('activo', notasImpresionActivas);
+  btn.innerHTML = `<i class="ti ti-notes"></i> Notas al pie (impresión): ${notasImpresionActivas ? 'ON' : 'OFF'}`;
+}
+
+function renderNotasPieImpresion(){
+  const cont = document.getElementById('print-notas-footer');
+  if(!cont) return;
+
+  const filas = [];
+  document.querySelectorAll('.nota-panel-icono').forEach(icono => {
+    const clave = icono.dataset.clave;
+    const n = STATE.notasPaneles[clave];
+    if(!n || !n.texto || n.texto.trim() === '') return; // solo paneles con nota cargada
+    const h3 = icono.closest('.bloque-hdr')?.querySelector('h3');
+    filas.push({ titulo: h3 ? h3.textContent : clave, texto: n.texto, fecha: n.editado_en });
+  });
+
+  if(!filas.length){ cont.innerHTML = ''; return; }
+
+  cont.innerHTML = `
+    <div class="section-title">Notas / Conclusiones — Detalle por Panel</div>
+    <table class="tabla-notas-pie">
+      <thead><tr><th>Panel</th><th>Contenido</th><th>Fecha y hora</th></tr></thead>
+      <tbody>
+        ${filas.map(f => `<tr>
+          <td>${escAttr(f.titulo)}</td>
+          <td>${escAttr(f.texto).replace(/\n/g,'<br>')}</td>
+          <td>${f.fecha ? notasFmtFecha(f.fecha) : '—'}</td>
+        </tr>`).join('')}
+      </tbody>
+    </table>`;
+}
+
+// Se arma justo antes de imprimir, no en cada render del dashboard — así siempre refleja el
+// estado más reciente de las notas sin recalcular nada en cada keystroke del textarea.
+window.addEventListener('beforeprint', renderNotasPieImpresion);
 
 // Cierre por click afuera del popover (y de cualquier ícono, que ya maneja su propio toggle) +
 // tecla Escape — patrón estándar de popover, distinto del modal de períodos (que usa un backdrop
@@ -2694,6 +2804,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.querySelectorAll('.nota-panel-slot').forEach(slot => {
     slot.outerHTML = notaPanelIcono(slot.dataset.clave);
   });
+  actualizarBotonNotasImpresion(); // v4.2.0: label inicial del toggle (arranca en ON)
 });
 </script>
 <div id="nota-panel-popover" class="nota-panel-popover"></div>
