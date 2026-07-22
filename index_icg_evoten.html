@@ -453,7 +453,7 @@ main { max-width:1400px; margin:0 auto; padding:24px 20px 60px; }
 
 <div id="app-header">
   <div style="display:flex;align-items:center;gap:14px;">
-    <div class="app-badge">v4.3.0</div>
+    <div class="app-badge">v4.3.1</div>
     <div>
       <div class="app-title">ICG EvoTen · Evolución y Tendencia</div>
     </div>
@@ -779,7 +779,7 @@ const PANEL_MAP_CANVAS = {
 // Versión de la app — se estampa en el JSON exportado (STATE.generado_con) para que,
 // si mañana cambia la lógica de detección/visualización, el motor pueda detectar JSON
 // generados con una versión anterior y aplicar un fallback en vez de romper.
-const APP_VERSION = 'v4.3.0';
+const APP_VERSION = 'v4.3.1';
 
 // CAMPOS_BASE — plantilla de ids/tipos usada por "Nueva UO en blanco" en el tab Configuración.
 // No es un perfil de extracción (no tiene anclas propias); solo define QUÉ campos existen.
@@ -2332,19 +2332,24 @@ function renderChartROEscenarios(){
   destroyChart('roescenarios');
   const ctx = document.getElementById('chart-roescenarios');
   const nMeses = STATE.periodos.length;
-  const datalabelUltimoIzq = (color) => ({
-    align:'left', anchor:'center', offset:10, font:{weight:'700',size:10}, color,
+  // v4.3.1: a pedido de Ale, las etiquetas pasan de la izquierda a la derecha del punto, con
+  // una inclinación distinta por serie para que no se pisen entre sí (las 3 líneas quedan muy
+  // juntas en el último período): Optimista arriba-derecha, Probable derecha centro, Peor
+  // abajo-derecha. El plugin de datalabels acepta ángulos en grados en `align` para posiciones
+  // diagonales (negativo = hacia arriba, positivo = hacia abajo, 0/'right' = centro).
+  const datalabelUltimo = (color, align) => ({
+    align, anchor:'center', offset:10, font:{weight:'700',size:10}, color,
     formatter:(v,ctx2)=> (ctx2.dataIndex === nMeses-1 && typeof v==='number') ? fmtAR(v,1)+'%' : null
   });
   charts['roescenarios'] = new Chart(ctx, {
     type:'line',
     data:{ labels:labelsPeriodos(), datasets:[
       { label:'Peor', data: STATE.periodos.map(p=>typeof p.datos.ro_peor_pct==='number' ? p.datos.ro_peor_pct*100 : null),
-        borderColor: COLOR.red, backgroundColor: COLOR.red, tension:.3, pointRadius:4, datalabels: datalabelUltimoIzq(COLOR.red) },
+        borderColor: COLOR.red, backgroundColor: COLOR.red, tension:.3, pointRadius:4, datalabels: datalabelUltimo(COLOR.red, 45) },
       { label:'Probable', data: STATE.periodos.map(p=>typeof p.datos.ro_probable_pct==='number' ? p.datos.ro_probable_pct*100 : null),
-        borderColor: COLOR.cyan, backgroundColor: COLOR.cyan, tension:.3, pointRadius:4, datalabels: datalabelUltimoIzq(COLOR.cyan) },
+        borderColor: COLOR.cyan, backgroundColor: COLOR.cyan, tension:.3, pointRadius:4, datalabels: datalabelUltimo(COLOR.cyan, 'right') },
       { label:'Optimista', data: STATE.periodos.map(p=>typeof p.datos.ro_optimista_pct==='number' ? p.datos.ro_optimista_pct*100 : null),
-        borderColor: COLOR.green, backgroundColor: COLOR.green, tension:.3, pointRadius:4, datalabels: datalabelUltimoIzq(COLOR.green) },
+        borderColor: COLOR.green, backgroundColor: COLOR.green, tension:.3, pointRadius:4, datalabels: datalabelUltimo(COLOR.green, -45) },
       { label:'Margen Acordado (ref.)', data: STATE.periodos.map(p=>typeof p.datos.margen_obra==='number' ? p.datos.margen_obra*100 : null),
         borderColor: COLOR.slate, borderDash:[8,4], borderWidth:2.5, pointRadius:0, tension:.3, datalabels:{ display:false } }
     ]},

@@ -1,6 +1,6 @@
 {
   "version": "v4.2.0",
-  "actualizado": "2026-07-22T12:39:41.649Z",
+  "actualizado": "2026-07-22T14:39:17.759Z",
   "obras": {
     "1316": {
       "nombre": "Acueducto Gran Tulum",
@@ -184,14 +184,14 @@
       }
     },
     "1320": {
-      "nombre": "Planta de Ensenada ",
+      "nombre": "Planta Ensenada",
       "sheetName": "2 - TC",
-      "estado": "ok",
+      "estado": "pendiente",
       "campos": [
         {
           "id": "margen_total_pct",
           "celda": "F34",
-          "etiqueta": "Contribución · % (confirmado por Ale, 12-jul-2026)",
+          "etiqueta": "Contribución c/Aj. en Vta · %",
           "tipo": "directo"
         },
         {
@@ -257,19 +257,19 @@
         {
           "id": "avance_fisico_real",
           "celda": "G45",
-          "etiqueta": "Construcción · Acum. Real",
+          "etiqueta": "Total Proyecto · Acum. Real",
           "tipo": "acumulado_delta"
         },
         {
           "id": "avance_fisico_ppto",
           "celda": "H45",
-          "etiqueta": "Total Construcción · Acum. Ppto",
+          "etiqueta": "Total Proyecto · Acum. Ppto",
           "tipo": "acumulado_delta"
         },
         {
           "id": "margen_faltante_pct",
           "celda": "D34",
-          "etiqueta": "Contribución · % Estim. Gestión",
+          "etiqueta": "Contribución c/Aj. en Vta · % Estim. Gestión",
           "tipo": "directo"
         },
         {
@@ -301,132 +301,59 @@
           "celda": "D32",
           "etiqueta": "TOTAL COSTO · Estim. Gestión",
           "tipo": "directo"
-        }
-      ],
-      "auxCeldas": {
-        "periodoReporte": "H1",
-        "fechaEmision": "H2",
-        "revisionHoja": "F1",
-        "margenOferta": "H3"
-      }
-    },
-    "1330-2": {
-      "nombre": "Oil Tanking -BB",
-      "sheetName": "2 - TC",
-      "estado": "pendiente",
-      "campos": [
+        },
         {
-          "id": "margen_total_pct",
-          "celda": "F33",
-          "etiqueta": "Contribución c/Aj. en Vta · %",
+          "id": "margen_base0_var_pct",
+          "celda": "A11",
+          "etiqueta": "Var. Contr. Marg. Real vs Base 0 (ya calculada)",
           "tipo": "directo"
         },
         {
-          "id": "dotacion_ppto",
-          "celda": "E49",
-          "etiqueta": "Dotación del mes · Ppto Vig. · Total",
+          "id": "venta_base0",
+          "celda": "G21",
+          "etiqueta": "Venta Aj x Margen · Base '0'",
           "tipo": "directo"
         },
         {
-          "id": "dotacion_actual",
-          "celda": "E50",
-          "etiqueta": "Dotación del mes · Actual · Total",
+          "id": "margen_base0_pct",
+          "celda": "G34",
+          "etiqueta": "% bajo Cont. Marginal Últ. Ppto Vig. · Base '0'",
           "tipo": "directo"
         },
         {
-          "id": "resultado_acum_valor",
+          "id": "venta_ppto_vigente",
+          "celda": "G20",
+          "etiqueta": "VENTA AJUSTADA (IGN) · Ppto Vig.",
+          "tipo": "directo"
+        },
+        {
+          "id": "costo_contable",
+          "celda": "B32",
+          "etiqueta": "TOTAL COSTO · Contable [AA]",
+          "tipo": "directo"
+        },
+        {
+          "id": "costo_gestion_ajustado",
           "celda": "C32",
-          "etiqueta": "Contribución c/Aj. en Vta · Gestión",
+          "etiqueta": "TOTAL COSTO · Gestión [AA+LG]",
           "tipo": "directo"
         },
         {
-          "id": "resultado_acum_pct",
-          "celda": "C33",
-          "etiqueta": "Contribución c/Aj. en Vta · % Gestión",
+          "id": "ro_peor_pct",
+          "celda": "F38",
+          "etiqueta": "Peor Escenario (R&O agregado)",
           "tipo": "directo"
         },
         {
-          "id": "costo_total",
-          "celda": "F31",
-          "etiqueta": "TOTAL COSTO · Estim. Actual",
+          "id": "ro_probable_pct",
+          "celda": "G38",
+          "etiqueta": "Probable (R&O agregado)",
           "tipo": "directo"
         },
         {
-          "id": "venta_ajustada",
-          "celda": "F19",
-          "etiqueta": "VENTA AJUSTADA (IGN) · Estim. Actual",
-          "tipo": "directo"
-        },
-        {
-          "id": "hh_directos",
-          "celda": "C41",
-          "etiqueta": "Directos Jornal. · Est. Total",
-          "tipo": "directo"
-        },
-        {
-          "id": "hh_indirectos",
-          "celda": "C42",
-          "etiqueta": "Indirectos Jornal. · Est. Total",
-          "tipo": "directo"
-        },
-        {
-          "id": "costo_hh_vestida_real",
-          "celda": "C53",
-          "etiqueta": "Costo HH Vestida · Real Mes",
-          "tipo": "directo"
-        },
-        {
-          "id": "costo_hh_vestida_ppto",
-          "celda": "D53",
-          "etiqueta": "Costo HH Vestida · Ppto. Mes",
-          "tipo": "directo"
-        },
-        {
-          "id": "avance_fisico_real",
-          "celda": "G47",
-          "etiqueta": "Total Proyecto · Acum. Real",
-          "tipo": "acumulado_delta"
-        },
-        {
-          "id": "avance_fisico_ppto",
-          "celda": "H47",
-          "etiqueta": "Total Proyecto · Acum. Ppto",
-          "tipo": "acumulado_delta"
-        },
-        {
-          "id": "margen_faltante_pct",
-          "celda": "D33",
-          "etiqueta": "Contribución c/Aj. en Vta · % Estim. Gestión",
-          "tipo": "directo"
-        },
-        {
-          "id": "margen_obra",
-          "celda": "F5",
-          "etiqueta": "Margen (celda fija de header)",
-          "tipo": "control"
-        },
-        {
-          "id": "mes_periodo",
-          "celda": "E1",
-          "etiqueta": "Mes X de Y (celda fija de header)",
-          "tipo": "info"
-        },
-        {
-          "id": "proyecto_estim_actual",
-          "celda": "F12",
-          "etiqueta": "Venta Contractual · Estim. Actual",
-          "tipo": "control"
-        },
-        {
-          "id": "venta_saldo_faltante",
-          "celda": "D12",
-          "etiqueta": "Venta Contractual · Estim. Gestión",
-          "tipo": "acumulado_delta"
-        },
-        {
-          "id": "costo_faltante",
-          "celda": "D31",
-          "etiqueta": "TOTAL COSTO · Estim. Gestión",
+          "id": "ro_optimista_pct",
+          "celda": "H38",
+          "etiqueta": "Optimista (R&O agregado)",
           "tipo": "directo"
         }
       ],
