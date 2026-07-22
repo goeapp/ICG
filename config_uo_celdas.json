@@ -1,6 +1,6 @@
 {
-  "version": "v2.0",
-  "actualizado": "2026-07-14T18:37:04.434Z",
+  "version": "v4.2.0",
+  "actualizado": "2026-07-22T12:39:41.649Z",
   "obras": {
     "1316": {
       "nombre": "Acueducto Gran Tulum",
@@ -120,6 +120,60 @@
           "celda": "D31",
           "etiqueta": "TOTAL COSTO · Estim. Gestión",
           "tipo": "directo"
+        },
+        {
+          "id": "margen_base0_var_pct",
+          "celda": "A11",
+          "etiqueta": "Var. Contr. Marg. Real vs Base 0 (ya calculada)",
+          "tipo": "directo"
+        },
+        {
+          "id": "venta_base0",
+          "celda": "G21",
+          "etiqueta": "Venta Aj x Margen · Base '0'",
+          "tipo": "directo"
+        },
+        {
+          "id": "margen_base0_pct",
+          "celda": "G35",
+          "etiqueta": "% bajo Cont. Marginal Últ. Ppto Vig. · Base '0'",
+          "tipo": "directo"
+        },
+        {
+          "id": "venta_ppto_vigente",
+          "celda": "G19",
+          "etiqueta": "VENTA AJUSTADA (IGN) · Ppto Vig.",
+          "tipo": "directo"
+        },
+        {
+          "id": "costo_contable",
+          "celda": "B31",
+          "etiqueta": "TOTAL COSTO · Contable [AA]",
+          "tipo": "directo"
+        },
+        {
+          "id": "costo_gestion_ajustado",
+          "celda": "C31",
+          "etiqueta": "TOTAL COSTO · Gestión [AA+LG]",
+          "tipo": "directo"
+        },
+        {
+          "id": "ro_peor_pct",
+          "celda": "F37",
+          "etiqueta": "Peor Escenario (R&O agregado)",
+          "tipo": "directo"
+        },
+        {
+          "id": "ro_probable_pct",
+          "celda": "G37",
+          "etiqueta": "Probable (R&O agregado)",
+          "tipo": "directo"
+        },
+        {
+          "id": "ro_optimista_pct",
+          "celda": "H37",
+          "etiqueta": "Optimista (R&O agregado)",
+          "tipo": "directo"
         }
       ],
       "auxCeldas": {
@@ -132,7 +186,7 @@
     "1320": {
       "nombre": "Planta de Ensenada ",
       "sheetName": "2 - TC",
-      "estado": "error",
+      "estado": "ok",
       "campos": [
         {
           "id": "margen_total_pct",
