@@ -453,7 +453,7 @@ main { max-width:1400px; margin:0 auto; padding:24px 20px 60px; }
 
 <div id="app-header">
   <div style="display:flex;align-items:center;gap:14px;">
-    <div class="app-badge">v4.2.1</div>
+    <div class="app-badge">v4.2.2</div>
     <div>
       <div class="app-title">ICG EvoTen · Evolución y Tendencia</div>
     </div>
@@ -477,7 +477,7 @@ main { max-width:1400px; margin:0 auto; padding:24px 20px 60px; }
     <button class="btn-hdr btn-export" onclick="exportarJSON()">
       <i class="ti ti-download"></i> Exportar JSON
     </button>
-    <button class="btn-hdr btn-json" onclick="document.getElementById('input-json-xlsx').click()" title="Convierte un JSON exportado de EvoTen a un XLSX con los 9 paneles fijos (mismo nombre que el JSON elegido). En Chrome/Edge elegís carpeta destino; otros navegadores van a Descargas.">
+    <button class="btn-hdr btn-json" onclick="document.getElementById('input-json-xlsx').click()" title="Convierte un JSON exportado de EvoTen a un XLSX con los 9 paneles fijos (mismo nombre que el JSON elegido, va a la carpeta de Descargas)">
       <i class="ti ti-file-type-xls"></i> Convertir JSON a XLSX
     </button>
     <input type="file" id="input-json-xlsx" class="hidden-input" accept=".json" onchange="onJsonToXlsxSelected(event)">
@@ -754,7 +754,7 @@ const PANEL_MAP_CANVAS = {
 // Versión de la app — se estampa en el JSON exportado (STATE.generado_con) para que,
 // si mañana cambia la lógica de detección/visualización, el motor pueda detectar JSON
 // generados con una versión anterior y aplicar un fallback en vez de romper.
-const APP_VERSION = 'v4.2.1';
+const APP_VERSION = 'v4.2.2';
 
 // CAMPOS_BASE — plantilla de ids/tipos usada por "Nueva UO en blanco" en el tab Configuración.
 // No es un perfil de extracción (no tiene anclas propias); solo define QUÉ campos existen.
@@ -1369,60 +1369,36 @@ function construirWorkbookFijos(json){
 }
 
 // v4.2.0 — Punto a): antes el XLSX salía con nombre propio (icg_evoten_{obra}_datos_{timestamp
-// de la conversión}.xlsx) y siempre a la carpeta de Descargas (única opción de <a download>).
-// Ahora: mismo nombre base que el JSON elegido, y en Chrome/Edge se puede elegir la carpeta
-// destino (File System Access API). Firefox/Safari no soportan showSaveFilePicker — ahí no hay
-// forma de elegir carpeta desde el navegador, cae al comportamiento clásico (Descargas).
+// de la conversión}.xlsx). Ahora: mismo nombre base que el JSON elegido.
 //
-// v4.2.1 — FIX: `showSaveFilePicker()` exige llamarse dentro del "gesto de usuario" (el evento
-// que lo disparó). En v4.2.0 se pedía DESPUÉS de leer el archivo con FileReader — la lectura es
-// asíncrona y para cuando terminaba, Chrome ya no consideraba vigente el gesto → SecurityError.
-// Ahora el handle se pide primero (ver onJsonToXlsxSelected) y esta función solo ESCRIBE en el
-// handle ya obtenido — no vuelve a llamar al picker acá.
-async function guardarWorkbookComoXlsx(wb, nombreSugerido, handle){
-  const arrayBuffer = XLSX.write(wb, { bookType:'xlsx', type:'array' });
-  if(handle){
-    const writable = await handle.createWritable();
-    await writable.write(new Blob([arrayBuffer], { type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
-    await writable.close();
-    return;
-  }
-  // Fallback: navegador sin soporte de File System Access API (Firefox, Safari) → Descargas.
+// v4.2.1 — se había intentado sumar selector de carpeta con showSaveFilePicker() (File System
+// Access API), reordenando la llamada para que quedara "dentro" del gesto de usuario.
+//
+// v4.2.2 — DESHECHO por pedido de Ale: en la prueba real en Chrome, showSaveFilePicker() seguía
+// tirando el mismo SecurityError incluso ya reordenado — el 'change' del input de archivo (que
+// depende de que el usuario termine de elegir el JSON en el diálogo nativo del SO, sin límite de
+// tiempo) aparentemente no alcanza para Chrome como gesto de usuario "vigente" para esta API en
+// particular. Se descarta el selector de carpeta por completo: siempre a Descargas, como pidió
+// Ale ("que lo baje a descarga"). Se mantiene el único punto que sí funcionó: mismo nombre que
+// el JSON elegido.
+function guardarWorkbookComoXlsx(wb, nombreSugerido){
   XLSX.writeFile(wb, nombreSugerido);
 }
 
-async function onJsonToXlsxSelected(evt){
+function onJsonToXlsxSelected(evt){
   const file = evt.target.files[0];
   if(!file) return;
-
-  // v4.2.1: el diálogo de guardado se pide ACÁ, primero, todavía "adentro" del gesto de usuario
-  // (el onchange del input). Si se cancela, se sale en silencio sin haber tocado spinner/lectura.
-  const nombreSalida = file.name.replace(/\.json$/i, '') + '.xlsx'; // v4.2.0: mismo nombre base que el JSON elegido
-  let handle = null;
-  if('showSaveFilePicker' in window){
-    try{
-      handle = await window.showSaveFilePicker({
-        suggestedName: nombreSalida,
-        types: [{ description:'Libro de Excel', accept:{ 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet':['.xlsx'] } }]
-      });
-    } catch(err){
-      if(err && err.name === 'AbortError'){ evt.target.value = ''; return; } // canceló el diálogo — silencio total
-      toast('Error al abrir el diálogo de guardado: ' + err.message, 'err');
-      evt.target.value = '';
-      return;
-    }
-  }
-
   showSpinner('Convirtiendo JSON a XLSX…');
   const reader = new FileReader();
-  reader.onload = async (e) => {
+  reader.onload = (e) => {
     try{
       const json = JSON.parse(e.target.result);
       if(!json.obra || !Array.isArray(json.periodos)) throw new Error('Estructura de JSON inválida (se espera {obra, periodos:[...]})');
       if(json.periodos.length === 0){ toast('El JSON no tiene períodos cargados', 'warn'); return; }
 
       const wb = construirWorkbookFijos(json);
-      await guardarWorkbookComoXlsx(wb, nombreSalida, handle);
+      const nombreSalida = file.name.replace(/\.json$/i, '') + '.xlsx'; // v4.2.0: mismo nombre base que el JSON elegido
+      guardarWorkbookComoXlsx(wb, nombreSalida);
       toast(`XLSX generado (${PANELES_XLSX_FIJOS.length} hojas) para obra ${json.obra}`, 'ok');
     } catch(err){
       toast('Error al convertir JSON a XLSX: ' + err.message, 'err');
