@@ -453,7 +453,7 @@ main { max-width:1400px; margin:0 auto; padding:24px 20px 60px; }
 
 <div id="app-header">
   <div style="display:flex;align-items:center;gap:14px;">
-    <div class="app-badge">v4.2.2</div>
+    <div class="app-badge">v4.3.0</div>
     <div>
       <div class="app-title">ICG EvoTen · Evolución y Tendencia</div>
     </div>
@@ -477,7 +477,7 @@ main { max-width:1400px; margin:0 auto; padding:24px 20px 60px; }
     <button class="btn-hdr btn-export" onclick="exportarJSON()">
       <i class="ti ti-download"></i> Exportar JSON
     </button>
-    <button class="btn-hdr btn-json" onclick="document.getElementById('input-json-xlsx').click()" title="Convierte un JSON exportado de EvoTen a un XLSX con los 9 paneles fijos (mismo nombre que el JSON elegido, va a la carpeta de Descargas)">
+    <button class="btn-hdr btn-json" onclick="document.getElementById('input-json-xlsx').click()" title="Convierte un JSON exportado de EvoTen a un XLSX con los 12 paneles fijos (mismo nombre que el JSON elegido, va a la carpeta de Descargas)">
       <i class="ti ti-file-type-xls"></i> Convertir JSON a XLSX
     </button>
     <input type="file" id="input-json-xlsx" class="hidden-input" accept=".json" onchange="onJsonToXlsxSelected(event)">
@@ -628,6 +628,23 @@ main { max-width:1400px; margin:0 auto; padding:24px 20px 60px; }
 
     <!-- ── Auto Paneles — datos extra vía XLSX de apoyo ({obra}_dataextra_*.xlsx, hojas "paneles"+"datos") ── -->
     <!-- v3.08: se ocultan por completo si STATE.autoPaneles está vacío (compatibilidad hacia atrás total). -->
+    <!-- ── Fila 5: Margen Acordado / R&O Escenarios / Costo Acumulado (v4.3.0) ── -->
+    <div class="section-title">Escenarios, Costo Acumulado, Margen Acordado</div>
+    <div class="grid-3col" style="margin-bottom:16px;">
+      <div class="bloque b-control">
+        <div class="bloque-hdr"><div><h3>Margen Acordado</h3><div class="bsub">2 - TC</div></div><span class="nota-panel-slot" data-clave="margenacordado"></span></div>
+        <div style="padding:16px 20px;"><div class="chart-wrap-md"><canvas id="chart-margenacordado"></canvas></div></div>
+      </div>
+      <div class="bloque b-avance">
+        <div class="bloque-hdr"><div><h3>R&O Escenarios</h3><div class="bsub">2 - TC</div></div><span class="nota-panel-slot" data-clave="roescenarios"></span></div>
+        <div style="padding:16px 20px;"><div class="chart-wrap-md"><canvas id="chart-roescenarios"></canvas></div></div>
+      </div>
+      <div class="bloque b-costos">
+        <div class="bloque-hdr"><div><h3>Costo Acumulado</h3><div class="bsub">2 - TC</div></div><span class="nota-panel-slot" data-clave="costoacumulado"></span></div>
+        <div style="padding:16px 20px;"><div class="chart-wrap-md"><canvas id="chart-costoacumulado"></canvas></div></div>
+      </div>
+    </div>
+
     <div id="section-title-autopaneles" class="section-title" style="display:none;">Datos Extra</div>
     <div class="grid-3col" id="autopaneles-container" style="margin-bottom:16px;"></div>
 
@@ -735,11 +752,16 @@ const UBICACION_CAMPO = {
   avance_fisico_real:     'Panel "Avance Físico · Total Proyecto"',
   avance_fisico_ppto:     'Panel "Avance Físico · Total Proyecto"',
   margen_faltante_pct:    'Panel "Margen del Faltante"',
-  margen_obra:            'Tarjeta "Margen Obra (F5)"',
+  margen_obra:            'Tarjeta "Margen Obra (F5)" · Panel "Margen Acordado" · Panel "R&O Escenarios" (línea de referencia)',
   mes_periodo:            'Tarjeta "Mes de Proyecto"',
   proyecto_estim_actual:  'Panel "Proyecto Estimado Actual"',
   venta_saldo_faltante:   'Panel "Avance de Venta"',
-  costo_faltante:         'Panel "Costo Faltante"'
+  costo_faltante:         'Panel "Costo Faltante"',
+  ro_peor_pct:            'Panel "R&O Escenarios"',
+  ro_probable_pct:        'Panel "R&O Escenarios"',
+  ro_optimista_pct:       'Panel "R&O Escenarios"',
+  costo_contable:         'Panel "Costo Acumulado"',
+  costo_gestion_ajustado: 'Panel "Costo Acumulado"'
 };
 
 // panelMap (canvas → campos) — se sigue usando para el hover sobre los gráficos del Dashboard.
@@ -748,13 +770,16 @@ const PANEL_MAP_CANVAS = {
   'chart-hh':['hh_directos','hh_indirectos'], 'chart-costohh':['costo_hh_vestida_real','costo_hh_vestida_ppto'],
   'chart-avance':['avance_fisico_real','avance_fisico_ppto'], 'chart-faltante':['margen_faltante_pct'],
   'chart-costofaltante':['costo_faltante'], 'chart-estimactual':['proyecto_estim_actual'],
-  'chart-avanceventa':['venta_saldo_faltante']
+  'chart-avanceventa':['venta_saldo_faltante'],
+  'chart-margenacordado':['margen_obra'],
+  'chart-roescenarios':['ro_peor_pct','ro_probable_pct','ro_optimista_pct','margen_obra'],
+  'chart-costoacumulado':['costo_contable','costo_gestion_ajustado']
 };
 
 // Versión de la app — se estampa en el JSON exportado (STATE.generado_con) para que,
 // si mañana cambia la lógica de detección/visualización, el motor pueda detectar JSON
 // generados con una versión anterior y aplicar un fallback en vez de romper.
-const APP_VERSION = 'v4.2.2';
+const APP_VERSION = 'v4.3.0';
 
 // CAMPOS_BASE — plantilla de ids/tipos usada por "Nueva UO en blanco" en el tab Configuración.
 // No es un perfil de extracción (no tiene anclas propias); solo define QUÉ campos existen.
@@ -1044,6 +1069,16 @@ function computeDerivados(){
     p.derivados.costo_faltante_alerta = anterior && typeof p.datos.costo_faltante === 'number' && typeof anterior.datos.costo_faltante === 'number'
       ? p.datos.costo_faltante > anterior.datos.costo_faltante : null;
 
+    // v4.3.0 — Panel "Costo Acumulado": Contable + AEC (costo_gestion_ajustado) es por diseño casi
+    // siempre >= Contable (es Contable + un ajuste) — un criterio "excede" fijo (como Real>Ppto en
+    // Costo HH Vestida) daría alerta TODOS los meses, sin servir como señal. En cambio, mismo
+    // criterio que Costo Faltante: alerta si la BRECHA (Contable+AEC − Contable) crece respecto al
+    // mes anterior. Null en el primer período (no hay brecha anterior contra la cual comparar).
+    p.derivados.costo_acumulado_brecha = (typeof p.datos.costo_gestion_ajustado === 'number' && typeof p.datos.costo_contable === 'number')
+      ? p.datos.costo_gestion_ajustado - p.datos.costo_contable : null;
+    p.derivados.costo_acumulado_brecha_alerta = (anterior && typeof p.derivados.costo_acumulado_brecha === 'number' && typeof anterior.derivados?.costo_acumulado_brecha === 'number')
+      ? p.derivados.costo_acumulado_brecha > anterior.derivados.costo_acumulado_brecha : null;
+
     // Detección de cambio en valores de control (margen_obra, proyecto_estim_actual)
     ['margen_obra','proyecto_estim_actual'].forEach(id => {
       const actual = p.datos[id];
@@ -1290,7 +1325,7 @@ function exportarJSON(){
 // ============================================================
 // CONVERSOR JSON → XLSX (v4.1.0)
 // Toma cualquier JSON exportado de EvoTen (no necesariamente la obra cargada en
-// pantalla — no toca STATE) y lo convierte a un XLSX con 9 hojas fijas, una por
+// pantalla — no toca STATE) y lo convierte a un XLSX con 12 hojas fijas, una por
 // cada panel del dashboard, en el mismo orden en que aparecen en pantalla.
 // Auto Paneles quedan fuera a propósito (Ale ya los tiene en XLSX aparte).
 // Formato de valor por celda: el mismo número que ve en el gráfico (ej. porcentajes
@@ -1300,7 +1335,7 @@ function exportarJSON(){
 // vacía (null), no en 0 — decisión explícita de Ale (sesión 21-jul-2026).
 // ============================================================
 
-// Definición de las 9 hojas fijas: clave del panel, título de hoja/fila 1, y la
+// Definición de las 12 hojas fijas: clave del panel, título de hoja/fila 1, y la
 // lista de series con su columna de datos (misma fuente que las funciones
 // renderChartXxx() del dashboard — ver STATE.periodos[i].datos / .derivados).
 const PANELES_XLSX_FIJOS = [
@@ -1337,6 +1372,19 @@ const PANELES_XLSX_FIJOS = [
   ]},
   { clave:'avanceventa', titulo:'Avance de Venta (%)', series:[
     { col:'Avance de Venta (%)', get:p => typeof p.derivados?.venta_avance_pct==='number' ? p.derivados.venta_avance_pct*100 : null }
+  ]},
+  { clave:'margenacordado', titulo:'Margen Acordado (%)', series:[
+    { col:'Margen Acordado (%)', get:p => typeof p.datos.margen_obra==='number' ? p.datos.margen_obra*100 : null }
+  ]},
+  { clave:'roescenarios', titulo:'R&O Escenarios (%)', series:[
+    { col:'Peor (%)', get:p => typeof p.datos.ro_peor_pct==='number' ? p.datos.ro_peor_pct*100 : null },
+    { col:'Probable (%)', get:p => typeof p.datos.ro_probable_pct==='number' ? p.datos.ro_probable_pct*100 : null },
+    { col:'Optimista (%)', get:p => typeof p.datos.ro_optimista_pct==='number' ? p.datos.ro_optimista_pct*100 : null },
+    { col:'Margen Acordado (%)', get:p => typeof p.datos.margen_obra==='number' ? p.datos.margen_obra*100 : null }
+  ]},
+  { clave:'costoacumulado', titulo:'Costo Acumulado', series:[
+    { col:'Contable', get:p => p.datos.costo_contable ?? null },
+    { col:'Contable + AEC', get:p => p.datos.costo_gestion_ajustado ?? null }
   ]}
 ];
 
@@ -1741,6 +1789,9 @@ function renderAll(){
   renderChartCostoFaltante();
   renderChartEstimActual();
   renderChartAvanceVenta();
+  renderChartMargenAcordado();
+  renderChartROEscenarios();
+  renderChartCostoAcumulado();
   renderAutoPaneles();
   actualizarHoverPaneles();
 }
@@ -2237,6 +2288,113 @@ function renderChartAvanceVenta(){
         } }
       },
       scales:{ y:{ suggestedMax: maxVenta + bufferVenta, suggestedMin: minVenta - bufferVenta*0.3, ticks:{ callback:v=>fmtAR(v,1)+'%', color:(ctx)=>colorNeg(ctx.tick.value) } } }
+    },
+    plugins:[ChartDataLabels]
+  });
+}
+
+// ============================================================
+// v4.3.0 — Fila 5: Margen Acordado / R&O Escenarios / Costo Acumulado
+// Diseñados y acordados con Ale en sesión de 3 rondas (uno por uno, "Conversemos!" cada vez)
+// antes de codear — ver handoff v4.3.0 para el detalle de cada decisión.
+// ============================================================
+
+// Panel 1 — Margen Acordado: plantilla = renderChartFaltante() (línea de 1 serie, etiqueta en
+// TODOS los puntos), pero con el punto en rojo si cambió (derivados.margen_obra_cambio, ya
+// existente) o si es negativo — mismo criterio combinado que ya usa renderChartEstimActual().
+function renderChartMargenAcordado(){
+  destroyChart('margenacordado');
+  const ctx = document.getElementById('chart-margenacordado');
+  charts['margenacordado'] = new Chart(ctx, {
+    type:'line',
+    data:{ labels:labelsPeriodos(), datasets:[{
+      label:'Margen Acordado (%)', data: STATE.periodos.map(p=>typeof p.datos.margen_obra==='number' ? p.datos.margen_obra*100 : null),
+      borderColor: COLOR.orange, tension:.3, pointRadius:4,
+      pointBackgroundColor:(ctx)=>{ const p=STATE.periodos[ctx.dataIndex]; const v=ctx.dataset.data[ctx.dataIndex];
+        return (p?.derivados?.margen_obra_cambio || (typeof v==='number'&&v<0)) ? ROJO_NEG : COLOR.orange; },
+      pointBorderColor:(ctx)=>{ const p=STATE.periodos[ctx.dataIndex]; const v=ctx.dataset.data[ctx.dataIndex];
+        return (p?.derivados?.margen_obra_cambio || (typeof v==='number'&&v<0)) ? ROJO_NEG : COLOR.orange; },
+      datalabels:{ align:'top', font:{weight:'700',size:10}, formatter:v=>typeof v==='number'?fmtAR(v,1)+'%':null, color:(ctx)=>colorNeg(ctx.dataset.data[ctx.dataIndex]) }
+    }]},
+    options:{
+      plugins:{ legend:{ display:false }, tooltip:{ callbacks:{ label: tooltipFmt(true) } } },
+      scales:{ y:{ ticks:{ callback:v=>fmtAR(v,1)+'%', color:(ctx)=>colorNeg(ctx.tick.value) } } }
+    },
+    plugins:[ChartDataLabels]
+  });
+}
+
+// Panel 2 — R&O Escenarios: 3 series de color (Peor/Probable/Optimista) + 1 línea de referencia
+// (margen_obra, gris punteada, sin puntos ni etiqueta — se identifica solo por la leyenda).
+// Etiqueta: solo en el último período de cada serie de color, a la izquierda del punto, con el
+// color de su propia línea (acordado con Ale) — evita saturar con 18 números en 6 meses.
+function renderChartROEscenarios(){
+  destroyChart('roescenarios');
+  const ctx = document.getElementById('chart-roescenarios');
+  const nMeses = STATE.periodos.length;
+  const datalabelUltimoIzq = (color) => ({
+    align:'left', anchor:'center', offset:10, font:{weight:'700',size:10}, color,
+    formatter:(v,ctx2)=> (ctx2.dataIndex === nMeses-1 && typeof v==='number') ? fmtAR(v,1)+'%' : null
+  });
+  charts['roescenarios'] = new Chart(ctx, {
+    type:'line',
+    data:{ labels:labelsPeriodos(), datasets:[
+      { label:'Peor', data: STATE.periodos.map(p=>typeof p.datos.ro_peor_pct==='number' ? p.datos.ro_peor_pct*100 : null),
+        borderColor: COLOR.red, backgroundColor: COLOR.red, tension:.3, pointRadius:4, datalabels: datalabelUltimoIzq(COLOR.red) },
+      { label:'Probable', data: STATE.periodos.map(p=>typeof p.datos.ro_probable_pct==='number' ? p.datos.ro_probable_pct*100 : null),
+        borderColor: COLOR.cyan, backgroundColor: COLOR.cyan, tension:.3, pointRadius:4, datalabels: datalabelUltimoIzq(COLOR.cyan) },
+      { label:'Optimista', data: STATE.periodos.map(p=>typeof p.datos.ro_optimista_pct==='number' ? p.datos.ro_optimista_pct*100 : null),
+        borderColor: COLOR.green, backgroundColor: COLOR.green, tension:.3, pointRadius:4, datalabels: datalabelUltimoIzq(COLOR.green) },
+      { label:'Margen Acordado (ref.)', data: STATE.periodos.map(p=>typeof p.datos.margen_obra==='number' ? p.datos.margen_obra*100 : null),
+        borderColor: COLOR.slate, borderDash:[8,4], borderWidth:2.5, pointRadius:0, tension:.3, datalabels:{ display:false } }
+    ]},
+    options:{
+      plugins:{ tooltip:{ callbacks:{ label: tooltipFmt(true) } } },
+      scales:{ y:{ ticks:{ callback:v=>fmtAR(v,1)+'%' } } }
+    },
+    plugins:[ChartDataLabels]
+  });
+}
+
+// Panel 3 — Costo Acumulado: barra vertical, Contable vs. Contable+AEC (costo_gestion_ajustado).
+// Alerta (rojo oscuro) si la BRECHA crece vs. mes anterior (derivados.costo_acumulado_brecha_alerta,
+// ver computeDerivados) — NO "Contable+AEC > Contable" a secas, porque eso da true los 6 de 6 meses
+// reales de la 1316 (Contable+AEC es por diseño Contable + un ajuste, casi siempre mayor). Mismo
+// patrón de alerta que ya usa Costo Faltante. Etiqueta solo en el último mes, como se acordó.
+function renderChartCostoAcumulado(){
+  destroyChart('costoacumulado');
+  const ctx = document.getElementById('chart-costoacumulado');
+  const nMeses = STATE.periodos.length;
+  const alerta = STATE.periodos.map(p => p.derivados?.costo_acumulado_brecha_alerta === true);
+  const COLOR_CONTABLE = '#94a3b8';       // gris azulado — base, sin alerta propia
+  const COLOR_AEC_OK = '#fbbf24';         // ámbar claro — Contable + AEC, brecha estable/bajando
+  const COLOR_AEC_ALERTA = '#b91c1c';     // rojo oscuro — la brecha creció vs. mes anterior
+  charts['costoacumulado'] = new Chart(ctx, {
+    type:'bar',
+    data:{ labels:labelsPeriodos(), datasets:[
+      { label:'Contable', data: STATE.periodos.map(p=>p.datos.costo_contable ?? null),
+        backgroundColor: (ctx)=>colorSiNegCtx(ctx,COLOR_CONTABLE), borderColor: (ctx)=>colorSiNegCtx(ctx,COLOR_CONTABLE), borderRadius:4,
+        datalabels:{ color:(ctx)=>colorNeg(ctx.dataset.data[ctx.dataIndex]), font:{weight:'700',size:10}, anchor:'end', align:'top',
+          formatter:(v,ctx2)=> (ctx2.dataIndex === nMeses-1 && typeof v==='number') ? fmtAR(v,1) : null } },
+      { label:'Contable + AEC', data: STATE.periodos.map(p=>p.datos.costo_gestion_ajustado ?? null),
+        backgroundColor: (ctx)=>{ const v=ctx.dataset.data[ctx.dataIndex]; return (typeof v==='number'&&v<0) ? ROJO_NEG : (alerta[ctx.dataIndex] ? COLOR_AEC_ALERTA : COLOR_AEC_OK); },
+        borderColor: COLOR_AEC_OK, borderRadius:4,
+        datalabels:{ color:(ctx)=>colorNeg(ctx.dataset.data[ctx.dataIndex]), font:{weight:'700',size:10}, anchor:'end', align:'top',
+          formatter:(v,ctx2)=>{
+            const isLast = ctx2.dataIndex === nMeses-1;
+            if(alerta[ctx2.dataIndex]) return isLast ? `⚠ ${fmtAR(v,1)}` : '⚠';
+            return isLast ? fmtAR(v,1) : null;
+          } } }
+    ]},
+    options:{
+      plugins:{ tooltip:{ callbacks:{
+        label: tooltipFmt(false),
+        afterLabel:(ctx)=>{
+          const p = STATE.periodos[ctx.dataIndex];
+          return p.derivados?.costo_acumulado_brecha_alerta ? '⚠ La brecha Contable/AEC creció respecto al mes anterior' : '';
+        }
+      } } },
+      scales:{ y:{ ticks:{ callback:v=>fmtAR(v,1) } } }
     },
     plugins:[ChartDataLabels]
   });
@@ -2788,7 +2946,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   await cargarConfig();
   renderAll();
   renderConfigTab();
-  // v4.0.0: los 9 paneles fijos del dashboard son HTML estático (no se recrean con cada render,
+  // v4.0.0: los paneles fijos del dashboard (12 desde v4.3.0) son HTML estático (no se recrean con cada render,
   // a diferencia de los Auto Paneles) — sus íconos de nota se inicializan una sola vez acá.
   document.querySelectorAll('.nota-panel-slot').forEach(slot => {
     slot.outerHTML = notaPanelIcono(slot.dataset.clave);
