@@ -453,7 +453,7 @@ main { max-width:1400px; margin:0 auto; padding:24px 20px 60px; }
 
 <div id="app-header">
   <div style="display:flex;align-items:center;gap:14px;">
-    <div class="app-badge">v4.3.1</div>
+    <div class="app-badge">v4.3.2</div>
     <div>
       <div class="app-title">ICG EvoTen · Evolución y Tendencia</div>
     </div>
@@ -779,7 +779,7 @@ const PANEL_MAP_CANVAS = {
 // Versión de la app — se estampa en el JSON exportado (STATE.generado_con) para que,
 // si mañana cambia la lógica de detección/visualización, el motor pueda detectar JSON
 // generados con una versión anterior y aplicar un fallback en vez de romper.
-const APP_VERSION = 'v4.3.1';
+const APP_VERSION = 'v4.3.2';
 
 // CAMPOS_BASE — plantilla de ids/tipos usada por "Nueva UO en blanco" en el tab Configuración.
 // No es un perfil de extracción (no tiene anclas propias); solo define QUÉ campos existen.
@@ -2345,15 +2345,20 @@ function renderChartROEscenarios(){
     type:'line',
     data:{ labels:labelsPeriodos(), datasets:[
       { label:'Peor', data: STATE.periodos.map(p=>typeof p.datos.ro_peor_pct==='number' ? p.datos.ro_peor_pct*100 : null),
-        borderColor: COLOR.red, backgroundColor: COLOR.red, tension:.3, pointRadius:4, datalabels: datalabelUltimo(COLOR.red, 45) },
+        borderColor: COLOR.red, backgroundColor: COLOR.red, tension:.3, pointRadius:4, clip:false, datalabels: datalabelUltimo(COLOR.red, 45) },
       { label:'Probable', data: STATE.periodos.map(p=>typeof p.datos.ro_probable_pct==='number' ? p.datos.ro_probable_pct*100 : null),
-        borderColor: COLOR.cyan, backgroundColor: COLOR.cyan, tension:.3, pointRadius:4, datalabels: datalabelUltimo(COLOR.cyan, 'right') },
+        borderColor: COLOR.cyan, backgroundColor: COLOR.cyan, tension:.3, pointRadius:4, clip:false, datalabels: datalabelUltimo(COLOR.cyan, 'right') },
       { label:'Optimista', data: STATE.periodos.map(p=>typeof p.datos.ro_optimista_pct==='number' ? p.datos.ro_optimista_pct*100 : null),
-        borderColor: COLOR.green, backgroundColor: COLOR.green, tension:.3, pointRadius:4, datalabels: datalabelUltimo(COLOR.green, -45) },
+        borderColor: COLOR.green, backgroundColor: COLOR.green, tension:.3, pointRadius:4, clip:false, datalabels: datalabelUltimo(COLOR.green, -45) },
       { label:'Margen Acordado (ref.)', data: STATE.periodos.map(p=>typeof p.datos.margen_obra==='number' ? p.datos.margen_obra*100 : null),
         borderColor: COLOR.slate, borderDash:[8,4], borderWidth:2.5, pointRadius:0, tension:.3, datalabels:{ display:false } }
     ]},
     options:{
+      // v4.3.2 — FIX: faltaba clip:false (arriba, en cada dataset) + este padding derecho. Sin
+      // esto, Chart.js recorta cualquier etiqueta que caiga fuera del área interna del gráfico —
+      // exactamente lo que reportó Ale ("-1", "-", "-2" en vez del % completo). Mismo patrón que
+      // ya usa "HH Est. Total" (chart-hh), que tiene el mismo caso de etiqueta-solo-al-final.
+      layout:{ padding:{ right:70 } },
       plugins:{ tooltip:{ callbacks:{ label: tooltipFmt(true) } } },
       scales:{ y:{ ticks:{ callback:v=>fmtAR(v,1)+'%' } } }
     },
@@ -2374,16 +2379,20 @@ function renderChartCostoAcumulado(){
   const COLOR_CONTABLE = '#94a3b8';       // gris azulado — base, sin alerta propia
   const COLOR_AEC_OK = '#fbbf24';         // ámbar claro — Contable + AEC, brecha estable/bajando
   const COLOR_AEC_ALERTA = '#b91c1c';     // rojo oscuro — la brecha creció vs. mes anterior
+  // v4.3.2 — FIX: faltaba este cálculo de maxVal + el suggestedMax de abajo (headroom arriba de
+  // la barra más alta) — sin esto la etiqueta del último mes quedaba pegada/cortada contra el
+  // borde superior del canvas. Mismo patrón que ya usa "Costo HH Vestida" (su propia plantilla).
+  const maxVal = Math.max(0, ...STATE.periodos.flatMap(p => [p.datos.costo_contable, p.datos.costo_gestion_ajustado].filter(v => typeof v === 'number')));
   charts['costoacumulado'] = new Chart(ctx, {
     type:'bar',
     data:{ labels:labelsPeriodos(), datasets:[
       { label:'Contable', data: STATE.periodos.map(p=>p.datos.costo_contable ?? null),
-        backgroundColor: (ctx)=>colorSiNegCtx(ctx,COLOR_CONTABLE), borderColor: (ctx)=>colorSiNegCtx(ctx,COLOR_CONTABLE), borderRadius:4,
+        backgroundColor: (ctx)=>colorSiNegCtx(ctx,COLOR_CONTABLE), borderColor: (ctx)=>colorSiNegCtx(ctx,COLOR_CONTABLE), borderRadius:4, clip:false,
         datalabels:{ color:(ctx)=>colorNeg(ctx.dataset.data[ctx.dataIndex]), font:{weight:'700',size:10}, anchor:'end', align:'top',
           formatter:(v,ctx2)=> (ctx2.dataIndex === nMeses-1 && typeof v==='number') ? fmtAR(v,1) : null } },
       { label:'Contable + AEC', data: STATE.periodos.map(p=>p.datos.costo_gestion_ajustado ?? null),
         backgroundColor: (ctx)=>{ const v=ctx.dataset.data[ctx.dataIndex]; return (typeof v==='number'&&v<0) ? ROJO_NEG : (alerta[ctx.dataIndex] ? COLOR_AEC_ALERTA : COLOR_AEC_OK); },
-        borderColor: COLOR_AEC_OK, borderRadius:4,
+        borderColor: COLOR_AEC_OK, borderRadius:4, clip:false,
         datalabels:{ color:(ctx)=>colorNeg(ctx.dataset.data[ctx.dataIndex]), font:{weight:'700',size:10}, anchor:'end', align:'top',
           formatter:(v,ctx2)=>{
             const isLast = ctx2.dataIndex === nMeses-1;
@@ -2392,6 +2401,7 @@ function renderChartCostoAcumulado(){
           } } }
     ]},
     options:{
+      layout:{ padding:{ right:40 } },
       plugins:{ tooltip:{ callbacks:{
         label: tooltipFmt(false),
         afterLabel:(ctx)=>{
@@ -2399,7 +2409,7 @@ function renderChartCostoAcumulado(){
           return p.derivados?.costo_acumulado_brecha_alerta ? '⚠ La brecha Contable/AEC creció respecto al mes anterior' : '';
         }
       } } },
-      scales:{ y:{ ticks:{ callback:v=>fmtAR(v,1) } } }
+      scales:{ y:{ suggestedMax: maxVal * 1.35, ticks:{ callback:v=>fmtAR(v,1) } } }
     },
     plugins:[ChartDataLabels]
   });
