@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ICG EvoTen v5.0.1 | Multi-obra</title>
+<title>ICG EvoTen v4.1.0 | Multi-obra</title>
 <script src="https://cdn.tailwindcss.com/3.4.1"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
@@ -156,37 +156,6 @@ input[type=file].hidden-input { display:none; }
   transition:background .15s, color .15s;
 }
 .modal-close-btn:hover { background:#f1f5f9; color:#0f172a; }
-
-/* ── Modal Cargar Obra (Drive, v5.0.0) — mismo patrón visual que Modal Períodos ── */
-#modal-cargar-obra {
-  display:none; position:fixed; inset:0; z-index:800;
-  background:rgba(15,23,42,.55); backdrop-filter:blur(3px);
-  align-items:flex-start; justify-content:center;
-}
-#modal-cargar-obra.open { display:flex; }
-#modal-cargar-obra-inner {
-  background:#fff; border-radius:18px; margin:60px 20px 0;
-  max-width:560px; width:100%; max-height:80vh; overflow:auto;
-  box-shadow:0 24px 60px rgba(0,0,0,.4);
-  animation: fadeSlideUp .25s ease both;
-}
-#modal-cargar-obra-inner .bloque-hdr { position:sticky; top:0; background:#fff; z-index:2; }
-.cargar-obra-fila {
-  display:flex; align-items:center; justify-content:space-between; gap:12px;
-  padding:12px 20px; border-bottom:1px solid #f1f5f9; cursor:pointer; transition:background .15s;
-}
-.cargar-obra-fila:hover { background:#f8fafc; }
-.cargar-obra-fila:last-child { border-bottom:none; }
-.cargar-obra-id { font-weight:900; font-size:13px; color:#0f172a; }
-.cargar-obra-fecha { font-size:10px; color:#94a3b8; white-space:nowrap; }
-.cargar-obra-vacio, .cargar-obra-error {
-  padding:24px 20px; text-align:center; font-size:12px; color:#94a3b8;
-}
-.cargar-obra-error { color:#b91c1c; }
-.cargar-obra-fallback {
-  padding:14px 20px; border-top:1px solid #f1f5f9; background:#f8fafc;
-  font-size:11px; color:#64748b; display:flex; align-items:center; gap:10px; flex-wrap:wrap;
-}
 
 /* ── Panel de Alertas (colapsable) ── */
 .alert-panel {
@@ -484,7 +453,7 @@ main { max-width:1400px; margin:0 auto; padding:24px 20px 60px; }
 
 <div id="app-header">
   <div style="display:flex;align-items:center;gap:14px;">
-    <div class="app-badge">v5.0.1</div>
+    <div class="app-badge">v4.3.2</div>
     <div>
       <div class="app-title">ICG EvoTen · Evolución y Tendencia</div>
     </div>
@@ -501,7 +470,7 @@ main { max-width:1400px; margin:0 auto; padding:24px 20px 60px; }
       <i class="ti ti-chart-histogram"></i> Cargar XLSX Apoyo
     </button>
     <input type="file" id="input-xlsx-apoyo" class="hidden-input" accept=".xlsx" onchange="onXlsxApoyoSelected(event)">
-    <button class="btn-hdr btn-json" onclick="abrirModalCargarObra()">
+    <button class="btn-hdr btn-json" onclick="document.getElementById('input-json').click()">
       <i class="ti ti-upload"></i> Cargar JSON
     </button>
     <input type="file" id="input-json" class="hidden-input" accept=".json" onchange="onJsonSelected(event)">
@@ -717,26 +686,6 @@ main { max-width:1400px; margin:0 auto; padding:24px 20px 60px; }
   </div>
 </div>
 
-<!-- ── Modal Cargar Obra (Drive, v5.0.0) ── -->
-<div id="modal-cargar-obra" onclick="cerrarModalCargarObraClickFuera(event)">
-  <div id="modal-cargar-obra-inner">
-    <div class="bloque-hdr">
-      <div>
-        <h3>Cargar obra desde Drive</h3>
-        <div class="bsub" id="cargar-obra-count">Buscando obras...</div>
-      </div>
-      <button class="modal-close-btn" onclick="cerrarModalCargarObra()">✕</button>
-    </div>
-    <div id="cargar-obra-lista"></div>
-    <div class="cargar-obra-fallback">
-      <i class="ti ti-info-circle"></i> ¿No aparece la obra que buscás o Drive no responde?
-      <button class="btn-hdr btn-json" onclick="document.getElementById('input-json').click()">
-        <i class="ti ti-file"></i> Cargar JSON desde archivo local
-      </button>
-    </div>
-  </div>
-</div>
-
 <div id="spinner"><div class="spinner-ring"></div><div style="color:#fff;font-size:12px;font-weight:700;" id="spinner-msg">Procesando…</div></div>
 <div id="toast"><div class="toast-inner" id="toast-inner"><span id="toast-msg"></span></div></div>
 
@@ -830,12 +779,7 @@ const PANEL_MAP_CANVAS = {
 // Versión de la app — se estampa en el JSON exportado (STATE.generado_con) para que,
 // si mañana cambia la lógica de detección/visualización, el motor pueda detectar JSON
 // generados con una versión anterior y aplicar un fallback en vez de romper.
-const APP_VERSION = 'v5.0.1';
-
-// v5.0.0: persistencia en Drive vía GAS standalone (icg_evoten_v5.0.0.gs), sin login.
-// Reemplaza el guardado/carga local (Blob + FileReader) de v4.3.2 para portabilidad
-// entre computadoras. Carpeta Drive: 1ggj1acslONoXXIHGBpuV_FdGEDqS92Yr
-const GAS_URL = 'https://script.google.com/macros/s/AKfycbwygEg8xQ1mwtQlfI_NYQNh7R-9D5GivKXZE5SQgC77mwwkV6WRgPfky8hXnmBI9FkX/exec';
+const APP_VERSION = 'v4.3.2';
 
 // CAMPOS_BASE — plantilla de ids/tipos usada por "Nueva UO en blanco" en el tab Configuración.
 // No es un perfil de extracción (no tiene anclas propias); solo define QUÉ campos existen.
@@ -875,14 +819,12 @@ const charts = {};
 // ============================================================
 async function cargarConfig(){
   try{
-    const resp = await fetch(`${GAS_URL}?accion=leer&nombre=config_uo_celdas`, { cache:'no-store' });
+    const resp = await fetch('./config_uo_celdas.json', { cache:'no-store' });
     if(!resp.ok) throw new Error(`HTTP ${resp.status}`);
-    const body = await resp.json();
-    if(!body.ok) throw new Error(body.error || 'El GAS devolvió ok:false');
-    CONFIG = body.datos;
+    CONFIG = await resp.json();
     CONFIG_ORIGEN = 'externa';
   } catch(err){
-    console.warn('No se pudo cargar config_uo_celdas desde Drive/GAS — usando perfil de emergencia (solo 1316).', err);
+    console.warn('No se pudo cargar config_uo_celdas.json — usando perfil de emergencia (solo 1316).', err);
     CONFIG = JSON.parse(JSON.stringify(CONFIG_FALLBACK));
     CONFIG_ORIGEN = 'fallback';
   }
@@ -1188,15 +1130,23 @@ async function onXlsxSelected(evt){
 }
 
 function onJsonSelected(evt){
-  // v5.0.0: fallback de respaldo — carga desde archivo local si Drive/GAS no responde.
-  // Se dispara desde el modal "Cargar obra desde Drive". Reusa aplicarEstadoCargado().
   const file = evt.target.files[0];
   if(!file) return;
   const reader = new FileReader();
   reader.onload = () => {
     try{
       const parsed = JSON.parse(reader.result);
-      aplicarEstadoCargado(parsed);
+      if(!parsed.obra || !Array.isArray(parsed.periodos)) throw new Error('Estructura de JSON inválida (se espera {obra, periodos:[...]})');
+      STATE = parsed;
+      if(!Array.isArray(STATE.notas)) STATE.notas = []; // compatibilidad con JSON viejo (sin panel de Notas)
+      if(typeof STATE.errorSeq !== 'number') STATE.errorSeq = 0; // compatibilidad con JSON pre-v3.00
+      if(!STATE.celdasResueltas) STATE.celdasResueltas = {};
+      if(!Array.isArray(STATE.autoPaneles)) STATE.autoPaneles = []; // compatibilidad con JSON pre-v3.08 (sin Auto Paneles)
+      if(!STATE.notasPaneles || typeof STATE.notasPaneles !== 'object' || Array.isArray(STATE.notasPaneles)) STATE.notasPaneles = {}; // compatibilidad con JSON pre-v4.0.0 (sin nota por panel)
+      autoPanelTipoOverride = {}; // nueva carga de obra/estado, vuelve a la config real (v3.11)
+      computeDerivados();
+      renderAll();
+      toast(`JSON cargado: obra ${STATE.obra} · ${STATE.periodos.length} período(s)`, 'ok');
     } catch(err){
       toast('Error al leer JSON: ' + err.message, 'err');
       console.error(err);
@@ -1359,26 +1309,17 @@ function timestampArchivo(){
   return `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}_${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}`;
 }
 
-async function exportarJSON(){
+function exportarJSON(){
   if(STATE.periodos.length === 0){ toast('No hay datos para exportar', 'warn'); return; }
   STATE.generado_con = APP_VERSION;
-  showSpinner(`Guardando obra ${STATE.obra} en Drive...`);
-  try{
-    const resp = await fetch(GAS_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // evita preflight OPTIONS (Apps Script no lo responde)
-      body: JSON.stringify({ accion:'guardar', nombre: STATE.obra, datos: STATE })
-    });
-    if(!resp.ok) throw new Error(`HTTP ${resp.status}`);
-    const body = await resp.json();
-    if(!body.ok) throw new Error(body.error || 'El GAS devolvió ok:false');
-    toast(`Obra ${STATE.obra} guardada en Drive (${body.nombre})`, 'ok');
-  } catch(err){
-    toast(`Error al guardar obra ${STATE.obra} en Drive: ` + err.message, 'err');
-    console.error(err);
-  } finally{
-    hideSpinner();
-  }
+  const blob = new Blob([JSON.stringify(STATE, null, 2)], { type:'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `icg_evoten_${STATE.obra}_acumulado_${timestampArchivo()}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+  toast('JSON exportado', 'ok');
 }
 
 // ============================================================
@@ -1897,82 +1838,6 @@ function renderTablaPeriodos(){
 // ============================================================
 // MODAL DE PERÍODOS
 // ============================================================
-// ============================================================
-// Modal "Cargar obra desde Drive" (v5.0.0)
-// ============================================================
-async function abrirModalCargarObra(){
-  document.getElementById('modal-cargar-obra').classList.add('open');
-  const cont = document.getElementById('cargar-obra-lista');
-  const count = document.getElementById('cargar-obra-count');
-  cont.innerHTML = '';
-  count.textContent = 'Buscando obras...';
-  try{
-    const resp = await fetch(`${GAS_URL}?accion=listar`, { cache:'no-store' });
-    if(!resp.ok) throw new Error(`HTTP ${resp.status}`);
-    const body = await resp.json();
-    if(!body.ok) throw new Error(body.error || 'El GAS devolvió ok:false');
-    if(!body.obras.length){
-      count.textContent = '0 obras en Drive';
-      cont.innerHTML = `<div class="cargar-obra-vacio">No hay ninguna obra guardada en Drive todavía.</div>`;
-      return;
-    }
-    count.textContent = `${body.obras.length} obra(s) en Drive`;
-    cont.innerHTML = body.obras.map(o => `
-      <div class="cargar-obra-fila" onclick="seleccionarObraDesdeGAS('${o.obraId}')">
-        <span class="cargar-obra-id">UO ${o.obraId}</span>
-        <span class="cargar-obra-fecha">${formatearFechaModif(o.fechaModificacion)}</span>
-      </div>`).join('');
-  } catch(err){
-    count.textContent = 'Error';
-    cont.innerHTML = `<div class="cargar-obra-error">No se pudo listar obras en Drive: ${err.message}</div>`;
-    console.error(err);
-  }
-}
-
-function formatearFechaModif(iso){
-  try{
-    const d = new Date(iso);
-    const pad = n => String(n).padStart(2,'0');
-    return `${pad(d.getDate())}/${pad(d.getMonth()+1)}/${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
-  } catch(err){ return iso; }
-}
-
-async function seleccionarObraDesdeGAS(obraId){
-  cerrarModalCargarObra();
-  showSpinner(`Cargando obra ${obraId} desde Drive...`);
-  try{
-    const resp = await fetch(`${GAS_URL}?accion=leer&nombre=${encodeURIComponent(obraId)}`, { cache:'no-store' });
-    if(!resp.ok) throw new Error(`HTTP ${resp.status}`);
-    const body = await resp.json();
-    if(!body.ok) throw new Error(body.error || 'El GAS devolvió ok:false');
-    aplicarEstadoCargado(body.datos);
-  } catch(err){
-    toast(`Error al cargar obra ${obraId} desde Drive: ` + err.message, 'err');
-    console.error(err);
-  } finally{
-    hideSpinner();
-  }
-}
-
-// Mismo bloque de validación/compatibilidad que ya usaba onJsonSelected (FileReader) —
-// factorizado acá para que lo compartan la carga desde Drive y la carga desde archivo local.
-function aplicarEstadoCargado(parsed){
-  if(!parsed.obra || !Array.isArray(parsed.periodos)) throw new Error('Estructura de JSON inválida (se espera {obra, periodos:[...]})');
-  STATE = parsed;
-  if(!Array.isArray(STATE.notas)) STATE.notas = []; // compatibilidad con JSON viejo (sin panel de Notas)
-  if(typeof STATE.errorSeq !== 'number') STATE.errorSeq = 0; // compatibilidad con JSON pre-v3.00
-  if(!STATE.celdasResueltas) STATE.celdasResueltas = {};
-  if(!Array.isArray(STATE.autoPaneles)) STATE.autoPaneles = []; // compatibilidad con JSON pre-v3.08 (sin Auto Paneles)
-  if(!STATE.notasPaneles || typeof STATE.notasPaneles !== 'object' || Array.isArray(STATE.notasPaneles)) STATE.notasPaneles = {}; // compatibilidad con JSON pre-v4.0.0 (sin nota por panel)
-  autoPanelTipoOverride = {}; // nueva carga de obra/estado, vuelve a la config real (v3.11)
-  computeDerivados();
-  renderAll();
-  toast(`Obra cargada: ${STATE.obra} · ${STATE.periodos.length} período(s)`, 'ok');
-}
-
-function cerrarModalCargarObra(){ document.getElementById('modal-cargar-obra').classList.remove('open'); }
-function cerrarModalCargarObraClickFuera(evt){ if(evt.target.id === 'modal-cargar-obra') cerrarModalCargarObra(); }
-
 function abrirModalPeriodos(){ document.getElementById('modal-periodos').classList.add('open'); }
 function cerrarModalPeriodos(){ document.getElementById('modal-periodos').classList.remove('open'); }
 function cerrarModalPeriodosClickFuera(evt){ if(evt.target === document.getElementById('modal-periodos')) cerrarModalPeriodos(); }
@@ -3074,37 +2939,25 @@ function cfgValidar(){
   return errores;
 }
 
-async function cfgExportar(){
+function cfgExportar(){
   const errores = cfgValidar();
   if(errores.length){
-    toast(`No se guardó: ${errores.length} error(es) de validación. Ver consola.`, 'err');
+    toast(`No se exportó: ${errores.length} error(es) de validación. Ver consola.`, 'err');
     console.error('Errores de validación de config:', errores);
     return;
   }
   CONFIG.actualizado = new Date().toISOString();
-  showSpinner('Guardando configuración en Drive...');
-  try{
-    const resp = await fetch(GAS_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // evita preflight OPTIONS (Apps Script no lo responde)
-      body: JSON.stringify({ accion:'guardar', nombre:'config_uo_celdas', datos: CONFIG })
-    });
-    if(!resp.ok) throw new Error(`HTTP ${resp.status}`);
-    const body = await resp.json();
-    if(!body.ok) throw new Error(body.error || 'El GAS devolvió ok:false');
-    toast('Configuración guardada en Drive', 'ok');
-  } catch(err){
-    toast('Error al guardar la configuración en Drive: ' + err.message, 'err');
-    console.error(err);
-  } finally{
-    hideSpinner();
-  }
+  const blob = new Blob([JSON.stringify(CONFIG, null, 2)], { type:'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `config_uo_celdas_v${(parseFloat((CONFIG.version||'v1.0').replace('v',''))+0.1).toFixed(1)}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+  toast('Config exportada — subila al repo junto al HTML para que quede activa', 'ok');
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
-  // v5.0.1: título del tab tomado de APP_VERSION — antes quedaba hardcodeado en <title>
-  // y se desincronizaba del badge en cada bump de versión (se detectó pegado en v4.1.0).
-  document.title = `ICG EvoTen ${APP_VERSION} | Multi-obra`;
   await cargarConfig();
   renderAll();
   renderConfigTab();
