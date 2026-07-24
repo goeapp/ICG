@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ICG EvoTen v5.0.2 | Multi-obra</title>
+<title>ICG EvoTen v5.0.3 | Multi-obra</title>
 <script src="https://cdn.tailwindcss.com/3.4.1"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
@@ -484,7 +484,7 @@ main { max-width:1400px; margin:0 auto; padding:24px 20px 60px; }
 
 <div id="app-header">
   <div style="display:flex;align-items:center;gap:14px;">
-    <div class="app-badge">v5.0.2</div>
+    <div class="app-badge">v5.0.3</div>
     <div>
       <div class="app-title">ICG EvoTen · Evolución y Tendencia</div>
     </div>
@@ -830,7 +830,7 @@ const PANEL_MAP_CANVAS = {
 // Versión de la app — se estampa en el JSON exportado (STATE.generado_con) para que,
 // si mañana cambia la lógica de detección/visualización, el motor pueda detectar JSON
 // generados con una versión anterior y aplicar un fallback en vez de romper.
-const APP_VERSION = 'v5.0.2';
+const APP_VERSION = 'v5.0.3';
 
 // v5.0.0: persistencia en Drive vía GAS standalone (icg_evoten_v5.0.0.gs), sin login.
 // Reemplaza el guardado/carga local (Blob + FileReader) de v4.3.2 para portabilidad
@@ -1075,9 +1075,19 @@ async function procesarArchivoXLSX(file){
 }
 
 // ============================================================
-// ACUMULACIÓN — upsert por clave obra+anio+mes+revision
+// ACUMULACIÓN — upsert por clave obra+anio+mes (v5.0.3: la revision quedó FUERA de la clave
+// de unicidad — ver claveDe). Dos revisiones del mismo período son, a fines del timeline, el
+// mismo período: una reemplaza a la otra, nunca conviven como 2 puntos separados.
 // ============================================================
-function claveDe(p){ return `${p.obra}|${p.periodo.anio}|${p.periodo.mes}|${p.revision}`; }
+// v5.0.3: antes la clave incluía "|revision", así que subir una revisión NUEVA de un período ya
+// cargado (ej. rev.0 cargada, subís rev.1 del mismo mes) no matcheaba contra la clave existente
+// — nunca entraba al branch que dispara el confirm(), y el período se agregaba DUPLICADO en vez
+// de reemplazado (2 entradas para el mismo anio/mes, con distinta revision — reportado por Ale:
+// "06/2026" aparecía 2 veces en los gráficos tras cargar "...-06-Rev 1.xlsx" sobre una obra que
+// ya tenía "...-06.xlsx" rev.0 cargada). La revision sigue viajando en el objeto del período y
+// mostrándose en la tabla "Períodos cargados" (columna REV.) — solo deja de ser parte de la
+// clave de unicidad.
+function claveDe(p){ return `${p.obra}|${p.periodo.anio}|${p.periodo.mes}`; }
 
 function upsertPeriodo(nuevo){
   if(STATE.obra && STATE.obra !== nuevo.obra){
@@ -1091,9 +1101,13 @@ function upsertPeriodo(nuevo){
 
   if(idxExistente >= 0){
     const anterior = STATE.periodos[idxExistente];
+    // v5.0.3: el mensaje ahora muestra AMBAS revisiones (la ya cargada y la nueva) — antes
+    // mostraba solo la revision del archivo nuevo, lo cual no alcanzaba para distinguir el caso
+    // de reemplazo de revisión (rev.0 → rev.1) del caso de recarga del mismo archivo (rev.0 →
+    // rev.0), ambos ahora entran a este mismo branch.
     const reemplazar = confirm(
-      `Ya existe un período ${String(nuevo.periodo.mes).padStart(2,'0')}/${nuevo.periodo.anio} rev.${nuevo.revision} `+
-      `(archivo: "${anterior.archivo_origen}").\n\n¿Reemplazar con "${nuevo.archivo_origen}"?`
+      `Ya existe un período ${String(nuevo.periodo.mes).padStart(2,'0')}/${nuevo.periodo.anio} rev.${anterior.revision} `+
+      `(archivo: "${anterior.archivo_origen}").\n\n¿Reemplazar con "${nuevo.archivo_origen}" (rev.${nuevo.revision})?`
     );
     if(!reemplazar) return false;
     STATE.periodos[idxExistente] = nuevo;
