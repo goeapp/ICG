@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ICG EvoTen v5.0.1 | Multi-obra</title>
+<title>ICG EvoTen v5.0.2 | Multi-obra</title>
 <script src="https://cdn.tailwindcss.com/3.4.1"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
@@ -484,7 +484,7 @@ main { max-width:1400px; margin:0 auto; padding:24px 20px 60px; }
 
 <div id="app-header">
   <div style="display:flex;align-items:center;gap:14px;">
-    <div class="app-badge">v5.0.1</div>
+    <div class="app-badge">v5.0.2</div>
     <div>
       <div class="app-title">ICG EvoTen · Evolución y Tendencia</div>
     </div>
@@ -830,7 +830,7 @@ const PANEL_MAP_CANVAS = {
 // Versión de la app — se estampa en el JSON exportado (STATE.generado_con) para que,
 // si mañana cambia la lógica de detección/visualización, el motor pueda detectar JSON
 // generados con una versión anterior y aplicar un fallback en vez de romper.
-const APP_VERSION = 'v5.0.1';
+const APP_VERSION = 'v5.0.2';
 
 // v5.0.0: persistencia en Drive vía GAS standalone (icg_evoten_v5.0.0.gs), sin login.
 // Reemplaza el guardado/carga local (Blob + FileReader) de v4.3.2 para portabilidad
@@ -1239,6 +1239,17 @@ function decimalesDesdeFormato(z){
   return m ? m[1].length : 0;
 }
 
+// v5.0.2: detecta si el formato de número de Excel es de tipo porcentaje (ej. "0.00%", "0%").
+// Solo mira la sección de números POSITIVOS del formato (antes del primer ";"), igual criterio
+// que decimalesDesdeFormato(). Un valor con este formato viene crudo como decimal (-0,0037) y
+// hay que multiplicarlo x100 + agregar "%" al mostrarlo (ver fmtARPct) — Excel lo hace de forma
+// invisible vía el formato de celda, pero el XLSX crudo (raw:true) no aplica esa transformación.
+function esFormatoPorcentaje(z){
+  if(!z || z === 'General') return false;
+  const seccionPositiva = z.split(';')[0];
+  return seccionPositiva.includes('%');
+}
+
 async function procesarArchivoXLSXApoyo(file){
   const ident = parseNombreArchivoApoyo(file.name);
   if(!ident){
@@ -1292,15 +1303,22 @@ async function procesarArchivoXLSXApoyo(file){
   // columna de id. Si no hay celda, no tiene formato, o es "General" → default 1 decimal (a
   // pedido de Ale — antes v3.14/v3.15 usaban 2 decimales fijos siempre, sin mirar el Excel).
   const decimalesPorId = {};
+  // v5.0.2: mismo criterio y misma celda que decimalesPorId — si el formato de la columna es
+  // "0.00%"/"0%"/etc., la serie se marca como porcentaje para que el render multiplique x100
+  // y agregue el símbolo "%" (ver fmtARPct). Default false (compatibilidad con columnas sin %).
+  const esPorcentajePorId = {};
   defs.forEach(d => {
     const colIdx = colIdxPorId[d.id];
     let decimales = 1;
+    let esPorcentaje = false;
     if(colIdx != null){
       const celda = wsDatos[XLSX.utils.encode_cell({ r:1, c:colIdx })];
       const inferidos = celda ? decimalesDesdeFormato(celda.z) : null;
       if(inferidos != null) decimales = inferidos;
+      esPorcentaje = celda ? esFormatoPorcentaje(celda.z) : false;
     }
     decimalesPorId[d.id] = decimales;
+    esPorcentajePorId[d.id] = esPorcentaje;
   });
 
   // Una serie de datos por fila de "paneles" (independiente de si después se agrupa o no).
@@ -1311,7 +1329,7 @@ async function procesarArchivoXLSXApoyo(file){
       mes: Number(r[1]),
       valor: (colIdx != null && typeof r[colIdx] === 'number') ? r[colIdx] : null
     }));
-    return { id: d.id, leyenda: d.leyenda, decimales: decimalesPorId[d.id], datos };
+    return { id: d.id, leyenda: d.leyenda, decimales: decimalesPorId[d.id], esPorcentaje: esPorcentajePorId[d.id], datos };
   });
 
   // Agrupar por "titulo" IDÉNTICO (v3.15): la 1ª fila de cada grupo (orden de aparición en la
@@ -2642,6 +2660,13 @@ function dibujarUnAutoPanel(p, panelIndex){
   const chartType = tipoEfectivo === 'barra' ? 'bar' : 'line';
   const multiSerie = p.series.length > 1;
 
+  // v5.0.2: helper local — series con formato de celda "%" en el XLSX de apoyo (ver
+  // esFormatoPorcentaje) vienen crudas como decimal (-0,0037) y necesitan x100 + símbolo "%"
+  // (fmtARPct) en vez del fmtAR plano que usaban todos los Auto Panel hasta acá. Centraliza el
+  // criterio en un solo lugar para los 5 puntos de formateo de esta función (2 datalabels, el
+  // ancho medido para padding, el tooltip y el eje Y).
+  const fmtSerie = (v, serie) => serie && serie.esPorcentaje ? fmtARPct(v, serie.decimales) : fmtAR(v, serie.decimales);
+
   // Cruce por anio+mes: mismo timeline que el resto del dashboard (STATE.periodos), no el
   // propio arreglo de fechas del panel — así el panel "sigue" el rango de la obra. Se hace
   // una vez por cada serie del grupo.
@@ -2693,7 +2718,7 @@ function dibujarUnAutoPanel(p, panelIndex){
     const MARGEN_CORRIMIENTO_BARRA = chartType === 'bar' ? 24 : 0;
     const lineas = datasetsInfo.map(({ serie, dataSerie }) => {
       const ultimoVal = dataSerie[dataSerie.length - 1];
-      const texto = typeof ultimoVal === 'number' ? fmtAR(ultimoVal, serie.decimales) : '—';
+      const texto = typeof ultimoVal === 'number' ? fmtSerie(ultimoVal, serie) : '—';
       const nombre = serie.leyenda || serie.id;
       return `${nombre} ${texto}`;
     });
@@ -2711,7 +2736,7 @@ function dibujarUnAutoPanel(p, panelIndex){
     // que le agregue altura extra que dependa del contenido.
     const anchos = datasetsInfo[0].dataSerie
       .filter(v => typeof v === 'number')
-      .map(v => medirTextoDatalabel(fmtAR(v, datasetsInfo[0].serie.decimales), FONT_WEIGHT_LABEL, FONT_SIZE_LABEL).ancho);
+      .map(v => medirTextoDatalabel(fmtSerie(v, datasetsInfo[0].serie), FONT_WEIGHT_LABEL, FONT_SIZE_LABEL).ancho);
     const maxAnchoSimple = anchos.length ? Math.max(...anchos) : 0;
     paddingDinamico = { top:24, bottom:24, right: Math.ceil(maxAnchoSimple/2) + 8 };
   }
@@ -2750,7 +2775,7 @@ function dibujarUnAutoPanel(p, panelIndex){
     const esAncla = dosSeries && i === 0;
     const formatterDatalabel = dosSeries
       ? (val, ctx) => (esAncla && ctx.dataIndex === ultimoIdx) ? lineasCombinadas : null
-      : (val) => typeof val === 'number' ? fmtAR(val, serie.decimales) : null;
+      : (val) => typeof val === 'number' ? fmtSerie(val, serie) : null;
     return {
       label: multiSerie ? (serie.leyenda || serie.id) : p.titulo,
       data: dataSerie,
@@ -2803,12 +2828,16 @@ function dibujarUnAutoPanel(p, panelIndex){
         // fijo en 1 decimal para todas). Se resuelve por ctx.datasetIndex contra datasetsInfo,
         // en vez de reusar tooltipFmt() (compartida con el resto del dashboard, sin tocar).
         tooltip:{ callbacks:{ label: (ctx) => {
-          const dec = datasetsInfo[ctx.datasetIndex]?.serie?.decimales ?? 1;
+          const serieCtx = datasetsInfo[ctx.datasetIndex]?.serie;
           const v = ctx.parsed.y ?? ctx.parsed;
-          return `${ctx.dataset.label || ''}: ${fmtAR(v, dec)}`;
+          return `${ctx.dataset.label || ''}: ${fmtSerie(v, serieCtx)}`;
         } } }
       },
-      scales:{ y:{ suggestedMax: maxVal + bufferVal, suggestedMin: minVal - bufferVal*0.3, ticks:{ callback:v=>fmtAR(v,1), color:(ctx)=>colorNeg(ctx.tick.value) } } }
+      // v5.0.2: eje Y formateado según la serie ancla (datasetsInfo[0] — misma que ya define
+      // decimales/tipo para el resto del panel en el resto de esta función). En paneles con 2
+      // series de tipos distintos (uno % y otro no) esto es una simplificación consciente: se
+      // prioriza la serie ancla, igual criterio ya usado para el ancho del padding más arriba.
+      scales:{ y:{ suggestedMax: maxVal + bufferVal, suggestedMin: minVal - bufferVal*0.3, ticks:{ callback:v=>fmtSerie(v, datasetsInfo[0].serie), color:(ctx)=>colorNeg(ctx.tick.value) } } }
     },
     plugins:[ChartDataLabels]
   });
