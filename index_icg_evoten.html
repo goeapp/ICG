@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ICG EvoTen v5.0.5 | Multi-obra</title>
+<title>ICG EvoTen v5.0.6 | Multi-obra</title>
 <script src="https://cdn.tailwindcss.com/3.4.1"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
@@ -484,7 +484,7 @@ main { max-width:1400px; margin:0 auto; padding:24px 20px 60px; }
 
 <div id="app-header">
   <div style="display:flex;align-items:center;gap:14px;">
-    <div class="app-badge">v5.0.5</div>
+    <div class="app-badge">v5.0.6</div>
     <div>
       <div class="app-title">ICG EvoTen · Evolución y Tendencia</div>
     </div>
@@ -830,7 +830,7 @@ const PANEL_MAP_CANVAS = {
 // Versión de la app — se estampa en el JSON exportado (STATE.generado_con) para que,
 // si mañana cambia la lógica de detección/visualización, el motor pueda detectar JSON
 // generados con una versión anterior y aplicar un fallback en vez de romper.
-const APP_VERSION = 'v5.0.5';
+const APP_VERSION = 'v5.0.6';
 
 // v5.0.0: persistencia en Drive vía GAS standalone (icg_evoten_v5.0.0.gs), sin login.
 // Reemplaza el guardado/carga local (Blob + FileReader) de v4.3.2 para portabilidad
@@ -2700,6 +2700,61 @@ function medirTextoDatalabel(texto, fontWeight=700, fontSize=10){
   return { ancho: m.width, alto };
 }
 
+// v5.0.6: plugin custom — dibuja la caja combinada de Auto Paneles de 2 series con un cuadradito
+// de color REAL (Canvas nativo, ctx.fillRect) al lado de cada línea. Reemplaza el texto plano de
+// v3.15.6 (que a su vez reemplazó el emoji de v3.15.5 por el problema de tofu/fuente — ver
+// comentario en dibujarUnAutoPanel). chartjs-plugin-datalabels NO soporta color por línea dentro
+// de una misma etiqueta multilínea (confirmado contra chartjs-plugin-datalabels#198, cerrado
+// "wontfix") — por eso esta caja se dibuja acá, fuera de ese plugin, en su propio hook
+// afterDatasetsDraw, leyendo la config desde options.plugins.cajaColorCombinada (solo presente
+// en paneles dosSeries — ver dibujarUnAutoPanel). Simulado y validado con Ale antes de codear
+// (ver handoff v5.0.6) contra datos reales de "Costo Industrial", obra 1316.
+const cajaColorCombinadaPlugin = {
+  id: 'cajaColorCombinada',
+  afterDatasetsDraw(chart, args, opts){
+    if(!opts || !opts.lineas) return;
+    const { ctx } = chart;
+    const meta = chart.getDatasetMeta(0);
+    const punto = meta.data[opts.ultimoIdx];
+    if(!punto) return;
+
+    const familia = (Chart.defaults?.font?.family) || 'sans-serif';
+    ctx.save();
+    ctx.font = `${opts.fontWeight} ${opts.fontSize}px ${familia}`;
+    const anchoTexto = Math.max(...opts.lineas.map(l => ctx.measureText(l.texto).width));
+    const anchoCaja = opts.swatch + opts.gap + anchoTexto + opts.padH * 2;
+    const altoCaja = opts.lineas.length * opts.lineH + opts.padV * 2;
+
+    const boxX = punto.x + opts.offset;
+    const boxY = punto.y - altoCaja / 2;
+
+    ctx.beginPath();
+    ctx.moveTo(boxX + opts.radio, boxY);
+    ctx.arcTo(boxX + anchoCaja, boxY, boxX + anchoCaja, boxY + altoCaja, opts.radio);
+    ctx.arcTo(boxX + anchoCaja, boxY + altoCaja, boxX, boxY + altoCaja, opts.radio);
+    ctx.arcTo(boxX, boxY + altoCaja, boxX, boxY, opts.radio);
+    ctx.arcTo(boxX, boxY, boxX + anchoCaja, boxY, opts.radio);
+    ctx.closePath();
+    ctx.fillStyle = '#ffffff';
+    ctx.fill();
+    ctx.lineWidth = opts.borde;
+    ctx.strokeStyle = '#94a3b8';
+    ctx.stroke();
+
+    ctx.textBaseline = 'middle';
+    ctx.textAlign = 'left';
+    opts.lineas.forEach((l, i) => {
+      const ly = boxY + opts.padV + i * opts.lineH + opts.lineH / 2;
+      const swX = boxX + opts.padH, swY = ly - opts.swatch / 2;
+      ctx.fillStyle = l.color;
+      ctx.fillRect(swX, swY, opts.swatch, opts.swatch);
+      ctx.fillStyle = '#0f172a';
+      ctx.fillText(l.texto, swX + opts.swatch + opts.gap, ly);
+    });
+    ctx.restore();
+  }
+};
+
 function dibujarUnAutoPanel(p, panelIndex){
   destroyChart(`auto_${p.id}`);
   const { tipoEfectivo } = iconoAutoPanel(p);
@@ -2761,19 +2816,31 @@ function dibujarUnAutoPanel(p, panelIndex){
     // genérico ("tofu") en vez del color real — confirmado por Ale en captura real (Venta se veía
     // con un cuadrado negro, Costo bien, porque 🔴 es un emoji mucho más viejo con mejor soporte).
     // Texto plano no depende de qué emoji soporte el sistema operativo del usuario.
+    // v3.15.6→v5.0.6: el texto plano de v3.15.6 (reemplazo del emoji de v3.15.5 por el problema
+    // de tofu/fuente) pasa a llevar, además, un cuadradito de color REAL dibujado por
+    // cajaColorCombinadaPlugin (ver esa función) — de ahí que cada línea ahora sea un objeto
+    // {texto, color} en vez de un string. La leyenda de arriba se apaga para estos paneles (ver
+    // más abajo, `legend: display`) porque la referencia de color ya vive DENTRO de la caja —
+    // antes quedaba (redundante) en 2 lugares. Simulado y acordado con Ale antes de codear (ver
+    // handoff v5.0.6), contra datos reales de "Costo Industrial" (obra 1316).
+    const SWATCH = 8, GAP_SWATCH = 6, LINE_H = 14, CAJA_OFFSET = 6;
     const MARGEN_CORRIMIENTO_BARRA = chartType === 'bar' ? 24 : 0;
-    const lineas = datasetsInfo.map(({ serie, dataSerie }) => {
+    const lineas = datasetsInfo.map(({ serie, dataSerie, colorBase }) => {
       const ultimoVal = dataSerie[dataSerie.length - 1];
       const texto = typeof ultimoVal === 'number' ? fmtSerie(ultimoVal, serie) : '—';
       const nombre = serie.leyenda || serie.id;
-      return `${nombre} ${texto}`;
+      return { texto: `${nombre} ${texto}`, color: colorBase };
     });
     lineasCombinadas = lineas;
-    const medidas = lineas.map(linea => medirTextoDatalabel(linea, FONT_WEIGHT_LABEL, FONT_SIZE_LABEL));
-    const anchoCaja = Math.max(...medidas.map(m => m.ancho)) + CAJA_PAD_H*2 + CAJA_BORDE*2;
+    const medidas = lineas.map(l => medirTextoDatalabel(l.texto, FONT_WEIGHT_LABEL, FONT_SIZE_LABEL));
+    // v5.0.6: la caja ya no queda centrada en el punto (como cuando la dibujaba el plugin de
+    // datalabels) — cajaColorCombinadaPlugin la ancla al costado (boxX = punto.x + offset), así
+    // que el padding derecho pasa a ser offset + ancho completo (antes: ancho/2, porque quedaba
+    // centrada).
+    const anchoCaja = SWATCH + GAP_SWATCH + Math.max(...medidas.map(m => m.ancho)) + CAJA_PAD_H*2 + CAJA_BORDE*2;
     paddingDinamico = {
       top: 24, bottom: 24,
-      right: Math.ceil(anchoCaja/2) + MARGEN_CORRIMIENTO_BARRA
+      right: CAJA_OFFSET + Math.ceil(anchoCaja) + 6 + MARGEN_CORRIMIENTO_BARRA
     };
   } else {
     // Panel de 1 sola serie: sin caja, todos los puntos muestran etiqueta (v3.10). Se mide el
@@ -2807,21 +2874,11 @@ function dibujarUnAutoPanel(p, panelIndex){
 
   const datasets = datasetsInfo.map(({ serie, dataSerie, colorBase }, i) => {
     const ultimoIdx = dataSerie.length - 1;
-    // v3.15.1: en paneles de 2 series el datalabel se muestra SOLO en el último período (evita
-    // el solapamiento de 12 etiquetas — 6 meses x 2 series — confirmado por Ale en producción).
-    // v3.15.2: el intento de v3.15.1 de separar horizontalmente (align 'right'/'left') NO alcanzó
-    // en la práctica — con Venta y Costo de valores parecidos, las barras quedan casi a la misma
-    // altura y los textos se siguen pisando aunque apunten a lados opuestos. Se reemplaza por
-    // v3.15.5: en paneles de 2 series, la caja combinada (2 líneas, con el nombre de cada serie
-    // — v3.15.6: antes un cuadradito de color, ver comentario más arriba) se dibuja UNA sola vez,
-    // anclada a la 1ª serie del grupo (misma que ya manda en título/subtítulo/tipo — v3.15). La
-    // 2ª serie no dibuja datalabel propio (`display:false`), reemplaza el escalonado de 2 cajas
-    // de v3.15.1-v3.15.4 (que necesitaba inflar la escala Y y "achataba" la curva — confirmado
-    // por Ale).
-    const esAncla = dosSeries && i === 0;
-    const formatterDatalabel = dosSeries
-      ? (val, ctx) => (esAncla && ctx.dataIndex === ultimoIdx) ? lineasCombinadas : null
-      : (val) => typeof val === 'number' ? fmtSerie(val, serie) : null;
+    // v5.0.6: en paneles de 2 series, NINGÚN dataset dibuja su propio datalabel — la caja
+    // combinada (con swatch de color) la dibuja cajaColorCombinadaPlugin en su propio hook,
+    // fuera del plugin de datalabels (ver comentario ahí). Antes (v3.15.5-v3.15.6) la 1ª serie
+    // (`esAncla`) sí dibujaba, usando el mecanismo de caja del propio chartjs-plugin-datalabels.
+    const formatterDatalabel = (val) => typeof val === 'number' ? fmtSerie(val, serie) : null;
     return {
       label: multiSerie ? (serie.leyenda || serie.id) : p.titulo,
       data: dataSerie,
@@ -2834,23 +2891,12 @@ function dibujarUnAutoPanel(p, panelIndex){
       clip: false,
       // v3.13/v3.14: en BARRA, el ANCHOR depende del signo del valor — positivo → 'end' (tip real
       // de la barra), negativo → 'start' (sigue la punta real; 'end' fijo colapsaba en el cero,
-      // ver handoff v3.14). No cambia con v3.15.5.
-      datalabels: (dosSeries && !esAncla) ? { display:false } : {
+      // ver handoff v3.14). No cambia con v5.0.6 — solo aplica cuando NO es dosSeries.
+      datalabels: dosSeries ? { display:false } : {
         anchor: (ctx) => chartType === 'bar' && ctx.dataset.data[ctx.dataIndex] < 0 ? 'start' : 'end',
         align: (ctx) => chartType === 'bar' && ctx.dataset.data[ctx.dataIndex] < 0 ? 'bottom' : 'top',
-        offset: dosSeries ? 6 : undefined,
         clamp:false,
-        // v3.15.2: caja visual SOLO en paneles de 2 series (panel de 1 sola serie sigue como
-        // siempre, sin caja, sin cambios visuales). v3.15.5: el color de borde pasa a ser neutro
-        // (no el de una serie puntual) porque la caja ahora combina las 2 — la identificación por
-        // serie queda en el cuadradito de color de cada línea, no en el borde de la caja.
-        backgroundColor: dosSeries ? '#ffffff' : undefined,
-        borderColor: dosSeries ? '#94a3b8' : undefined,
-        borderWidth: dosSeries ? CAJA_BORDE : undefined,
-        borderRadius: dosSeries ? CAJA_RADIO : undefined,
-        padding: dosSeries ? {top:CAJA_PAD_V,bottom:CAJA_PAD_V,left:CAJA_PAD_H,right:CAJA_PAD_H} : undefined,
-        textAlign: dosSeries ? 'left' : undefined,
-        color: dosSeries ? '#0f172a' : (ctx)=>colorSiNeg(ctx.dataset.data[ctx.dataIndex], colorBase),
+        color: (ctx)=>colorSiNeg(ctx.dataset.data[ctx.dataIndex], colorBase),
         font:{weight:FONT_WEIGHT_LABEL,size:FONT_SIZE_LABEL}, formatter: formatterDatalabel }
     };
   });
@@ -2867,9 +2913,23 @@ function dibujarUnAutoPanel(p, panelIndex){
       // achica dentro del contenedor de altura fija (confirmado por Ale, ver handoff v3.15.4).
       layout:{ padding: paddingDinamico },
       plugins:{
-        // v3.15: leyenda visible solo cuando el panel combina 2+ series — en panel de 1 sola
-        // serie sigue oculta, sin cambios visuales respecto a versiones anteriores.
-        legend:{ display: multiSerie },
+        // v3.15: leyenda visible cuando el panel combina 2+ series. v5.0.6: en paneles de
+        // EXACTAMENTE 2 series se apaga (`&& !dosSeries`) — la referencia de color pasa a vivir
+        // dentro de la caja combinada (cajaColorCombinadaPlugin), no hace falta la leyenda aparte.
+        // Paneles de 3+ series (multiSerie sin ser dosSeries) siguen con su leyenda normal, sin
+        // cambios.
+        legend:{ display: multiSerie && !dosSeries },
+        // v5.0.6: config de cajaColorCombinadaPlugin — solo presente cuando dosSeries. Todas las
+        // constantes de layout de la caja (padding, radio, ancho de swatch) se pasan desde acá
+        // para que sean la MISMA fuente que usó el cálculo de `paddingDinamico` más arriba — nada
+        // de números repetidos/adivinados en el plugin.
+        cajaColorCombinada: dosSeries ? {
+          ultimoIdx: datasetsInfo[0].dataSerie.length - 1,
+          lineas: lineasCombinadas,
+          padH: CAJA_PAD_H, padV: CAJA_PAD_V, radio: CAJA_RADIO, borde: CAJA_BORDE,
+          swatch: 8, gap: 6, lineH: 14, offset: 6,
+          fontWeight: FONT_WEIGHT_LABEL, fontSize: FONT_SIZE_LABEL
+        } : undefined,
         // v3.15.1: tooltip con los decimales propios de CADA serie (antes: tooltipFmt(false),
         // fijo en 1 decimal para todas). Se resuelve por ctx.datasetIndex contra datasetsInfo,
         // en vez de reusar tooltipFmt() (compartida con el resto del dashboard, sin tocar).
@@ -2885,7 +2945,7 @@ function dibujarUnAutoPanel(p, panelIndex){
       // prioriza la serie ancla, igual criterio ya usado para el ancho del padding más arriba.
       scales:{ y:{ suggestedMax: maxVal + bufferVal, suggestedMin: minVal - bufferVal*0.3, ticks:{ callback:v=>fmtSerie(v, datasetsInfo[0].serie), color:(ctx)=>colorNeg(ctx.tick.value) } } }
     },
-    plugins:[ChartDataLabels]
+    plugins:[ChartDataLabels, cajaColorCombinadaPlugin]
   });
 }
 
