@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ICG EvoTen v5.0.3 | Multi-obra</title>
+<title>ICG EvoTen v5.0.4 | Multi-obra</title>
 <script src="https://cdn.tailwindcss.com/3.4.1"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
@@ -484,7 +484,7 @@ main { max-width:1400px; margin:0 auto; padding:24px 20px 60px; }
 
 <div id="app-header">
   <div style="display:flex;align-items:center;gap:14px;">
-    <div class="app-badge">v5.0.3</div>
+    <div class="app-badge">v5.0.4</div>
     <div>
       <div class="app-title">ICG EvoTen · Evolución y Tendencia</div>
     </div>
@@ -830,7 +830,7 @@ const PANEL_MAP_CANVAS = {
 // Versión de la app — se estampa en el JSON exportado (STATE.generado_con) para que,
 // si mañana cambia la lógica de detección/visualización, el motor pueda detectar JSON
 // generados con una versión anterior y aplicar un fallback en vez de romper.
-const APP_VERSION = 'v5.0.3';
+const APP_VERSION = 'v5.0.4';
 
 // v5.0.0: persistencia en Drive vía GAS standalone (icg_evoten_v5.0.0.gs), sin login.
 // Reemplaza el guardado/carga local (Blob + FileReader) de v4.3.2 para portabilidad
@@ -2207,7 +2207,12 @@ function renderChartMargen(){
     options:{
       plugins:{
         legend:{display:false},
-        datalabels:{ align:'top', color:(ctx)=>colorNeg(ctx.dataset.data[ctx.dataIndex]), font:{weight:'700',size:10}, formatter:v=>fmtAR(v,1)+'%' },
+        // v5.0.4: clamp:true — el datalabel del último punto se desbordaba contra el techo del
+        // gráfico cuando el valor quedaba pegado al máximo autoescalado (caso real: obra con
+        // margen mejorando fuerte en el último período). clamp mantiene el label DENTRO del área
+        // de dibujo sin tocar la autoescala (que se sacó a propósito en v3.03, ver comentario
+        // abajo) ni el layout del panel.
+        datalabels:{ align:'top', clamp:true, color:(ctx)=>colorNeg(ctx.dataset.data[ctx.dataIndex]), font:{weight:'700',size:10}, formatter:v=>fmtAR(v,1)+'%' },
         tooltip:{ callbacks:{ label: tooltipFmt(true) } }
       },
       // v3.03: se quitó el techo fijo "max:0" — asumía margen siempre negativo (válido para 1316 histórico,
@@ -2365,7 +2370,10 @@ function renderChartFaltante(){
       label:'Margen del Faltante (%)', data: STATE.periodos.map(p=>p.datos.margen_faltante_pct*100),
       borderColor: COLOR.cyan, tension:.3, pointRadius:4,
       pointBackgroundColor: (ctx)=>colorSiNegCtx(ctx,COLOR.cyan), pointBorderColor: (ctx)=>colorSiNegCtx(ctx,COLOR.cyan),
-      datalabels:{ align:'top', font:{weight:'700',size:10}, formatter:v=>fmtAR(v,1)+'%', color:(ctx)=>colorNeg(ctx.dataset.data[ctx.dataIndex]) }
+      // v5.0.4: clamp:true — mismo fix que chart-margen (ver comentario ahí). Código idéntico,
+      // mismo riesgo latente de desborde: acá no se manifestó todavía por casualidad de escala,
+      // no porque estuviera resuelto.
+      datalabels:{ align:'top', clamp:true, font:{weight:'700',size:10}, formatter:v=>fmtAR(v,1)+'%', color:(ctx)=>colorNeg(ctx.dataset.data[ctx.dataIndex]) }
     }]},
     options:{
       plugins:{ tooltip:{ callbacks:{ label: tooltipFmt(true) } } },
