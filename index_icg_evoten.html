@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ICG EvoTen v5.0.4 | Multi-obra</title>
+<title>ICG EvoTen v5.0.5 | Multi-obra</title>
 <script src="https://cdn.tailwindcss.com/3.4.1"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
@@ -484,7 +484,7 @@ main { max-width:1400px; margin:0 auto; padding:24px 20px 60px; }
 
 <div id="app-header">
   <div style="display:flex;align-items:center;gap:14px;">
-    <div class="app-badge">v5.0.4</div>
+    <div class="app-badge">v5.0.5</div>
     <div>
       <div class="app-title">ICG EvoTen · Evolución y Tendencia</div>
     </div>
@@ -830,7 +830,7 @@ const PANEL_MAP_CANVAS = {
 // Versión de la app — se estampa en el JSON exportado (STATE.generado_con) para que,
 // si mañana cambia la lógica de detección/visualización, el motor pueda detectar JSON
 // generados con una versión anterior y aplicar un fallback en vez de romper.
-const APP_VERSION = 'v5.0.4';
+const APP_VERSION = 'v5.0.5';
 
 // v5.0.0: persistencia en Drive vía GAS standalone (icg_evoten_v5.0.0.gs), sin login.
 // Reemplaza el guardado/carga local (Blob + FileReader) de v4.3.2 para portabilidad
@@ -2167,6 +2167,26 @@ function colorNegRaw(v){ return (typeof v === 'number' && v < 0) ? ROJO_NEG : '#
 function colorSiNeg(v, colorBase='#0f172a'){ return (typeof v === 'number' && v < 0) ? ROJO_NEG : colorBase; }
 function colorSiNegCtx(ctx, colorBase){ return colorSiNeg(ctx.dataset?.data?.[ctx.dataIndex], colorBase); }
 
+// v5.0.5: buffer de escala Y anti-clipping, centralizado. Antes de esta versión el criterio
+// vivía duplicado (chart-costohh usaba maxVal*1.35 fijo; Auto Paneles v3.15 calculaba bufferVal
+// = rango*0.25 con su propio código inline). Se detectó que chart-margen, chart-faltante y
+// chart-margenacordado NUNCA tuvieron este buffer — su datalabel align:'top' se dibuja pegado
+// al valor real, y cuando ese valor queda cerca del máximo autoescalado, la etiqueta se corta
+// (o directo no se ve, si el punto está en la meseta más alta) contra el techo del gráfico.
+// clamp:true (probado en v5.0.4) NO resuelve esto — según la documentación oficial del plugin,
+// clamp solo reubica el ANCHOR cuando el punto de dato está parcialmente oculto; no limita la
+// posición final de la etiqueta cuando el punto está visible pero el label se dibuja por fuera
+// del área. La única solución real, ya probada en este archivo, es dar aire a la escala.
+// Devuelve { suggestedMax, suggestedMin } para spread directo en scales.y.
+function bufferEscalaY(valores){
+  const nums = valores.filter(v => typeof v === 'number');
+  if(!nums.length) return {};
+  const maxVal = Math.max(...nums), minVal = Math.min(...nums);
+  const rango = maxVal - minVal;
+  const buffer = rango > 0 ? rango * 0.25 : (Math.abs(maxVal) * 0.1 || 1);
+  return { suggestedMax: maxVal + buffer, suggestedMin: minVal - buffer * 0.3 };
+}
+
 // Tooltip callback genérico — formatea el valor con fmtAR (1 decimal, formato Argentina).
 // esPct=true agrega el sufijo "%" (los datasets de % ya vienen multiplicados por 100 al graficar).
 function tooltipFmt(esPct){
@@ -2196,28 +2216,28 @@ Chart.defaults.scale.ticks.font = { size: 9 };
 function renderChartMargen(){
   destroyChart('margen');
   const ctx = document.getElementById('chart-margen');
+  const dataMargen = STATE.periodos.map(p => p.datos.margen_total_pct*100);
   charts['margen'] = new Chart(ctx, {
     type:'line',
     data:{ labels:labelsPeriodos(), datasets:[{
       label:'Margen Total Proyectado (%)',
-      data: STATE.periodos.map(p => p.datos.margen_total_pct*100),
+      data: dataMargen,
       borderColor: COLOR.amber, backgroundColor: COLOR.amber, tension:.3, pointRadius:4,
       pointBackgroundColor: (ctx)=>colorSiNegCtx(ctx, COLOR.amber), pointBorderColor: (ctx)=>colorSiNegCtx(ctx, COLOR.amber)
     }]},
     options:{
       plugins:{
         legend:{display:false},
-        // v5.0.4: clamp:true — el datalabel del último punto se desbordaba contra el techo del
-        // gráfico cuando el valor quedaba pegado al máximo autoescalado (caso real: obra con
-        // margen mejorando fuerte en el último período). clamp mantiene el label DENTRO del área
-        // de dibujo sin tocar la autoescala (que se sacó a propósito en v3.03, ver comentario
-        // abajo) ni el layout del panel.
-        datalabels:{ align:'top', clamp:true, color:(ctx)=>colorNeg(ctx.dataset.data[ctx.dataIndex]), font:{weight:'700',size:10}, formatter:v=>fmtAR(v,1)+'%' },
+        datalabels:{ align:'top', color:(ctx)=>colorNeg(ctx.dataset.data[ctx.dataIndex]), font:{weight:'700',size:10}, formatter:v=>fmtAR(v,1)+'%' },
         tooltip:{ callbacks:{ label: tooltipFmt(true) } }
       },
       // v3.03: se quitó el techo fijo "max:0" — asumía margen siempre negativo (válido para 1316 histórico,
       // pero UO1320 tiene margen positivo y los valores quedaban fuera del área visible). Autoescala real.
-      scales:{ y:{ ticks:{ callback:v=>fmtAR(v,1)+'%', color:(ctx)=>colorNeg(ctx.tick.value) } } }
+      // v5.0.5: bufferEscalaY() agrega aire arriba/abajo del rango real (ver comentario en la función) —
+      // sin esto, el datalabel align:'top' del último punto se corta contra el techo cuando el valor
+      // queda cerca del máximo. No reintroduce el techo fijo de v3.03: el buffer se calcula sobre los
+      // datos reales de cada obra, no un valor hardcodeado.
+      scales:{ y:{ ...bufferEscalaY(dataMargen), ticks:{ callback:v=>fmtAR(v,1)+'%', color:(ctx)=>colorNeg(ctx.tick.value) } } }
     },
     plugins:[ChartDataLabels]
   });
@@ -2364,21 +2384,20 @@ function renderChartAvance(){
 function renderChartFaltante(){
   destroyChart('faltante');
   const ctx = document.getElementById('chart-faltante');
+  const dataFaltante = STATE.periodos.map(p=>p.datos.margen_faltante_pct*100);
   charts['faltante'] = new Chart(ctx, {
     type:'line',
     data:{ labels:labelsPeriodos(), datasets:[{
-      label:'Margen del Faltante (%)', data: STATE.periodos.map(p=>p.datos.margen_faltante_pct*100),
+      label:'Margen del Faltante (%)', data: dataFaltante,
       borderColor: COLOR.cyan, tension:.3, pointRadius:4,
       pointBackgroundColor: (ctx)=>colorSiNegCtx(ctx,COLOR.cyan), pointBorderColor: (ctx)=>colorSiNegCtx(ctx,COLOR.cyan),
-      // v5.0.4: clamp:true — mismo fix que chart-margen (ver comentario ahí). Código idéntico,
-      // mismo riesgo latente de desborde: acá no se manifestó todavía por casualidad de escala,
-      // no porque estuviera resuelto.
-      datalabels:{ align:'top', clamp:true, font:{weight:'700',size:10}, formatter:v=>fmtAR(v,1)+'%', color:(ctx)=>colorNeg(ctx.dataset.data[ctx.dataIndex]) }
+      datalabels:{ align:'top', font:{weight:'700',size:10}, formatter:v=>fmtAR(v,1)+'%', color:(ctx)=>colorNeg(ctx.dataset.data[ctx.dataIndex]) }
     }]},
     options:{
       plugins:{ tooltip:{ callbacks:{ label: tooltipFmt(true) } } },
       // v3.03: se quitó el techo fijo "max:0" (mismo motivo que chart-margen — ver comentario arriba)
-      scales:{ y:{ ticks:{ callback:v=>fmtAR(v,1)+'%', color:(ctx)=>colorNeg(ctx.tick.value) } } }
+      // v5.0.5: bufferEscalaY() — mismo fix que chart-margen (ver comentario ahí).
+      scales:{ y:{ ...bufferEscalaY(dataFaltante), ticks:{ callback:v=>fmtAR(v,1)+'%', color:(ctx)=>colorNeg(ctx.tick.value) } } }
     },
     plugins:[ChartDataLabels]
   });
@@ -2480,10 +2499,11 @@ function renderChartAvanceVenta(){
 function renderChartMargenAcordado(){
   destroyChart('margenacordado');
   const ctx = document.getElementById('chart-margenacordado');
+  const dataMargenAcordado = STATE.periodos.map(p=>typeof p.datos.margen_obra==='number' ? p.datos.margen_obra*100 : null);
   charts['margenacordado'] = new Chart(ctx, {
     type:'line',
     data:{ labels:labelsPeriodos(), datasets:[{
-      label:'Margen Acordado (%)', data: STATE.periodos.map(p=>typeof p.datos.margen_obra==='number' ? p.datos.margen_obra*100 : null),
+      label:'Margen Acordado (%)', data: dataMargenAcordado,
       borderColor: COLOR.orange, tension:.3, pointRadius:4,
       pointBackgroundColor:(ctx)=>{ const p=STATE.periodos[ctx.dataIndex]; const v=ctx.dataset.data[ctx.dataIndex];
         return (p?.derivados?.margen_obra_cambio || (typeof v==='number'&&v<0)) ? ROJO_NEG : COLOR.orange; },
@@ -2493,7 +2513,11 @@ function renderChartMargenAcordado(){
     }]},
     options:{
       plugins:{ legend:{ display:false }, tooltip:{ callbacks:{ label: tooltipFmt(true) } } },
-      scales:{ y:{ ticks:{ callback:v=>fmtAR(v,1)+'%', color:(ctx)=>colorNeg(ctx.tick.value) } } }
+      // v5.0.5: bufferEscalaY() — este gráfico etiqueta TODOS los puntos (no solo el último), así
+      // que cualquier período que caiga en la meseta más alta necesitaba el mismo aire. Caso real
+      // reportado por Ale: 5 valores en -3,4% (meseta superior) con etiqueta directamente invisible,
+      // no solo cortada — sin buffer, esos labels quedaban totalmente fuera del canvas.
+      scales:{ y:{ ...bufferEscalaY(dataMargenAcordado), ticks:{ callback:v=>fmtAR(v,1)+'%', color:(ctx)=>colorNeg(ctx.tick.value) } } }
     },
     plugins:[ChartDataLabels]
   });
