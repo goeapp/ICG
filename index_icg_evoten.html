@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ICG EvoTen v6.0.0 | Multi-obra</title>
+<title>ICG EvoTen v6.0.1 | Multi-obra</title>
 <script src="https://cdn.tailwindcss.com/3.4.1"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
@@ -497,7 +497,12 @@ main { max-width:1400px; margin:0 auto; padding:24px 20px 60px; }
 .repo-filtro-chip:hover { border-color:#94a3b8; }
 .repo-filtro-chip.activo { background:#0f172a; color:#fff; border-color:#0f172a; }
 .repo-filtro-chip .dot { width:7px; height:7px; border-radius:50%; display:inline-block; }
-.repo-filtro-limpiar { font-size:9px; font-weight:700; color:#3b82f6; cursor:pointer; text-decoration:underline; }
+.repo-filtro-limpiar {
+  font-size:9px; font-weight:900; text-transform:uppercase; letter-spacing:.06em;
+  padding:5px 12px; border-radius:99px; border:1px solid #fecaca; background:#fff; color:#b91c1c;
+  cursor:pointer; transition:all .15s; display:inline-flex; align-items:center; gap:5px;
+}
+.repo-filtro-limpiar:hover { background:#b91c1c; color:#fff; border-color:#b91c1c; }
 
 .repo-layout { display:flex; gap:16px; align-items:flex-start; min-height:520px; }
 .repo-sidebar {
@@ -530,11 +535,24 @@ main { max-width:1400px; margin:0 auto; padding:24px 20px 60px; }
 }
 .repo-sidebar-reopen:hover { background:#f1f5f9; }
 
-.repo-main-detalle { display:flex; gap:20px; flex-wrap:wrap; }
+.repo-main-detalle { display:flex; gap:20px; flex-wrap:wrap; position:relative; }
 .repo-main-img-wrap { flex:1; min-width:280px; }
 .repo-main-img-wrap img { width:100%; border-radius:12px; cursor:zoom-in; border:1px solid #e6eaf0; background:#f1f5f9; }
-.repo-main-side { width:280px; flex-shrink:0; display:flex; flex-direction:column; gap:12px; }
+.repo-main-side { width:280px; flex-shrink:0; display:flex; flex-direction:column; gap:12px; transition:width .2s, opacity .2s, padding .2s; overflow:hidden; }
+.repo-main-side.oculto { width:0; opacity:0; gap:0; }
 .repo-main-side label { font-size:9px; font-weight:900; text-transform:uppercase; letter-spacing:.06em; color:#94a3b8; display:block; margin-bottom:4px; }
+.repo-main-side-toggle {
+  border:1px solid #e2e8f0; background:#fff; color:#64748b; border-radius:8px; width:26px; height:26px;
+  display:inline-flex; align-items:center; justify-content:center; cursor:pointer; flex-shrink:0;
+}
+.repo-main-side-toggle:hover { background:#f1f5f9; color:#0f172a; }
+.repo-main-side-hdr { display:flex; align-items:center; justify-content:space-between; }
+.repo-main-side-reopen {
+  position:absolute; top:0; right:0; border:1px solid #e2e8f0; background:#fff; color:#64748b;
+  border-radius:8px; width:26px; height:26px; display:inline-flex; align-items:center; justify-content:center;
+  cursor:pointer; z-index:2;
+}
+.repo-main-side-reopen:hover { background:#f1f5f9; color:#0f172a; }
 .repo-nota-input {
   width:100%; border:1px solid #e2e8f0; border-radius:10px; padding:8px 10px; font-size:12px; font-family:inherit;
   resize:vertical; min-height:60px;
@@ -572,7 +590,7 @@ main { max-width:1400px; margin:0 auto; padding:24px 20px 60px; }
 .repo-tags-form input[type=color] { width:36px; height:36px; border:none; border-radius:8px; padding:0; cursor:pointer; }
 .repo-tags-lista { display:flex; flex-direction:column; gap:6px; padding:0 20px; }
 .repo-tag-fila { display:flex; align-items:center; gap:10px; padding:8px 10px; background:#f8fafc; border-radius:10px; }
-.repo-tag-fila .dot { width:10px; height:10px; border-radius:50%; flex-shrink:0; }
+.repo-tag-fila .dot { width:10px; height:10px; border-radius:50%; flex:none; }
 .repo-tag-fila span { flex:1; font-size:12px; font-weight:700; }
 .repo-tag-fila button { border:none; background:none; color:#94a3b8; cursor:pointer; font-size:14px; }
 .repo-tag-fila button:hover { color:#b91c1c; }
@@ -620,7 +638,7 @@ main { max-width:1400px; margin:0 auto; padding:24px 20px 60px; }
 
 <div id="app-header">
   <div style="display:flex;align-items:center;gap:14px;">
-    <div class="app-badge">v6.0.0</div>
+    <div class="app-badge">v6.0.1</div>
     <div>
       <div class="app-title">ICG EvoTen · Evolución y Tendencia</div>
     </div>
@@ -1059,7 +1077,7 @@ const PANEL_MAP_CANVAS = {
 // Versión de la app — se estampa en el JSON exportado (STATE.generado_con) para que,
 // si mañana cambia la lógica de detección/visualización, el motor pueda detectar JSON
 // generados con una versión anterior y aplicar un fallback en vez de romper.
-const APP_VERSION = 'v6.0.0';
+const APP_VERSION = 'v6.0.1';
 
 // v5.0.0: persistencia en Drive vía GAS standalone (icg_evoten_v5.0.0.gs), sin login.
 // Reemplaza el guardado/carga local (Blob + FileReader) de v4.3.2 para portabilidad
@@ -3483,7 +3501,7 @@ async function cfgExportar(){
 // acá para lista/PDF instantáneos; la imagen grande se pide a Drive on-demand (repoCargarImagenFull).
 // Tags: CONFIG.tagsGaleria (config_uo_celdas.json) — globales para todas las obras.
 const MESES_CORTOS_REPO = ['ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEP','OCT','NOV','DIC'];
-let repoUI = { selId:null, filtroTag:null, filtroPeriodo:null, sidebarOculto:false, compararSel:[] };
+let repoUI = { selId:null, filtroTag:null, filtroPeriodo:null, sidebarOculto:false, compararSel:[], detalleOculto:false };
 let repoPres = { lista:[], idx:0 };
 let _repoReemplazarId = null;
 
@@ -3539,7 +3557,7 @@ function repoRenderFiltros(){
     const activo = repoUI.filtroPeriodo === p.valor;
     html += `<span class="repo-filtro-chip ${activo?'activo':''}" onclick="repoFiltrarPorPeriodo('${p.valor}')">${p.label}</span>`;
   });
-  if(repoUI.filtroTag || repoUI.filtroPeriodo) html += `<span class="repo-filtro-limpiar" onclick="repoLimpiarFiltros()">Limpiar filtro</span>`;
+  if(repoUI.filtroTag || repoUI.filtroPeriodo) html += `<span class="repo-filtro-limpiar" onclick="repoLimpiarFiltros()"><i class="ti ti-x"></i> Limpiar filtro</span>`;
   cont.innerHTML = html || '<span style="font-size:11px;color:#94a3b8;">Sin tags ni períodos todavía — subí imágenes o creá tags con el botón "Tags".</span>';
 }
 function repoFiltrarPorTag(id){ repoUI.filtroTag = (repoUI.filtroTag === id) ? null : id; renderRepositorio(); }
@@ -3550,6 +3568,14 @@ function repoToggleSidebar(){
   repoUI.sidebarOculto = !repoUI.sidebarOculto;
   document.getElementById('repo-sidebar').classList.toggle('oculto', repoUI.sidebarOculto);
   document.getElementById('btn-repo-sidebar-reopen').style.display = repoUI.sidebarOculto ? 'inline-flex' : 'none';
+}
+
+// v6.0.1: colapsa el panel de detalle (Nota/Períodos/Tags/Acciones) para que la imagen
+// ocupe todo el ancho disponible — mismo espíritu que el ícono plegable de notas del
+// Dashboard (info visible solo cuando hace falta, no siempre ocupando espacio).
+function repoToggleDetalleSide(){
+  repoUI.detalleOculto = !repoUI.detalleOculto;
+  repoRenderMainDetalle();
 }
 
 // ── Sidebar (lista + drag&drop + selección para comparar) ──
@@ -3647,10 +3673,14 @@ function repoRenderMainDetalle(){
   det.innerHTML = `
     <div class="repo-main-img-wrap">
       <img id="repo-main-img-el" src="${g.thumbnailBase64}" data-drive="${g.driveFileId}" onclick="repoAbrirPresentacion('${g.id}')" alt="">
+      ${repoUI.detalleOculto ? `<button class="repo-main-side-reopen" onclick="repoToggleDetalleSide()" title="Mostrar panel de detalle"><i class="ti ti-layout-sidebar-right"></i></button>` : ''}
     </div>
-    <div class="repo-main-side">
+    <div class="repo-main-side${repoUI.detalleOculto ? ' oculto' : ''}">
+      <div class="repo-main-side-hdr">
+        <label style="margin-bottom:0;">Nota</label>
+        <button class="repo-main-side-toggle" onclick="repoToggleDetalleSide()" title="Ocultar panel de detalle"><i class="ti ti-layout-sidebar-right"></i></button>
+      </div>
       <div>
-        <label>Nota</label>
         <textarea class="repo-nota-input" onchange="repoGuardarNota('${g.id}', this.value)" placeholder="Anotación de esta imagen...">${repoEsc(g.nota||'')}</textarea>
       </div>
       <div>
