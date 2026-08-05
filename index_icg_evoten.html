@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ICG EvoTen v6.0.2 | Multi-obra</title>
+<title>ICG EvoTen v6.0.3 | Multi-obra</title>
 <script src="https://cdn.tailwindcss.com/3.4.1"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
@@ -576,11 +576,14 @@ main { max-width:1400px; margin:0 auto; padding:24px 20px 60px; }
 .repo-main-actions { display:flex; gap:6px; flex-wrap:wrap; }
 .repo-main-actions .btn-hdr { font-size:8.5px; }
 
-/* Selección para modo comparación */
+/* Selección para modo comparación — apilada: no entraba en fila en los 230px del sidebar */
 .repo-compare-bar {
-  display:flex; align-items:center; gap:8px; background:#eff6ff; border:1px solid #bfdbfe; color:#1e40af;
-  padding:8px 14px; border-radius:12px; font-size:11px; font-weight:700; margin-bottom:12px;
+  display:flex; flex-direction:column; gap:6px; background:#eff6ff; border:1px solid #bfdbfe; color:#1e40af;
+  padding:8px 10px; border-radius:12px; font-size:10px; font-weight:700; margin-bottom:12px;
 }
+.repo-compare-bar-row { display:flex; align-items:center; justify-content:space-between; gap:6px; }
+.repo-compare-bar-row .btn-hdr { padding:4px 8px; }
+.repo-compare-bar .btn-hdr.btn-export { width:100%; justify-content:center; }
 
 /* ── Modal Tags ── */
 #modal-repo-tags {
@@ -624,8 +627,9 @@ main { max-width:1400px; margin:0 auto; padding:24px 20px 60px; }
   align-items:center; justify-content:center;
 }
 #modal-repo-presentacion.open { display:flex; }
-.repo-pres-imgwrap { max-width:90vw; max-height:90vh; text-align:center; }
-.repo-pres-imgwrap img { max-width:90vw; max-height:80vh; object-fit:contain; }
+.repo-pres-imgwrap { display:flex; flex-direction:column; align-items:center; max-width:90vw; }
+.repo-pres-imgbox { width:90vw; height:80vh; display:flex; align-items:center; justify-content:center; }
+.repo-pres-imgbox img { width:100%; height:100%; object-fit:contain; }
 .repo-pres-caption { color:#cbd5e1; font-size:12px; margin-top:12px; }
 .repo-pres-close { position:absolute; top:20px; right:26px; background:none; border:none; color:#fff; font-size:26px; cursor:pointer; }
 .repo-pres-nav {
@@ -648,7 +652,7 @@ main { max-width:1400px; margin:0 auto; padding:24px 20px 60px; }
 
 <div id="app-header">
   <div style="display:flex;align-items:center;gap:14px;">
-    <div class="app-badge">v6.0.2</div>
+    <div class="app-badge">v6.0.3</div>
     <div>
       <div class="app-title">ICG EvoTen · Evolución y Tendencia</div>
     </div>
@@ -866,6 +870,9 @@ main { max-width:1400px; margin:0 auto; padding:24px 20px 60px; }
         <span id="repo-obra-titulo">—</span>
       </div>
       <div class="repo-toolbar-actions">
+        <button class="btn-hdr" onclick="repoAbrirPresentacionHeader()" title="Presentación fullscreen — arranca en la imagen seleccionada, o la primera si no hay ninguna">
+          <i class="ti ti-maximize"></i> Presentación
+        </button>
         <button class="btn-hdr" id="btn-repo-sidebar-toggle" onclick="repoToggleSidebar()" title="Mostrar/ocultar panel lateral">
           <i class="ti ti-layout-sidebar"></i> Panel
         </button>
@@ -987,7 +994,7 @@ main { max-width:1400px; margin:0 auto; padding:24px 20px 60px; }
   <button class="repo-pres-close" onclick="repoCerrarPresentacion()">✕</button>
   <button class="repo-pres-nav repo-pres-prev" onclick="repoPresentacionMover(-1)"><i class="ti ti-chevron-left"></i></button>
   <div class="repo-pres-imgwrap">
-    <img id="repo-pres-img" src="" alt="">
+    <div class="repo-pres-imgbox"><img id="repo-pres-img" src="" alt=""></div>
     <div id="repo-pres-caption" class="repo-pres-caption"></div>
   </div>
   <button class="repo-pres-nav repo-pres-next" onclick="repoPresentacionMover(1)"><i class="ti ti-chevron-right"></i></button>
@@ -1087,7 +1094,7 @@ const PANEL_MAP_CANVAS = {
 // Versión de la app — se estampa en el JSON exportado (STATE.generado_con) para que,
 // si mañana cambia la lógica de detección/visualización, el motor pueda detectar JSON
 // generados con una versión anterior y aplicar un fallback en vez de romper.
-const APP_VERSION = 'v6.0.2';
+const APP_VERSION = 'v6.0.3';
 
 // v5.0.0: persistencia en Drive vía GAS standalone (icg_evoten_v5.0.0.gs), sin login.
 // Reemplaza el guardado/carga local (Blob + FileReader) de v4.3.2 para portabilidad
@@ -3601,9 +3608,11 @@ function repoRenderSidebar(){
   if(repoUI.compararSel.length){
     const listo = repoUI.compararSel.length === 2;
     barHtml = `<div class="repo-compare-bar">
-      <i class="ti ti-columns"></i> ${repoUI.compararSel.length}/2 para comparar
-      ${listo ? `<button class="btn-hdr btn-export" style="margin-left:auto;" onclick="repoAbrirComparar()">Comparar</button>` : ''}
-      <button class="btn-hdr" style="margin-left:${listo?'6px':'auto'};" onclick="repoUI.compararSel=[]; renderRepositorio();">✕</button>
+      <div class="repo-compare-bar-row">
+        <span><i class="ti ti-columns"></i> ${repoUI.compararSel.length}/2 para comparar</span>
+        <button class="btn-hdr" onclick="repoUI.compararSel=[]; renderRepositorio();">✕</button>
+      </div>
+      ${listo ? `<button class="btn-hdr btn-export" onclick="repoAbrirComparar()">Comparar</button>` : ''}
     </div>`;
   }
 
@@ -3705,7 +3714,6 @@ function repoRenderMainDetalle(){
         <div class="repo-tags-picker">${tagsPicker}</div>
       </div>
       <div class="repo-main-actions">
-        <button class="btn-hdr" onclick="repoAbrirPresentacion('${g.id}')"><i class="ti ti-maximize"></i> Presentación</button>
         <button class="btn-hdr" onclick="repoReemplazarImagen('${g.id}')"><i class="ti ti-replace"></i> Reemplazar</button>
         <button class="btn-hdr" style="border-color:#b91c1c;color:#b91c1c;" onclick="repoQuitarImagen('${g.id}')"><i class="ti ti-trash"></i> Quitar</button>
       </div>
@@ -3731,17 +3739,34 @@ function repoInitPanzoom(){
   const img = document.getElementById('repo-main-img-el');
   if(!wrap || !inner || !img || typeof panzoom !== 'function') return;
 
-  const ajustar = () => {
+  // zoomDoubleClickSpeed:1 desactiva el zoom-in propio de la librería al doble click —
+  // sin esto, competía con nuestro reset (repoResetPanzoom) y daba el efecto raro reportado
+  // (la imagen se achicaba y se corría a la esquina en vez de reacomodarse).
+  _repoPanzoom = panzoom(inner, { maxZoom:6, minZoom:0.5, zoomSpeed:0.065, zoomDoubleClickSpeed:1, bounds:true, boundsPadding:0.1 });
+  wrap.ondblclick = repoResetPanzoom;
+
+  const ajustarYCentrar = () => {
     if(!img.naturalWidth || !img.naturalHeight) return;
     const escala = Math.min(wrap.clientWidth / img.naturalWidth, wrap.clientHeight / img.naturalHeight, 1);
     img.style.width = (img.naturalWidth * escala) + 'px';
     img.style.height = (img.naturalHeight * escala) + 'px';
+    repoResetPanzoom();
   };
-  if(img.complete && img.naturalWidth) ajustar();
-  img.onload = ajustar;
+  if(img.complete && img.naturalWidth) ajustarYCentrar();
+  img.onload = ajustarYCentrar;
+}
 
-  _repoPanzoom = panzoom(inner, { maxZoom:6, minZoom:0.5, zoomSpeed:0.065, bounds:true, boundsPadding:0.1 });
-  wrap.ondblclick = () => { _repoPanzoom.moveTo(0, 0); _repoPanzoom.zoomAbs(0, 0, 1); };
+// Reset = zoom 1:1 (tamaño "fit" ya calculado) + CENTRADA en el panel, no anclada a la
+// esquina superior izquierda — así "ocupa lo máximo posible" en vez de quedar corrida.
+function repoResetPanzoom(){
+  if(!_repoPanzoom) return;
+  const wrap = document.getElementById('repo-panzoom-wrap');
+  const img = document.getElementById('repo-main-img-el');
+  if(!wrap || !img) return;
+  _repoPanzoom.zoomAbs(0, 0, 1);
+  const offX = Math.max(0, (wrap.clientWidth - img.offsetWidth) / 2);
+  const offY = Math.max(0, (wrap.clientHeight - img.offsetHeight) / 2);
+  _repoPanzoom.moveTo(offX, offY);
 }
 
 function repoGuardarNota(id, valor){
@@ -3907,6 +3932,16 @@ function repoCerrarCompararClickFuera(evt){ if(evt.target.id === 'modal-repo-com
 
 // ── Modo presentación (fullscreen, arranca en la imagen clickeada, navega con flechas) ──
 // Navega sobre la lista actualmente filtrada (repoImagenesFiltradas), no siempre el carrete completo.
+// Botón "Presentación" del header (v6.0.2): antes vivía solo en las acciones del panel de
+// detalle (requería tener una imagen seleccionada). Ahora arranca en la imagen seleccionada
+// si hay una, o si no en la primera de la lista visible (filtrada).
+function repoAbrirPresentacionHeader(){
+  const lista = repoImagenesFiltradas();
+  if(!lista.length){ toast('No hay imágenes para presentar', 'warn'); return; }
+  const g = STATE.galeria.find(x => x.id === repoUI.selId);
+  repoAbrirPresentacion(g ? g.id : lista[0].id);
+}
+
 function repoAbrirPresentacion(id){
   repoPres.lista = repoImagenesFiltradas();
   repoPres.idx = repoPres.lista.findIndex(g => g.id === id);
@@ -4005,15 +4040,21 @@ async function repoGuardarTags(){
 // ── Exportar PDF (v6.0.0) — SIEMPRE todas las imágenes del tab, ignora filtro activo (decisión confirmada) ──
 async function repoExportarPDF(){
   if(!STATE.galeria.length){ toast('No hay imágenes para exportar', 'warn'); return; }
-  showSpinner('Generando PDF del Repositorio...');
+  const lista = [...STATE.galeria].sort((a,b)=>(a.orden??0)-(b.orden??0));
+  showSpinner(`Generando PDF del Repositorio... (0/${lista.length})`);
   try{
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF({ unit:'mm', format:'a4' });
-    const lista = [...STATE.galeria].sort((a,b)=>(a.orden??0)-(b.orden??0));
     const pageW = doc.internal.pageSize.getWidth();
     const pageH = doc.internal.pageSize.getHeight();
     const margin = 15;
-    lista.forEach((g, i) => {
+    for(let i = 0; i < lista.length; i++){
+      const g = lista[i];
+      showSpinner(`Generando PDF del Repositorio... (${i+1}/${lista.length})`);
+      // v6.0.3: pide la versión grande (1600px) a Drive para que el PDF no salga en baja
+      // resolución — mismo pedido que usa el zoom (repoCargarImagenFull). Si falla (sin red,
+      // archivo borrado a mano en Drive, etc.) cae al thumbnail embebido, nunca rompe el PDF.
+      const imgData = (await repoCargarImagenFull(g.driveFileId)) || g.thumbnailBase64;
       if(i > 0) doc.addPage();
       doc.setFontSize(11);
       doc.setFont(undefined, 'bold');
@@ -4022,11 +4063,11 @@ async function repoExportarPDF(){
       const maxImgH = pageH - 70;
       let yTexto = 40;
       try{
-        const imgProps = doc.getImageProperties(g.thumbnailBase64);
+        const imgProps = doc.getImageProperties(imgData);
         let w = maxImgW, h = (imgProps.height * w) / imgProps.width;
         if(h > maxImgH){ h = maxImgH; w = (imgProps.width * h) / imgProps.height; }
         const x = margin + (maxImgW - w) / 2;
-        doc.addImage(g.thumbnailBase64, 'JPEG', x, 22, w, h);
+        doc.addImage(imgData, 'JPEG', x, 22, w, h);
         yTexto = 22 + h + 10;
       } catch(e){
         doc.setFontSize(9);
@@ -4039,7 +4080,7 @@ async function repoExportarPDF(){
       doc.text(`Períodos: ${periodosTxt}`, margin, yTexto + 6);
       const tagsTxt = (g.tags||[]).map(tid => { const t=(CONFIG.tagsGaleria||[]).find(x=>x.id===tid); return t?t.etiqueta:null; }).filter(Boolean).join(', ') || '—';
       doc.text(`Tags: ${tagsTxt}`, margin, yTexto + 12);
-    });
+    }
     doc.save(`repositorio_${STATE.obra}_${timestampArchivo()}.pdf`);
     toast('PDF generado', 'ok');
   } catch(err){
