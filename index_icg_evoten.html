@@ -3,11 +3,12 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ICG EvoTen v5.0.6 | Multi-obra</title>
+<title>ICG EvoTen v6.0.0 | Multi-obra</title>
 <script src="https://cdn.tailwindcss.com/3.4.1"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@300;400;600;700;900&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css">
 <style>
@@ -471,6 +472,141 @@ main { max-width:1400px; margin:0 auto; padding:24px 20px 60px; }
 
 /* Botón toggle de notas al pie — mismo estilo base btn-hdr, con estado "activo" en verde */
 #btn-toggle-notas-impresion.activo { border-color:#10b981; color:#10b981; }
+
+/* ============================================================
+   TAB REPOSITORIO (v6.0.0) — galería transversal a la obra
+   ============================================================ */
+.repo-empty-state, .repo-main-vacio { text-align:center; color:#94a3b8; padding:60px 20px; }
+.repo-empty-state i, .repo-main-vacio i { font-size:40px; opacity:.5; }
+.repo-main-vacio { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px; height:100%; font-size:12px; }
+
+.repo-toolbar {
+  display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px;
+  background:#fff; border:1px solid #e6eaf0; border-radius:16px; padding:14px 18px; margin-bottom:14px;
+}
+.repo-toolbar-obra { display:flex; align-items:center; gap:8px; font-size:13px; font-weight:900; color:#0f172a; }
+.repo-toolbar-obra i { color:#f97316; }
+.repo-toolbar-actions { display:flex; gap:8px; flex-wrap:wrap; }
+
+.repo-filtros { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:14px; }
+.repo-filtro-chip {
+  font-size:9px; font-weight:900; text-transform:uppercase; letter-spacing:.06em;
+  padding:5px 12px; border-radius:99px; border:1px solid #e2e8f0; background:#fff; color:#64748b;
+  cursor:pointer; transition:all .15s; display:inline-flex; align-items:center; gap:5px;
+}
+.repo-filtro-chip:hover { border-color:#94a3b8; }
+.repo-filtro-chip.activo { background:#0f172a; color:#fff; border-color:#0f172a; }
+.repo-filtro-chip .dot { width:7px; height:7px; border-radius:50%; display:inline-block; }
+.repo-filtro-limpiar { font-size:9px; font-weight:700; color:#3b82f6; cursor:pointer; text-decoration:underline; }
+
+.repo-layout { display:flex; gap:16px; align-items:flex-start; min-height:520px; }
+.repo-sidebar {
+  width:230px; flex-shrink:0; background:#fff; border:1px solid #e6eaf0; border-radius:16px;
+  padding:12px; max-height:720px; overflow-y:auto; transition:width .2s, opacity .2s, padding .2s;
+}
+.repo-sidebar.oculto { width:0; padding:0; border:none; overflow:hidden; opacity:0; }
+.repo-sidebar-count { font-size:9px; font-weight:900; text-transform:uppercase; letter-spacing:.06em; color:#94a3b8; padding:2px 4px 10px; }
+.repo-sidebar-list { display:flex; flex-direction:column; gap:8px; }
+
+.repo-thumb-card {
+  display:flex; align-items:center; gap:8px; padding:6px; border-radius:12px; border:2px solid transparent;
+  cursor:pointer; transition:all .15s; background:#f8fafc;
+}
+.repo-thumb-card:hover { background:#f1f5f9; }
+.repo-thumb-card.sel { border-color:#3b82f6; background:#eff6ff; }
+.repo-thumb-card.dragover { border-color:#f97316; }
+.repo-thumb-card img { width:44px; height:44px; object-fit:cover; border-radius:8px; flex-shrink:0; background:#e2e8f0; }
+.repo-thumb-meta { min-width:0; flex:1; }
+.repo-thumb-nota { font-size:10px; font-weight:700; color:#0f172a; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.repo-thumb-tags { display:flex; gap:3px; margin-top:3px; flex-wrap:wrap; }
+.repo-thumb-tags .dot { width:6px; height:6px; border-radius:50%; display:inline-block; }
+.repo-thumb-check { flex-shrink:0; }
+
+.repo-main {
+  flex:1; min-width:0; background:#fff; border:1px solid #e6eaf0; border-radius:16px; padding:18px; position:relative; min-height:520px;
+}
+.repo-sidebar-reopen {
+  border:1px solid #e2e8f0; background:#fff; color:#64748b; border-radius:10px; padding:6px 10px; cursor:pointer; margin-bottom:12px;
+}
+.repo-sidebar-reopen:hover { background:#f1f5f9; }
+
+.repo-main-detalle { display:flex; gap:20px; flex-wrap:wrap; }
+.repo-main-img-wrap { flex:1; min-width:280px; }
+.repo-main-img-wrap img { width:100%; border-radius:12px; cursor:zoom-in; border:1px solid #e6eaf0; background:#f1f5f9; }
+.repo-main-side { width:280px; flex-shrink:0; display:flex; flex-direction:column; gap:12px; }
+.repo-main-side label { font-size:9px; font-weight:900; text-transform:uppercase; letter-spacing:.06em; color:#94a3b8; display:block; margin-bottom:4px; }
+.repo-nota-input {
+  width:100%; border:1px solid #e2e8f0; border-radius:10px; padding:8px 10px; font-size:12px; font-family:inherit;
+  resize:vertical; min-height:60px;
+}
+.repo-periodos-picker, .repo-tags-picker { display:flex; flex-wrap:wrap; gap:6px; }
+.repo-pick-chip {
+  font-size:9px; font-weight:800; padding:4px 10px; border-radius:99px; border:1px solid #e2e8f0;
+  background:#fff; color:#64748b; cursor:pointer; transition:all .15s;
+}
+.repo-pick-chip.on { background:#0f172a; color:#fff; border-color:#0f172a; }
+.repo-main-actions { display:flex; gap:6px; flex-wrap:wrap; }
+.repo-main-actions .btn-hdr { font-size:8.5px; }
+
+/* Selección para modo comparación */
+.repo-compare-bar {
+  display:flex; align-items:center; gap:8px; background:#eff6ff; border:1px solid #bfdbfe; color:#1e40af;
+  padding:8px 14px; border-radius:12px; font-size:11px; font-weight:700; margin-bottom:12px;
+}
+
+/* ── Modal Tags ── */
+#modal-repo-tags {
+  display:none; position:fixed; inset:0; z-index:800;
+  background:rgba(15,23,42,.55); backdrop-filter:blur(3px);
+  align-items:flex-start; justify-content:center;
+}
+#modal-repo-tags.open { display:flex; }
+#modal-repo-tags-inner {
+  background:#fff; border-radius:18px; margin:60px 20px 0; padding:0 0 18px;
+  max-width:520px; width:100%; max-height:80vh; overflow:auto;
+  box-shadow:0 24px 60px rgba(0,0,0,.4); animation: fadeSlideUp .25s ease both;
+}
+#modal-repo-tags-inner .bloque-hdr { position:sticky; top:0; background:#fff; z-index:2; }
+.repo-tags-form { display:flex; gap:8px; padding:0 20px 14px; align-items:center; }
+.repo-tags-form input[type=text] { flex:1; border:1px solid #e2e8f0; border-radius:10px; padding:8px 10px; font-size:12px; }
+.repo-tags-form input[type=color] { width:36px; height:36px; border:none; border-radius:8px; padding:0; cursor:pointer; }
+.repo-tags-lista { display:flex; flex-direction:column; gap:6px; padding:0 20px; }
+.repo-tag-fila { display:flex; align-items:center; gap:10px; padding:8px 10px; background:#f8fafc; border-radius:10px; }
+.repo-tag-fila .dot { width:10px; height:10px; border-radius:50%; flex-shrink:0; }
+.repo-tag-fila span { flex:1; font-size:12px; font-weight:700; }
+.repo-tag-fila button { border:none; background:none; color:#94a3b8; cursor:pointer; font-size:14px; }
+.repo-tag-fila button:hover { color:#b91c1c; }
+
+/* ── Modal Comparación ── */
+#modal-repo-comparar {
+  display:none; position:fixed; inset:0; z-index:850;
+  background:rgba(15,23,42,.85); align-items:center; justify-content:center; padding:30px;
+}
+#modal-repo-comparar.open { display:flex; }
+#modal-repo-comparar-inner { position:relative; width:100%; max-width:1400px; }
+.repo-comparar-close { position:absolute; top:-40px; right:0; color:#fff; }
+.repo-comparar-grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+.repo-comparar-item { background:#fff; border-radius:14px; overflow:hidden; }
+.repo-comparar-item img { width:100%; max-height:70vh; object-fit:contain; background:#0f172a; }
+.repo-comparar-item .cap { padding:10px 14px; font-size:11px; font-weight:700; color:#0f172a; }
+
+/* ── Modal Presentación (fullscreen) ── */
+#modal-repo-presentacion {
+  display:none; position:fixed; inset:0; z-index:900; background:#000;
+  align-items:center; justify-content:center;
+}
+#modal-repo-presentacion.open { display:flex; }
+.repo-pres-imgwrap { max-width:90vw; max-height:90vh; text-align:center; }
+.repo-pres-imgwrap img { max-width:90vw; max-height:80vh; object-fit:contain; }
+.repo-pres-caption { color:#cbd5e1; font-size:12px; margin-top:12px; }
+.repo-pres-close { position:absolute; top:20px; right:26px; background:none; border:none; color:#fff; font-size:26px; cursor:pointer; }
+.repo-pres-nav {
+  position:absolute; top:50%; transform:translateY(-50%); background:rgba(255,255,255,.08); border:none; color:#fff;
+  font-size:26px; width:52px; height:52px; border-radius:50%; cursor:pointer; transition:background .15s;
+}
+.repo-pres-nav:hover { background:rgba(255,255,255,.2); }
+.repo-pres-prev { left:20px; }
+.repo-pres-next { right:20px; }
 </style>
 </head>
 <body>
@@ -484,7 +620,7 @@ main { max-width:1400px; margin:0 auto; padding:24px 20px 60px; }
 
 <div id="app-header">
   <div style="display:flex;align-items:center;gap:14px;">
-    <div class="app-badge">v5.0.6</div>
+    <div class="app-badge">v6.0.0</div>
     <div>
       <div class="app-title">ICG EvoTen · Evolución y Tendencia</div>
     </div>
@@ -530,6 +666,7 @@ main { max-width:1400px; margin:0 auto; padding:24px 20px 60px; }
 
 <div id="tab-bar">
   <button class="tab-btn active" id="tab-btn-dashboard" onclick="cambiarTab('dashboard')">Dashboard</button>
+  <button class="tab-btn" id="tab-btn-repo" onclick="cambiarTab('repo')">Repositorio</button>
   <button class="tab-btn" id="tab-btn-config" onclick="cambiarTab('config')">Configuración</button>
 </div>
 
@@ -687,6 +824,59 @@ main { max-width:1400px; margin:0 auto; padding:24px 20px 60px; }
   </div>
 </div>
 
+<div class="tab-panel" id="tab-panel-repo">
+  <div id="repo-empty-state" class="repo-empty-state">
+    <i class="ti ti-folder-off"></i>
+    <div style="font-size:13px;font-weight:700;margin-top:10px;">Sin obra cargada</div>
+    <div style="font-size:11px;margin-top:4px;">Cargá una obra desde el Dashboard para ver o subir imágenes a su repositorio.</div>
+  </div>
+
+  <div id="repo-content" style="display:none;">
+    <div class="repo-toolbar">
+      <div class="repo-toolbar-obra">
+        <i class="ti ti-folder"></i>
+        <span id="repo-obra-titulo">—</span>
+      </div>
+      <div class="repo-toolbar-actions">
+        <button class="btn-hdr" id="btn-repo-sidebar-toggle" onclick="repoToggleSidebar()" title="Mostrar/ocultar panel lateral">
+          <i class="ti ti-layout-sidebar"></i> Panel
+        </button>
+        <button class="btn-hdr btn-load" onclick="document.getElementById('repo-input-imgs').click()">
+          <i class="ti ti-upload"></i> Subir imágenes
+        </button>
+        <input type="file" id="repo-input-imgs" class="hidden-input" accept="image/*" multiple onchange="repoOnArchivosSeleccionados(event)">
+        <input type="file" id="repo-input-reemplazo" class="hidden-input" accept="image/*" onchange="repoOnReemplazoSeleccionado(event)">
+        <button class="btn-hdr" onclick="repoAbrirGestionTags()">
+          <i class="ti ti-tags"></i> Tags
+        </button>
+        <button class="btn-hdr btn-export" onclick="repoExportarPDF()">
+          <i class="ti ti-file-type-pdf"></i> Exportar PDF
+        </button>
+      </div>
+    </div>
+
+    <div class="repo-filtros" id="repo-filtros"></div>
+
+    <div class="repo-layout">
+      <aside class="repo-sidebar" id="repo-sidebar">
+        <div class="repo-sidebar-count" id="repo-sidebar-count">0 imágenes</div>
+        <div class="repo-sidebar-list" id="repo-sidebar-list"></div>
+      </aside>
+
+      <div class="repo-main" id="repo-main">
+        <button class="repo-sidebar-reopen" id="btn-repo-sidebar-reopen" onclick="repoToggleSidebar()" style="display:none;" title="Mostrar panel lateral">
+          <i class="ti ti-layout-sidebar"></i>
+        </button>
+        <div id="repo-main-vacio" class="repo-main-vacio">
+          <i class="ti ti-photo"></i>
+          <div>Elegí una imagen del panel lateral, o subí la primera con "Subir imágenes".</div>
+        </div>
+        <div id="repo-main-detalle" class="repo-main-detalle" style="display:none;"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div class="tab-panel" id="tab-panel-config">
   <div id="config-tab-content"></div>
 </div>
@@ -737,6 +927,44 @@ main { max-width:1400px; margin:0 auto; padding:24px 20px 60px; }
   </div>
 </div>
 
+<!-- ── Modal Gestión de Tags (Repositorio, v6.0.0) ── -->
+<div id="modal-repo-tags" onclick="repoCerrarGestionTagsClickFuera(event)">
+  <div id="modal-repo-tags-inner">
+    <div class="bloque-hdr">
+      <div>
+        <h3>Tags del Repositorio</h3>
+        <div class="bsub">Globales — compartidos por todas las obras (config_uo_celdas.json)</div>
+      </div>
+      <button class="modal-close-btn" onclick="repoCerrarGestionTags()">✕</button>
+    </div>
+    <div class="repo-tags-form">
+      <input type="text" id="repo-tag-nuevo-nombre" placeholder="Nombre del tag (ej. Costo, Avance, Diagrama)">
+      <input type="color" id="repo-tag-nuevo-color" value="#3b82f6">
+      <button class="btn-hdr btn-export" onclick="repoAgregarTag()"><i class="ti ti-plus"></i> Agregar</button>
+    </div>
+    <div id="repo-tags-lista" class="repo-tags-lista"></div>
+  </div>
+</div>
+
+<!-- ── Modal Comparación (Repositorio, v6.0.0) — solo visual, sin edición de nota ── -->
+<div id="modal-repo-comparar" onclick="repoCerrarCompararClickFuera(event)">
+  <div id="modal-repo-comparar-inner">
+    <button class="modal-close-btn repo-comparar-close" onclick="repoCerrarComparar()">✕</button>
+    <div id="repo-comparar-grid" class="repo-comparar-grid"></div>
+  </div>
+</div>
+
+<!-- ── Modal Presentación (Repositorio, v6.0.0) — fullscreen, arranca en la imagen clickeada ── -->
+<div id="modal-repo-presentacion">
+  <button class="repo-pres-close" onclick="repoCerrarPresentacion()">✕</button>
+  <button class="repo-pres-nav repo-pres-prev" onclick="repoPresentacionMover(-1)"><i class="ti ti-chevron-left"></i></button>
+  <div class="repo-pres-imgwrap">
+    <img id="repo-pres-img" src="" alt="">
+    <div id="repo-pres-caption" class="repo-pres-caption"></div>
+  </div>
+  <button class="repo-pres-nav repo-pres-next" onclick="repoPresentacionMover(1)"><i class="ti ti-chevron-right"></i></button>
+</div>
+
 <div id="spinner"><div class="spinner-ring"></div><div style="color:#fff;font-size:12px;font-weight:700;" id="spinner-msg">Procesando…</div></div>
 <div id="toast"><div class="toast-inner" id="toast-inner"><span id="toast-msg"></span></div></div>
 
@@ -754,6 +982,7 @@ main { max-width:1400px; margin:0 auto; padding:24px 20px 60px; }
 // (solo obra 1316) y se avisa con un banner.
 const CONFIG_FALLBACK = {
   version: 'fallback-1316',
+  tagsGaleria: [],
   obras: {
     '1316': {
       nombre: 'Acueducto Gran Tulum',
@@ -830,7 +1059,7 @@ const PANEL_MAP_CANVAS = {
 // Versión de la app — se estampa en el JSON exportado (STATE.generado_con) para que,
 // si mañana cambia la lógica de detección/visualización, el motor pueda detectar JSON
 // generados con una versión anterior y aplicar un fallback en vez de romper.
-const APP_VERSION = 'v5.0.6';
+const APP_VERSION = 'v6.0.0';
 
 // v5.0.0: persistencia en Drive vía GAS standalone (icg_evoten_v5.0.0.gs), sin login.
 // Reemplaza el guardado/carga local (Blob + FileReader) de v4.3.2 para portabilidad
@@ -858,7 +1087,10 @@ const TOL_CONTROL = 1e-4;
 // ============================================================
 // ESTADO — en memoria únicamente (no localStorage, no backend)
 // ============================================================
-let STATE = { obra:null, periodos:[], notas:[], errorSeq:0, celdasResueltas:{}, autoPaneles:[], notasPaneles:{} };
+let STATE = { obra:null, periodos:[], notas:[], errorSeq:0, celdasResueltas:{}, autoPaneles:[], notasPaneles:{}, galeria:[] };
+// galeria (v6.0.0): array de imágenes del tab Repositorio — {id, driveFileId, thumbnailBase64,
+// orden, nota, tags:[tagId], periodos:[ 'MM/AAAA' ], fechaCarga}. Retrocompatible: JSON de obra
+// pre-v6.0.0 no tiene esta clave, se completa con [] al cargar (ver aplicarEstadoCargado).
 // v3.11: override visual de tipo de gráfico por Auto Panel (toggle barra/línea), a propósito
 // FUERA de STATE — es solo de la sesión actual, nunca viaja en el JSON exportado ni sobrevive a
 // un reload/reimport. Al reimportar (XLSX de apoyo o JSON), vuelve a mandar la config real.
@@ -886,6 +1118,7 @@ async function cargarConfig(){
     CONFIG = JSON.parse(JSON.stringify(CONFIG_FALLBACK));
     CONFIG_ORIGEN = 'fallback';
   }
+  if(!Array.isArray(CONFIG.tagsGaleria)) CONFIG.tagsGaleria = []; // compatibilidad con config_uo_celdas.json pre-v6.0.0
   actualizarBannerConfigOrigen();
 }
 
@@ -1853,6 +2086,7 @@ document.addEventListener('keydown', (e) => {
 // RENDER
 // ============================================================
 function renderAll(){
+  renderRepositorio(); // v6.0.0: transversal a la obra, no depende de haber períodos cargados
   const hasData = STATE.periodos.length > 0;
   document.getElementById('empty-state').style.display = hasData ? 'none' : 'block';
   document.getElementById('content').style.display = hasData ? 'block' : 'none';
@@ -1996,6 +2230,7 @@ function aplicarEstadoCargado(parsed){
   if(!STATE.celdasResueltas) STATE.celdasResueltas = {};
   if(!Array.isArray(STATE.autoPaneles)) STATE.autoPaneles = []; // compatibilidad con JSON pre-v3.08 (sin Auto Paneles)
   if(!STATE.notasPaneles || typeof STATE.notasPaneles !== 'object' || Array.isArray(STATE.notasPaneles)) STATE.notasPaneles = {}; // compatibilidad con JSON pre-v4.0.0 (sin nota por panel)
+  if(!Array.isArray(STATE.galeria)) STATE.galeria = []; // compatibilidad con JSON pre-v6.0.0 (sin Repositorio)
   autoPanelTipoOverride = {}; // nueva carga de obra/estado, vuelve a la config real (v3.11)
   computeDerivados();
   renderAll();
@@ -3028,9 +3263,12 @@ function hideSpinner(){ document.getElementById('spinner').classList.remove('act
 // ============================================================
 function cambiarTab(nombre){
   document.getElementById('tab-panel-dashboard').classList.toggle('active', nombre==='dashboard');
+  document.getElementById('tab-panel-repo').classList.toggle('active', nombre==='repo');
   document.getElementById('tab-panel-config').classList.toggle('active', nombre==='config');
   document.getElementById('tab-btn-dashboard').classList.toggle('active', nombre==='dashboard');
+  document.getElementById('tab-btn-repo').classList.toggle('active', nombre==='repo');
   document.getElementById('tab-btn-config').classList.toggle('active', nombre==='config');
+  if(nombre==='repo') renderRepositorio();
 }
 
 // ============================================================
@@ -3230,6 +3468,513 @@ async function cfgExportar(){
     toast('Configuración guardada en Drive', 'ok');
   } catch(err){
     toast('Error al guardar la configuración en Drive: ' + err.message, 'err');
+    console.error(err);
+  } finally{
+    hideSpinner();
+  }
+}
+
+// ============================================================
+// TAB REPOSITORIO (v6.0.0) — galería transversal a la obra
+// ============================================================
+// Datos: STATE.galeria (por obra, viaja en el JSON exportado — se guarda con el botón
+// "Exportar JSON" del header, igual que el resto de STATE). Binario real en Drive, carpeta
+// {obraId} dentro de CARPETA_ID (backend .gs, subirImagenGaleria). thumbnailBase64 embebido
+// acá para lista/PDF instantáneos; la imagen grande se pide a Drive on-demand (repoCargarImagenFull).
+// Tags: CONFIG.tagsGaleria (config_uo_celdas.json) — globales para todas las obras.
+const MESES_CORTOS_REPO = ['ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEP','OCT','NOV','DIC'];
+let repoUI = { selId:null, filtroTag:null, filtroPeriodo:null, sidebarOculto:false, compararSel:[] };
+let repoPres = { lista:[], idx:0 };
+let _repoReemplazarId = null;
+
+function repoEsc(s){
+  return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function repoLabelPeriodo(v){
+  const [mm, aaaa] = String(v).split('/');
+  const idx = parseInt(mm,10)-1;
+  return `${MESES_CORTOS_REPO[idx]||mm}-${String(aaaa).slice(2)}`;
+}
+function repoPeriodosDisponibles(){
+  return STATE.periodos
+    .map(p => ({ valor:`${String(p.periodo.mes).padStart(2,'0')}/${p.periodo.anio}`, label:`${MESES_CORTOS_REPO[p.periodo.mes-1]}-${String(p.periodo.anio).slice(2)}` }))
+    .sort((a,b)=> a.valor.localeCompare(b.valor));
+}
+function repoImagenesFiltradas(){
+  let lista = [...STATE.galeria].sort((a,b)=>(a.orden??0)-(b.orden??0));
+  if(repoUI.filtroTag) lista = lista.filter(g => (g.tags||[]).includes(repoUI.filtroTag));
+  if(repoUI.filtroPeriodo) lista = lista.filter(g => (g.periodos||[]).includes(repoUI.filtroPeriodo));
+  return lista;
+}
+
+// ── Render principal ──
+function renderRepositorio(){
+  const empty = document.getElementById('repo-empty-state');
+  const content = document.getElementById('repo-content');
+  if(!empty || !content) return; // markup del tab aún no montado (defensivo)
+  if(!STATE.obra){
+    empty.style.display = 'block';
+    content.style.display = 'none';
+    return;
+  }
+  empty.style.display = 'none';
+  content.style.display = 'block';
+  const nombre = nombreObraDe(STATE.obra);
+  document.getElementById('repo-obra-titulo').textContent = nombre ? `${STATE.obra} · ${nombre}` : STATE.obra;
+  repoRenderFiltros();
+  repoRenderSidebar();
+  repoRenderMainDetalle();
+}
+
+function repoRenderFiltros(){
+  const cont = document.getElementById('repo-filtros');
+  const tags = (CONFIG && CONFIG.tagsGaleria) || [];
+  const periodos = repoPeriodosDisponibles();
+  let html = '';
+  tags.forEach(t => {
+    const activo = repoUI.filtroTag === t.id;
+    html += `<span class="repo-filtro-chip ${activo?'activo':''}" onclick="repoFiltrarPorTag('${t.id}')"><span class="dot" style="background:${t.color}"></span>${repoEsc(t.etiqueta)}</span>`;
+  });
+  periodos.forEach(p => {
+    const activo = repoUI.filtroPeriodo === p.valor;
+    html += `<span class="repo-filtro-chip ${activo?'activo':''}" onclick="repoFiltrarPorPeriodo('${p.valor}')">${p.label}</span>`;
+  });
+  if(repoUI.filtroTag || repoUI.filtroPeriodo) html += `<span class="repo-filtro-limpiar" onclick="repoLimpiarFiltros()">Limpiar filtro</span>`;
+  cont.innerHTML = html || '<span style="font-size:11px;color:#94a3b8;">Sin tags ni períodos todavía — subí imágenes o creá tags con el botón "Tags".</span>';
+}
+function repoFiltrarPorTag(id){ repoUI.filtroTag = (repoUI.filtroTag === id) ? null : id; renderRepositorio(); }
+function repoFiltrarPorPeriodo(v){ repoUI.filtroPeriodo = (repoUI.filtroPeriodo === v) ? null : v; renderRepositorio(); }
+function repoLimpiarFiltros(){ repoUI.filtroTag = null; repoUI.filtroPeriodo = null; renderRepositorio(); }
+
+function repoToggleSidebar(){
+  repoUI.sidebarOculto = !repoUI.sidebarOculto;
+  document.getElementById('repo-sidebar').classList.toggle('oculto', repoUI.sidebarOculto);
+  document.getElementById('btn-repo-sidebar-reopen').style.display = repoUI.sidebarOculto ? 'inline-flex' : 'none';
+}
+
+// ── Sidebar (lista + drag&drop + selección para comparar) ──
+// v6.0.0: el drag&drop de reorden solo se habilita sin filtro activo (con filtro, el orden
+// visual es un subconjunto y reordenarlo desalinearía el `orden` real del resto de la galería).
+function repoRenderSidebar(){
+  const lista = repoImagenesFiltradas();
+  const filtroActivo = !!(repoUI.filtroTag || repoUI.filtroPeriodo);
+  document.getElementById('repo-sidebar-count').textContent = `${lista.length} imagen(es)${filtroActivo?' (filtrado)':''}`;
+  const cont = document.getElementById('repo-sidebar-list');
+
+  let barHtml = '';
+  if(repoUI.compararSel.length){
+    const listo = repoUI.compararSel.length === 2;
+    barHtml = `<div class="repo-compare-bar">
+      <i class="ti ti-columns"></i> ${repoUI.compararSel.length}/2 para comparar
+      ${listo ? `<button class="btn-hdr btn-export" style="margin-left:auto;" onclick="repoAbrirComparar()">Comparar</button>` : ''}
+      <button class="btn-hdr" style="margin-left:${listo?'6px':'auto'};" onclick="repoUI.compararSel=[]; renderRepositorio();">✕</button>
+    </div>`;
+  }
+
+  if(!lista.length){
+    cont.innerHTML = barHtml + `<div style="font-size:11px;color:#94a3b8;padding:10px 4px;">Sin imágenes${filtroActivo?' con este filtro':' todavía — usá "Subir imágenes"'}.</div>`;
+    return;
+  }
+
+  cont.innerHTML = barHtml + lista.map(g => {
+    const sel = g.id === repoUI.selId;
+    const chk = repoUI.compararSel.includes(g.id);
+    const tagsHtml = (g.tags||[]).map(tid => {
+      const t = (CONFIG.tagsGaleria||[]).find(x=>x.id===tid);
+      return t ? `<span class="dot" style="background:${t.color}" title="${repoEsc(t.etiqueta)}"></span>` : '';
+    }).join('');
+    return `<div class="repo-thumb-card ${sel?'sel':''}" draggable="${!filtroActivo}"
+      ondragstart="repoDragStart(event,'${g.id}')" ondragover="repoDragOver(event)" ondragleave="repoDragLeave(event)" ondrop="repoDrop(event,'${g.id}')"
+      onclick="repoSeleccionarImagen('${g.id}')">
+      <input type="checkbox" class="repo-thumb-check" ${chk?'checked':''} onclick="event.stopPropagation(); repoToggleCompararSel('${g.id}', this.checked)" title="Elegir para comparar">
+      <img src="${g.thumbnailBase64}" alt="">
+      <div class="repo-thumb-meta">
+        <div class="repo-thumb-nota">${g.nota ? repoEsc(g.nota) : '<span style="color:#cbd5e1;">Sin nota</span>'}</div>
+        <div class="repo-thumb-tags">${tagsHtml}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function repoSeleccionarImagen(id){ repoUI.selId = id; renderRepositorio(); }
+
+function repoDragStart(evt, id){ evt.dataTransfer.setData('text/plain', id); }
+function repoDragOver(evt){ evt.preventDefault(); evt.currentTarget.classList.add('dragover'); }
+function repoDragLeave(evt){ evt.currentTarget.classList.remove('dragover'); }
+function repoDrop(evt, targetId){
+  evt.preventDefault();
+  evt.currentTarget.classList.remove('dragover');
+  const sourceId = evt.dataTransfer.getData('text/plain');
+  if(!sourceId || sourceId === targetId) return;
+  const lista = [...STATE.galeria].sort((a,b)=>(a.orden??0)-(b.orden??0));
+  const fromIdx = lista.findIndex(g => g.id === sourceId);
+  const toIdx = lista.findIndex(g => g.id === targetId);
+  if(fromIdx === -1 || toIdx === -1) return;
+  const [moved] = lista.splice(fromIdx, 1);
+  lista.splice(toIdx, 0, moved);
+  lista.forEach((g, i) => { g.orden = i; });
+  renderRepositorio();
+}
+
+function repoToggleCompararSel(id, checked){
+  if(checked){
+    repoUI.compararSel.push(id);
+    if(repoUI.compararSel.length > 2) repoUI.compararSel.shift(); // mantiene las 2 últimas marcadas
+  } else {
+    repoUI.compararSel = repoUI.compararSel.filter(x => x !== id);
+  }
+  renderRepositorio();
+}
+
+// ── Panel de detalle (nota, tags, períodos, acciones) ──
+function repoRenderMainDetalle(){
+  const vacio = document.getElementById('repo-main-vacio');
+  const det = document.getElementById('repo-main-detalle');
+  const g = STATE.galeria.find(x => x.id === repoUI.selId);
+  if(!g){ vacio.style.display='flex'; det.style.display='none'; return; }
+  vacio.style.display='none'; det.style.display='flex';
+
+  const tagsPicker = (CONFIG.tagsGaleria||[]).map(t => {
+    const on = (g.tags||[]).includes(t.id);
+    return `<span class="repo-pick-chip ${on?'on':''}" style="${on?`background:${t.color};border-color:${t.color};`:''}" onclick="repoToggleTagImagen('${g.id}','${t.id}')">${repoEsc(t.etiqueta)}</span>`;
+  }).join('') || '<span style="font-size:10px;color:#94a3b8;">Sin tags creados — botón "Tags" en la barra superior.</span>';
+
+  const periodosPicker = repoPeriodosDisponibles().map(p => {
+    const on = (g.periodos||[]).includes(p.valor);
+    return `<span class="repo-pick-chip ${on?'on':''}" onclick="repoTogglePeriodoImagen('${g.id}','${p.valor}')">${p.label}</span>`;
+  }).join('') || '<span style="font-size:10px;color:#94a3b8;">Sin períodos cargados en esta obra todavía.</span>';
+
+  det.innerHTML = `
+    <div class="repo-main-img-wrap">
+      <img id="repo-main-img-el" src="${g.thumbnailBase64}" data-drive="${g.driveFileId}" onclick="repoAbrirPresentacion('${g.id}')" alt="">
+    </div>
+    <div class="repo-main-side">
+      <div>
+        <label>Nota</label>
+        <textarea class="repo-nota-input" onchange="repoGuardarNota('${g.id}', this.value)" placeholder="Anotación de esta imagen...">${repoEsc(g.nota||'')}</textarea>
+      </div>
+      <div>
+        <label>Períodos</label>
+        <div class="repo-periodos-picker">${periodosPicker}</div>
+      </div>
+      <div>
+        <label>Tags</label>
+        <div class="repo-tags-picker">${tagsPicker}</div>
+      </div>
+      <div class="repo-main-actions">
+        <button class="btn-hdr" onclick="repoAbrirPresentacion('${g.id}')"><i class="ti ti-maximize"></i> Presentación</button>
+        <button class="btn-hdr" onclick="repoReemplazarImagen('${g.id}')"><i class="ti ti-replace"></i> Reemplazar</button>
+        <button class="btn-hdr" style="border-color:#b91c1c;color:#b91c1c;" onclick="repoQuitarImagen('${g.id}')"><i class="ti ti-trash"></i> Quitar</button>
+      </div>
+    </div>`;
+
+  repoCargarImagenFull(g.driveFileId).then(url => {
+    if(!url) return;
+    const img = document.getElementById('repo-main-img-el');
+    if(img && img.dataset.drive === g.driveFileId) img.src = url;
+  });
+}
+
+function repoGuardarNota(id, valor){
+  const g = STATE.galeria.find(x=>x.id===id); if(!g) return;
+  g.nota = valor;
+  renderRepositorio();
+}
+function repoToggleTagImagen(id, tagId){
+  const g = STATE.galeria.find(x=>x.id===id); if(!g) return;
+  g.tags = g.tags || [];
+  const i = g.tags.indexOf(tagId);
+  if(i>=0) g.tags.splice(i,1); else g.tags.push(tagId);
+  renderRepositorio();
+}
+function repoTogglePeriodoImagen(id, valor){
+  const g = STATE.galeria.find(x=>x.id===id); if(!g) return;
+  g.periodos = g.periodos || [];
+  const i = g.periodos.indexOf(valor);
+  if(i>=0) g.periodos.splice(i,1); else g.periodos.push(valor);
+  renderRepositorio();
+}
+function repoQuitarImagen(id){
+  if(!confirm('¿Quitar esta imagen del Repositorio? El archivo permanece en Drive — solo se quita de la lista.')) return;
+  STATE.galeria = STATE.galeria.filter(g => g.id !== id);
+  if(repoUI.selId === id) repoUI.selId = null;
+  toast('Imagen quitada · recordá "Exportar JSON" para guardar el cambio en Drive', 'ok');
+  renderRepositorio();
+}
+
+// ── Compresión client-side + subida a Drive ──
+// Dos versiones por imagen: thumb (embebido en el JSON, listado/PDF instantáneos) y display
+// (subida a Drive, se pide on-demand solo al hacer zoom — ver repoCargarImagenFull).
+function repoComprimirImagen(file, maxW, calidad){
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = e => {
+      const img = new Image();
+      img.onload = () => {
+        let w = img.width, h = img.height;
+        if(w > maxW){ h = Math.round(h * maxW / w); w = maxW; }
+        const canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL('image/jpeg', calidad));
+      };
+      img.onerror = () => reject(new Error('No se pudo leer la imagen'));
+      img.src = e.target.result;
+    };
+    reader.onerror = () => reject(new Error('No se pudo leer el archivo'));
+    reader.readAsDataURL(file);
+  });
+}
+
+async function repoSubirBinarioADrive(displayDataURL, nombreOriginal){
+  const base64 = displayDataURL.split(',')[1];
+  const nombreArchivo = `${Date.now()}_${nombreOriginal.replace(/[^a-zA-Z0-9._-]/g,'_')}`;
+  const resp = await fetch(GAS_URL, {
+    method:'POST',
+    headers:{'Content-Type':'text/plain;charset=utf-8'},
+    body: JSON.stringify({ accion:'subirImagen', obraId: STATE.obra, base64, nombreArchivo, mimeType:'image/jpeg' })
+  });
+  if(!resp.ok) throw new Error(`HTTP ${resp.status}`);
+  const body = await resp.json();
+  if(!body.ok) throw new Error(body.error || 'El GAS devolvió ok:false');
+  return body.driveFileId;
+}
+
+async function repoOnArchivosSeleccionados(evt){
+  const files = Array.from(evt.target.files || []);
+  if(!files.length) return;
+  if(!STATE.obra){ toast('Cargá una obra antes de subir imágenes', 'warn'); evt.target.value=''; return; }
+  showSpinner(`Subiendo ${files.length} imagen(es)...`);
+  let subidas = 0, errores = 0;
+  for(const file of files){
+    try{
+      const thumbDataURL = await repoComprimirImagen(file, 480, 0.72);
+      const displayDataURL = await repoComprimirImagen(file, 1600, 0.82);
+      const driveFileId = await repoSubirBinarioADrive(displayDataURL, file.name);
+      const maxOrden = STATE.galeria.reduce((m,g)=>Math.max(m, g.orden??0), -1);
+      STATE.galeria.push({
+        id: 'img_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2,7),
+        driveFileId, thumbnailBase64: thumbDataURL, orden: maxOrden + 1,
+        nota:'', tags:[], periodos:[], fechaCarga: new Date().toISOString()
+      });
+      subidas++;
+    } catch(err){
+      errores++;
+      console.error('Error al subir imagen de repositorio:', err);
+    }
+  }
+  hideSpinner();
+  evt.target.value = '';
+  renderRepositorio();
+  if(subidas) toast(`${subidas} imagen(es) subida(s) · recordá "Exportar JSON" para guardar los cambios en Drive`, errores ? 'warn' : 'ok');
+  if(errores) toast(`${errores} imagen(es) fallaron al subir — ver consola`, 'err');
+}
+
+function repoReemplazarImagen(id){
+  _repoReemplazarId = id;
+  document.getElementById('repo-input-reemplazo').click();
+}
+async function repoOnReemplazoSeleccionado(evt){
+  const file = evt.target.files[0];
+  if(!file || !_repoReemplazarId) return;
+  const entry = STATE.galeria.find(g => g.id === _repoReemplazarId);
+  if(!entry){ evt.target.value=''; return; }
+  showSpinner('Reemplazando imagen...');
+  try{
+    const thumbDataURL = await repoComprimirImagen(file, 480, 0.72);
+    const displayDataURL = await repoComprimirImagen(file, 1600, 0.82);
+    // v6.0.0 (decisión de diseño confirmada): el archivo viejo NO se borra de Drive, queda huérfano.
+    entry.driveFileId = await repoSubirBinarioADrive(displayDataURL, file.name);
+    entry.thumbnailBase64 = thumbDataURL;
+    toast('Imagen reemplazada · recordá "Exportar JSON" para guardar el cambio en Drive', 'ok');
+  } catch(err){
+    toast('Error al reemplazar imagen: ' + err.message, 'err');
+    console.error(err);
+  } finally{
+    hideSpinner();
+    evt.target.value = '';
+    _repoReemplazarId = null;
+    renderRepositorio();
+  }
+}
+
+// Pide a Drive la versión "display" (1600px) de una imagen — usada al hacer zoom (detalle,
+// comparación, presentación). Progresivo: la card/detalle ya muestra el thumbnail al instante,
+// esto solo reemplaza el <img> cuando la versión grande termina de llegar.
+async function repoCargarImagenFull(driveFileId){
+  if(!driveFileId) return null;
+  try{
+    const resp = await fetch(`${GAS_URL}?accion=leerImagen&driveFileId=${encodeURIComponent(driveFileId)}`, { cache:'no-store' });
+    if(!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const body = await resp.json();
+    if(!body.ok) throw new Error(body.error || 'El GAS devolvió ok:false');
+    return `data:${body.mimeType};base64,${body.base64}`;
+  } catch(err){
+    console.warn('No se pudo cargar la imagen en resolución completa desde Drive:', err);
+    return null;
+  }
+}
+
+// ── Modo comparación (2 imágenes lado a lado — solo visual, sin edición de nota) ──
+function repoAbrirComparar(){
+  if(repoUI.compararSel.length !== 2) return;
+  const pares = repoUI.compararSel.map(id => STATE.galeria.find(g => g.id === id)).filter(Boolean);
+  if(pares.length !== 2) return;
+  const grid = document.getElementById('repo-comparar-grid');
+  grid.innerHTML = pares.map(g => `
+    <div class="repo-comparar-item">
+      <img src="${g.thumbnailBase64}" data-drive="${g.driveFileId}" alt="">
+      <div class="cap">${g.nota ? repoEsc(g.nota) : 'Sin nota'}${g.periodos && g.periodos.length ? ' · ' + g.periodos.map(repoLabelPeriodo).join(', ') : ''}</div>
+    </div>`).join('');
+  document.getElementById('modal-repo-comparar').classList.add('open');
+  pares.forEach(g => repoCargarImagenFull(g.driveFileId).then(url => {
+    if(!url) return;
+    const img = grid.querySelector(`img[data-drive="${g.driveFileId}"]`);
+    if(img) img.src = url;
+  }));
+}
+function repoCerrarComparar(){ document.getElementById('modal-repo-comparar').classList.remove('open'); }
+function repoCerrarCompararClickFuera(evt){ if(evt.target.id === 'modal-repo-comparar') repoCerrarComparar(); }
+
+// ── Modo presentación (fullscreen, arranca en la imagen clickeada, navega con flechas) ──
+// Navega sobre la lista actualmente filtrada (repoImagenesFiltradas), no siempre el carrete completo.
+function repoAbrirPresentacion(id){
+  repoPres.lista = repoImagenesFiltradas();
+  repoPres.idx = repoPres.lista.findIndex(g => g.id === id);
+  if(repoPres.idx === -1) repoPres.idx = 0;
+  if(!repoPres.lista.length) return;
+  document.getElementById('modal-repo-presentacion').classList.add('open');
+  repoRenderPresentacion();
+}
+function repoRenderPresentacion(){
+  const g = repoPres.lista[repoPres.idx];
+  if(!g) return;
+  const img = document.getElementById('repo-pres-img');
+  img.src = g.thumbnailBase64;
+  img.dataset.drive = g.driveFileId;
+  document.getElementById('repo-pres-caption').textContent =
+    `${repoPres.idx+1}/${repoPres.lista.length} · ${g.nota || 'Sin nota'}${g.periodos&&g.periodos.length ? ' · ' + g.periodos.map(repoLabelPeriodo).join(', ') : ''}`;
+  repoCargarImagenFull(g.driveFileId).then(url => {
+    if(!url) return;
+    if(img.dataset.drive === g.driveFileId) img.src = url;
+  });
+}
+function repoPresentacionMover(delta){
+  if(!repoPres.lista.length) return;
+  repoPres.idx = (repoPres.idx + delta + repoPres.lista.length) % repoPres.lista.length;
+  repoRenderPresentacion();
+}
+function repoCerrarPresentacion(){ document.getElementById('modal-repo-presentacion').classList.remove('open'); }
+document.addEventListener('keydown', evt => {
+  const modal = document.getElementById('modal-repo-presentacion');
+  if(!modal || !modal.classList.contains('open')) return;
+  if(evt.key === 'ArrowRight') repoPresentacionMover(1);
+  else if(evt.key === 'ArrowLeft') repoPresentacionMover(-1);
+  else if(evt.key === 'Escape') repoCerrarPresentacion();
+});
+
+// ── Gestión de tags (globales, CONFIG.tagsGaleria) ──
+function repoAbrirGestionTags(){
+  repoRenderTagsModal();
+  document.getElementById('modal-repo-tags').classList.add('open');
+}
+function repoCerrarGestionTags(){ document.getElementById('modal-repo-tags').classList.remove('open'); }
+function repoCerrarGestionTagsClickFuera(evt){ if(evt.target.id === 'modal-repo-tags') repoCerrarGestionTags(); }
+function repoRenderTagsModal(){
+  const cont = document.getElementById('repo-tags-lista');
+  const tags = (CONFIG && CONFIG.tagsGaleria) || [];
+  cont.innerHTML = tags.length ? tags.map(t => `
+    <div class="repo-tag-fila">
+      <span class="dot" style="background:${t.color}"></span>
+      <span>${repoEsc(t.etiqueta)}</span>
+      <button onclick="repoEliminarTag('${t.id}')" title="Eliminar tag"><i class="ti ti-x"></i></button>
+    </div>`).join('') : '<div style="font-size:11px;color:#94a3b8;padding:6px 0;">Sin tags todavía.</div>';
+}
+async function repoAgregarTag(){
+  const nombreEl = document.getElementById('repo-tag-nuevo-nombre');
+  const colorEl = document.getElementById('repo-tag-nuevo-color');
+  const etiqueta = nombreEl.value.trim();
+  if(!etiqueta){ toast('Poné un nombre para el tag', 'warn'); return; }
+  if(!CONFIG.tagsGaleria) CONFIG.tagsGaleria = [];
+  if(CONFIG.tagsGaleria.some(t => t.etiqueta.toLowerCase() === etiqueta.toLowerCase())){
+    toast('Ya existe un tag con ese nombre', 'warn'); return;
+  }
+  CONFIG.tagsGaleria.push({ id:'tag_' + Date.now().toString(36), etiqueta, color: colorEl.value });
+  nombreEl.value = '';
+  repoRenderTagsModal();
+  renderRepositorio();
+  await repoGuardarTags();
+}
+async function repoEliminarTag(tagId){
+  if(!confirm('¿Eliminar este tag? Se quita de todas las imágenes que lo tengan en la obra cargada actualmente.')) return;
+  CONFIG.tagsGaleria = (CONFIG.tagsGaleria||[]).filter(t => t.id !== tagId);
+  STATE.galeria.forEach(g => { if(Array.isArray(g.tags)) g.tags = g.tags.filter(id => id !== tagId); });
+  if(repoUI.filtroTag === tagId) repoUI.filtroTag = null;
+  repoRenderTagsModal();
+  renderRepositorio();
+  await repoGuardarTags();
+}
+async function repoGuardarTags(){
+  showSpinner('Guardando tags en Drive...');
+  try{
+    const resp = await fetch(GAS_URL, {
+      method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'},
+      body: JSON.stringify({ accion:'guardar', nombre:'config_uo_celdas', datos: CONFIG })
+    });
+    if(!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const body = await resp.json();
+    if(!body.ok) throw new Error(body.error || 'El GAS devolvió ok:false');
+    toast('Tags guardados en Drive', 'ok');
+  } catch(err){
+    toast('Error al guardar tags en Drive: ' + err.message, 'err');
+    console.error(err);
+  } finally{
+    hideSpinner();
+  }
+}
+
+// ── Exportar PDF (v6.0.0) — SIEMPRE todas las imágenes del tab, ignora filtro activo (decisión confirmada) ──
+async function repoExportarPDF(){
+  if(!STATE.galeria.length){ toast('No hay imágenes para exportar', 'warn'); return; }
+  showSpinner('Generando PDF del Repositorio...');
+  try{
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ unit:'mm', format:'a4' });
+    const lista = [...STATE.galeria].sort((a,b)=>(a.orden??0)-(b.orden??0));
+    const pageW = doc.internal.pageSize.getWidth();
+    const pageH = doc.internal.pageSize.getHeight();
+    const margin = 15;
+    lista.forEach((g, i) => {
+      if(i > 0) doc.addPage();
+      doc.setFontSize(11);
+      doc.setFont(undefined, 'bold');
+      doc.text(`Repositorio · UO ${STATE.obra} · ${nombreObraDe(STATE.obra) || ''}`, margin, 15);
+      const maxImgW = pageW - margin*2;
+      const maxImgH = pageH - 70;
+      let yTexto = 40;
+      try{
+        const imgProps = doc.getImageProperties(g.thumbnailBase64);
+        let w = maxImgW, h = (imgProps.height * w) / imgProps.width;
+        if(h > maxImgH){ h = maxImgH; w = (imgProps.width * h) / imgProps.height; }
+        const x = margin + (maxImgW - w) / 2;
+        doc.addImage(g.thumbnailBase64, 'JPEG', x, 22, w, h);
+        yTexto = 22 + h + 10;
+      } catch(e){
+        doc.setFontSize(9);
+        doc.text('(No se pudo incrustar la imagen)', margin, 30);
+      }
+      doc.setFontSize(9);
+      doc.setFont(undefined, 'normal');
+      doc.text(`Nota: ${g.nota || '—'}`, margin, yTexto, { maxWidth: pageW - margin*2 });
+      const periodosTxt = (g.periodos||[]).map(repoLabelPeriodo).join(', ') || '—';
+      doc.text(`Períodos: ${periodosTxt}`, margin, yTexto + 6);
+      const tagsTxt = (g.tags||[]).map(tid => { const t=(CONFIG.tagsGaleria||[]).find(x=>x.id===tid); return t?t.etiqueta:null; }).filter(Boolean).join(', ') || '—';
+      doc.text(`Tags: ${tagsTxt}`, margin, yTexto + 12);
+    });
+    doc.save(`repositorio_${STATE.obra}_${timestampArchivo()}.pdf`);
+    toast('PDF generado', 'ok');
+  } catch(err){
+    toast('Error al generar el PDF: ' + err.message, 'err');
     console.error(err);
   } finally{
     hideSpinner();
