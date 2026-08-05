@@ -3,12 +3,13 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ICG EvoTen v6.0.1 | Multi-obra</title>
+<title>ICG EvoTen v6.0.2 | Multi-obra</title>
 <script src="https://cdn.tailwindcss.com/3.4.1"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://unpkg.com/panzoom@9.4.3/dist/panzoom.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@300;400;600;700;900&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css">
 <style>
@@ -536,8 +537,17 @@ main { max-width:1400px; margin:0 auto; padding:24px 20px 60px; }
 .repo-sidebar-reopen:hover { background:#f1f5f9; }
 
 .repo-main-detalle { display:flex; gap:20px; flex-wrap:wrap; position:relative; }
-.repo-main-img-wrap { flex:1; min-width:280px; }
-.repo-main-img-wrap img { width:100%; border-radius:12px; cursor:zoom-in; border:1px solid #e6eaf0; background:#f1f5f9; }
+.repo-panzoom-wrap {
+  flex:1; min-width:280px; height:460px; overflow:hidden; position:relative;
+  border:1px solid #e6eaf0; border-radius:12px; background:#f1f5f9;
+}
+.repo-panzoom-inner { display:inline-flex; cursor:grab; user-select:none; transform-origin:0 0; }
+.repo-panzoom-inner:active { cursor:grabbing; }
+.repo-panzoom-inner img { display:block; border-radius:10px; }
+.repo-panzoom-hint {
+  position:absolute; bottom:10px; right:14px; font-size:9px; font-weight:700; color:#64748b;
+  background:rgba(255,255,255,.9); padding:4px 10px; border-radius:99px; pointer-events:none;
+}
 .repo-main-side { width:280px; flex-shrink:0; display:flex; flex-direction:column; gap:12px; transition:width .2s, opacity .2s, padding .2s; overflow:hidden; }
 .repo-main-side.oculto { width:0; opacity:0; gap:0; }
 .repo-main-side label { font-size:9px; font-weight:900; text-transform:uppercase; letter-spacing:.06em; color:#94a3b8; display:block; margin-bottom:4px; }
@@ -638,7 +648,7 @@ main { max-width:1400px; margin:0 auto; padding:24px 20px 60px; }
 
 <div id="app-header">
   <div style="display:flex;align-items:center;gap:14px;">
-    <div class="app-badge">v6.0.1</div>
+    <div class="app-badge">v6.0.2</div>
     <div>
       <div class="app-title">ICG EvoTen · Evolución y Tendencia</div>
     </div>
@@ -1077,7 +1087,7 @@ const PANEL_MAP_CANVAS = {
 // Versión de la app — se estampa en el JSON exportado (STATE.generado_con) para que,
 // si mañana cambia la lógica de detección/visualización, el motor pueda detectar JSON
 // generados con una versión anterior y aplicar un fallback en vez de romper.
-const APP_VERSION = 'v6.0.1';
+const APP_VERSION = 'v6.0.2';
 
 // v5.0.0: persistencia en Drive vía GAS standalone (icg_evoten_v5.0.0.gs), sin login.
 // Reemplaza el guardado/carga local (Blob + FileReader) de v4.3.2 para portabilidad
@@ -3671,8 +3681,11 @@ function repoRenderMainDetalle(){
   }).join('') || '<span style="font-size:10px;color:#94a3b8;">Sin períodos cargados en esta obra todavía.</span>';
 
   det.innerHTML = `
-    <div class="repo-main-img-wrap">
-      <img id="repo-main-img-el" src="${g.thumbnailBase64}" data-drive="${g.driveFileId}" onclick="repoAbrirPresentacion('${g.id}')" alt="">
+    <div class="repo-panzoom-wrap" id="repo-panzoom-wrap">
+      <div class="repo-panzoom-inner" id="repo-panzoom-inner">
+        <img id="repo-main-img-el" src="${g.thumbnailBase64}" data-drive="${g.driveFileId}" alt="">
+      </div>
+      <span class="repo-panzoom-hint">Scroll: zoom · Drag: pan · Doble click: reset</span>
       ${repoUI.detalleOculto ? `<button class="repo-main-side-reopen" onclick="repoToggleDetalleSide()" title="Mostrar panel de detalle"><i class="ti ti-layout-sidebar-right"></i></button>` : ''}
     </div>
     <div class="repo-main-side${repoUI.detalleOculto ? ' oculto' : ''}">
@@ -3698,11 +3711,37 @@ function repoRenderMainDetalle(){
       </div>
     </div>`;
 
+  repoInitPanzoom();
   repoCargarImagenFull(g.driveFileId).then(url => {
     if(!url) return;
     const img = document.getElementById('repo-main-img-el');
     if(img && img.dataset.drive === g.driveFileId) img.src = url;
   });
+}
+
+// v6.0.1: zoom/pan sobre la imagen del panel de detalle — misma librería y patrón que la
+// WebApp de organigrama de referencia (panzoom@9.4.3, anvaka). Se reinicializa en cada render
+// del detalle (el wrap/inner se recrean con el innerHTML). El <img> se ajusta al tamaño del
+// wrap antes de habilitar el zoom (ancho/alto natural escalados a "fit", nunca upscale).
+let _repoPanzoom = null;
+function repoInitPanzoom(){
+  if(_repoPanzoom){ try{ _repoPanzoom.dispose(); }catch(e){} _repoPanzoom = null; }
+  const wrap = document.getElementById('repo-panzoom-wrap');
+  const inner = document.getElementById('repo-panzoom-inner');
+  const img = document.getElementById('repo-main-img-el');
+  if(!wrap || !inner || !img || typeof panzoom !== 'function') return;
+
+  const ajustar = () => {
+    if(!img.naturalWidth || !img.naturalHeight) return;
+    const escala = Math.min(wrap.clientWidth / img.naturalWidth, wrap.clientHeight / img.naturalHeight, 1);
+    img.style.width = (img.naturalWidth * escala) + 'px';
+    img.style.height = (img.naturalHeight * escala) + 'px';
+  };
+  if(img.complete && img.naturalWidth) ajustar();
+  img.onload = ajustar;
+
+  _repoPanzoom = panzoom(inner, { maxZoom:6, minZoom:0.5, zoomSpeed:0.065, bounds:true, boundsPadding:0.1 });
+  wrap.ondblclick = () => { _repoPanzoom.moveTo(0, 0); _repoPanzoom.zoomAbs(0, 0, 1); };
 }
 
 function repoGuardarNota(id, valor){
