@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ICG EvoTen v6.0.5 | Multi-obra</title>
+<title>ICG EvoTen v6.0.6 | Multi-obra</title>
 <script src="https://cdn.tailwindcss.com/3.4.1"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
@@ -652,7 +652,7 @@ main { max-width:1400px; margin:0 auto; padding:24px 20px 60px; }
 
 <div id="app-header">
   <div style="display:flex;align-items:center;gap:14px;">
-    <div class="app-badge">v6.0.5</div>
+    <div class="app-badge">v6.0.6</div>
     <div>
       <div class="app-title">ICG EvoTen · Evolución y Tendencia</div>
     </div>
@@ -1094,7 +1094,7 @@ const PANEL_MAP_CANVAS = {
 // Versión de la app — se estampa en el JSON exportado (STATE.generado_con) para que,
 // si mañana cambia la lógica de detección/visualización, el motor pueda detectar JSON
 // generados con una versión anterior y aplicar un fallback en vez de romper.
-const APP_VERSION = 'v6.0.5';
+const APP_VERSION = 'v6.0.6';
 
 // v5.0.0: persistencia en Drive vía GAS standalone (icg_evoten_v5.0.0.gs), sin login.
 // Reemplaza el guardado/carga local (Blob + FileReader) de v4.3.2 para portabilidad
@@ -3672,13 +3672,16 @@ function repoToggleCompararSel(id, checked){
 }
 
 // ── Panel de detalle (nota, tags, períodos, acciones) ──
-function repoRenderMainDetalle(){
-  const vacio = document.getElementById('repo-main-vacio');
-  const det = document.getElementById('repo-main-detalle');
-  const g = STATE.galeria.find(x => x.id === repoUI.selId);
-  if(!g){ vacio.style.display='flex'; det.style.display='none'; return; }
-  vacio.style.display='none'; det.style.display='flex';
-
+// v6.0.6: separado en dos funciones. Antes, escribir una nota o tocar un tag/período
+// llamaba renderRepositorio() → repoRenderMainDetalle() completo, que reconstruía el
+// <img> desde cero (volviendo a mostrar el thumbnail chico), reiniciaba panzoom (perdiendo
+// el zoom/pan del usuario) y volvía a pedir la imagen full a Drive vía repoCargarImagenFull
+// (sin caché, cache:'no-store') — o sea, cada edición del panel lateral re-descargaba la
+// imagen entera y la fiteaba dos veces en cadena (thumb, después full). Eso era el "salto"
+// reportado. Ahora: repoRenderMainDetalle() (imagen + panzoom + panel lateral, completa)
+// se llama solo al cambiar de imagen seleccionada; repoRenderPanelLateral() (liviana, sin
+// tocar imagen/panzoom) es la que corren los handlers de nota/tags/períodos.
+function repoMainSideInnerHtml(g){
   const tagsPicker = (CONFIG.tagsGaleria||[]).map(t => {
     const on = (g.tags||[]).includes(t.id);
     return `<span class="repo-pick-chip ${on?'on':''}" style="${on?`background:${t.color};border-color:${t.color};`:''}" onclick="repoToggleTagImagen('${g.id}','${t.id}')">${repoEsc(t.etiqueta)}</span>`;
@@ -3689,6 +3692,35 @@ function repoRenderMainDetalle(){
     return `<span class="repo-pick-chip ${on?'on':''}" onclick="repoTogglePeriodoImagen('${g.id}','${p.valor}')">${p.label}</span>`;
   }).join('') || '<span style="font-size:10px;color:#94a3b8;">Sin períodos cargados en esta obra todavía.</span>';
 
+  return `
+    <div class="repo-main-side-hdr">
+      <label style="margin-bottom:0;">Nota</label>
+      <button class="repo-main-side-toggle" onclick="repoToggleDetalleSide()" title="Ocultar panel de detalle"><i class="ti ti-layout-sidebar-right"></i></button>
+    </div>
+    <div>
+      <textarea class="repo-nota-input" onchange="repoGuardarNota('${g.id}', this.value)" placeholder="Anotación de esta imagen...">${repoEsc(g.nota||'')}</textarea>
+    </div>
+    <div>
+      <label>Períodos</label>
+      <div class="repo-periodos-picker">${periodosPicker}</div>
+    </div>
+    <div>
+      <label>Tags</label>
+      <div class="repo-tags-picker">${tagsPicker}</div>
+    </div>
+    <div class="repo-main-actions">
+      <button class="btn-hdr" onclick="repoReemplazarImagen('${g.id}')"><i class="ti ti-replace"></i> Reemplazar</button>
+      <button class="btn-hdr" style="border-color:#b91c1c;color:#b91c1c;" onclick="repoQuitarImagen('${g.id}')"><i class="ti ti-trash"></i> Quitar</button>
+    </div>`;
+}
+
+function repoRenderMainDetalle(){
+  const vacio = document.getElementById('repo-main-vacio');
+  const det = document.getElementById('repo-main-detalle');
+  const g = STATE.galeria.find(x => x.id === repoUI.selId);
+  if(!g){ vacio.style.display='flex'; det.style.display='none'; return; }
+  vacio.style.display='none'; det.style.display='flex';
+
   det.innerHTML = `
     <div class="repo-panzoom-wrap" id="repo-panzoom-wrap">
       <div class="repo-panzoom-inner" id="repo-panzoom-inner">
@@ -3697,27 +3729,7 @@ function repoRenderMainDetalle(){
       <span class="repo-panzoom-hint">Scroll: zoom · Drag: pan · Doble click: reset</span>
       ${repoUI.detalleOculto ? `<button class="repo-main-side-reopen" onclick="repoToggleDetalleSide()" title="Mostrar panel de detalle"><i class="ti ti-layout-sidebar-right"></i></button>` : ''}
     </div>
-    <div class="repo-main-side${repoUI.detalleOculto ? ' oculto' : ''}">
-      <div class="repo-main-side-hdr">
-        <label style="margin-bottom:0;">Nota</label>
-        <button class="repo-main-side-toggle" onclick="repoToggleDetalleSide()" title="Ocultar panel de detalle"><i class="ti ti-layout-sidebar-right"></i></button>
-      </div>
-      <div>
-        <textarea class="repo-nota-input" onchange="repoGuardarNota('${g.id}', this.value)" placeholder="Anotación de esta imagen...">${repoEsc(g.nota||'')}</textarea>
-      </div>
-      <div>
-        <label>Períodos</label>
-        <div class="repo-periodos-picker">${periodosPicker}</div>
-      </div>
-      <div>
-        <label>Tags</label>
-        <div class="repo-tags-picker">${tagsPicker}</div>
-      </div>
-      <div class="repo-main-actions">
-        <button class="btn-hdr" onclick="repoReemplazarImagen('${g.id}')"><i class="ti ti-replace"></i> Reemplazar</button>
-        <button class="btn-hdr" style="border-color:#b91c1c;color:#b91c1c;" onclick="repoQuitarImagen('${g.id}')"><i class="ti ti-trash"></i> Quitar</button>
-      </div>
-    </div>`;
+    <div class="repo-main-side${repoUI.detalleOculto ? ' oculto' : ''}" id="repo-main-side">${repoMainSideInnerHtml(g)}</div>`;
 
   repoInitPanzoom();
   repoCargarImagenFull(g.driveFileId).then(url => {
@@ -3725,6 +3737,18 @@ function repoRenderMainDetalle(){
     const img = document.getElementById('repo-main-img-el');
     if(img && img.dataset.drive === g.driveFileId) img.src = url;
   });
+}
+
+// v6.0.6: refresco liviano del panel lateral — no toca #repo-panzoom-wrap ni la instancia
+// de panzoom, así que el zoom/pan del usuario y la imagen full ya cargada quedan intactas.
+// También refresca la card de la sidebar (preview de nota + puntos de tag) que sí depende
+// de estos datos, pero esa función solo pinta thumbnails ya en memoria — sin red.
+function repoRenderPanelLateral(){
+  const g = STATE.galeria.find(x => x.id === repoUI.selId);
+  if(!g) return;
+  const side = document.getElementById('repo-main-side');
+  if(side) side.innerHTML = repoMainSideInnerHtml(g);
+  repoRenderSidebar();
 }
 
 // v6.0.1: zoom/pan sobre la imagen del panel de detalle — misma librería y patrón que la
@@ -3782,26 +3806,34 @@ function repoFitAllPanzoom(){
   const t = _repoPanzoom.getTransform();
   t.scale = escala;
   _repoPanzoom.moveTo(offX, offY);
+  // v6.0.6: diagnóstico temporal para el bug de "Fit All mal posicionado" — si después de este
+  // fix (que sacó la re-descarga de imagen en cada edición del panel lateral) el problema
+  // persiste, pasame estos 6 valores tal como salen en la consola del navegador (F12) en el
+  // momento del doble click. Sacar este bloque una vez cerrado el bug.
+  console.debug('[EvoTen fitAll]', { wrapW: wrap.clientWidth, wrapH: wrap.clientHeight, imgW: img.naturalWidth, imgH: img.naturalHeight, escala, offX, offY });
 }
 
+// v6.0.6: las tres funciones de abajo (nota, tags, períodos de UNA imagen) ya no llaman
+// renderRepositorio() completo — eso reconstruía imagen+panzoom en cada edición (ver nota
+// arriba de repoRenderPanelLateral). Ahora llaman al refresco liviano del panel lateral.
 function repoGuardarNota(id, valor){
   const g = STATE.galeria.find(x=>x.id===id); if(!g) return;
   g.nota = valor;
-  renderRepositorio();
+  repoRenderPanelLateral();
 }
 function repoToggleTagImagen(id, tagId){
   const g = STATE.galeria.find(x=>x.id===id); if(!g) return;
   g.tags = g.tags || [];
   const i = g.tags.indexOf(tagId);
   if(i>=0) g.tags.splice(i,1); else g.tags.push(tagId);
-  renderRepositorio();
+  repoRenderPanelLateral();
 }
 function repoTogglePeriodoImagen(id, valor){
   const g = STATE.galeria.find(x=>x.id===id); if(!g) return;
   g.periodos = g.periodos || [];
   const i = g.periodos.indexOf(valor);
   if(i>=0) g.periodos.splice(i,1); else g.periodos.push(valor);
-  renderRepositorio();
+  repoRenderPanelLateral();
 }
 function repoQuitarImagen(id){
   if(!confirm('¿Quitar esta imagen del Repositorio? El archivo permanece en Drive — solo se quita de la lista.')) return;
