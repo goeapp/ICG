@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ICG EvoTen v6.0.4 | Multi-obra</title>
+<title>ICG EvoTen v6.0.5 | Multi-obra</title>
 <script src="https://cdn.tailwindcss.com/3.4.1"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
@@ -652,7 +652,7 @@ main { max-width:1400px; margin:0 auto; padding:24px 20px 60px; }
 
 <div id="app-header">
   <div style="display:flex;align-items:center;gap:14px;">
-    <div class="app-badge">v6.0.4</div>
+    <div class="app-badge">v6.0.5</div>
     <div>
       <div class="app-title">ICG EvoTen · Evolución y Tendencia</div>
     </div>
@@ -1094,7 +1094,7 @@ const PANEL_MAP_CANVAS = {
 // Versión de la app — se estampa en el JSON exportado (STATE.generado_con) para que,
 // si mañana cambia la lógica de detección/visualización, el motor pueda detectar JSON
 // generados con una versión anterior y aplicar un fallback en vez de romper.
-const APP_VERSION = 'v6.0.4';
+const APP_VERSION = 'v6.0.5';
 
 // v5.0.0: persistencia en Drive vía GAS standalone (icg_evoten_v5.0.0.gs), sin login.
 // Reemplaza el guardado/carga local (Blob + FileReader) de v4.3.2 para portabilidad
@@ -3729,13 +3729,19 @@ function repoRenderMainDetalle(){
 
 // v6.0.1: zoom/pan sobre la imagen del panel de detalle — misma librería y patrón que la
 // WebApp de organigrama de referencia (panzoom@9.4.3, anvaka).
-// v6.0.4: reescrito — antes el <img> se resizeaba por CSS a un tamaño "fit" Y ADEMÁS panzoom
-// aplicaba su propio zoom encima (dos escalas mezcladas), lo que hacía que el doble click
-// terminara en una posición impredecible según el mouse/zoom previo. Ahora el <img> queda
-// SIEMPRE a su tamaño natural (sin CSS width/height) y panzoom es la única fuente de escala
-// y posición — el "fit all" (repoFitAllPanzoom) se recalcula desde cero cada vez (tamaño
-// natural + tamaño actual del wrap), nunca a partir del estado de transformación anterior,
-// así el resultado es siempre el mismo sin importar dónde se hizo el doble click.
+// v6.0.4: reescrito para que panzoom sea la única fuente de escala/posición (el <img> queda
+// a tamaño natural, sin CSS width/height).
+// v6.0.5: encontrada la causa real de por qué el doble click seguía dando resultados atados
+// al mouse (revisado el código fuente de la librería en github.com/anvaka/panzoom): incluso
+// con zoomDoubleClickSpeed:1, el 'dblclick' interno de la librería sigue disparando su propia
+// animación (smoothZoom, anclada en el punto exacto del click) — con multiplicador 1 el
+// destino matemático es "igual al de antes", pero la animación corre en un frame posterior a
+// nuestro reset y lo pisa, arrastrando la escala vieja anclada en el mouse. Eso es justamente
+// lo reportado. Fix: interceptamos el 'dblclick' en fase de CAPTURA (antes de que la librería
+// lo reciba en su fase de burbuja) y lo cancelamos con stopImmediatePropagation() — el handler
+// interno de panzoom nunca llega a ejecutarse. Además, en vez de zoomAbs (que calcula un ratio
+// contra la escala anterior), escribimos escala y posición directo sobre el transform interno
+// vía getTransform(), sin depender de ningún estado previo.
 let _repoPanzoom = null;
 function repoInitPanzoom(){
   if(_repoPanzoom){ try{ _repoPanzoom.dispose(); }catch(e){} _repoPanzoom = null; }
@@ -3744,11 +3750,17 @@ function repoInitPanzoom(){
   const img = document.getElementById('repo-main-img-el');
   if(!wrap || !inner || !img || typeof panzoom !== 'function') return;
 
-  // zoomDoubleClickSpeed:1 desactiva el zoom-in propio de la librería al doble click (competía
-  // con nuestro "fit all"). Sin bounds: el usuario puede panear la imagen fuera de vista, pero
-  // el doble click siempre la trae de vuelta — igual que "zoom extents" en un CAD.
+  // Sin bounds: el usuario puede panear la imagen fuera de vista, pero el doble click
+  // siempre la trae de vuelta — igual que "zoom extents" en un CAD.
   _repoPanzoom = panzoom(inner, { maxZoom:10, minZoom:0.05, zoomSpeed:0.065, zoomDoubleClickSpeed:1, bounds:false });
-  wrap.ondblclick = repoFitAllPanzoom;
+
+  // capture:true → nuestro listener corre ANTES que el 'dblclick' interno de panzoom (que está
+  // en fase de burbuja). stopImmediatePropagation() lo cancela del todo, no solo lo "amortigua".
+  wrap.addEventListener('dblclick', function(e){
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    repoFitAllPanzoom();
+  }, true);
 
   if(img.complete && img.naturalWidth) repoFitAllPanzoom();
   img.onload = repoFitAllPanzoom;
@@ -3757,15 +3769,18 @@ function repoInitPanzoom(){
 // "Fit all" (como Zoom Extents en un CAD): centra y escala la imagen para que se vea completa
 // dentro del panel. Recalcula todo desde cero — nunca parte del zoom/pan actual — por eso da
 // siempre el mismo resultado sin importar dónde se hizo doble click o cuánto se había zoomeado.
+// Escribe escala y posición directo sobre el transform (no vía zoomAbs, que calcula el nuevo
+// estado como ratio contra el anterior — evitamos así cualquier dependencia del estado previo).
 function repoFitAllPanzoom(){
   if(!_repoPanzoom) return;
   const wrap = document.getElementById('repo-panzoom-wrap');
   const img = document.getElementById('repo-main-img-el');
   if(!wrap || !img || !img.naturalWidth || !img.naturalHeight) return;
   const escala = Math.min(wrap.clientWidth / img.naturalWidth, wrap.clientHeight / img.naturalHeight);
-  _repoPanzoom.zoomAbs(0, 0, escala);
   const offX = (wrap.clientWidth - img.naturalWidth * escala) / 2;
   const offY = (wrap.clientHeight - img.naturalHeight * escala) / 2;
+  const t = _repoPanzoom.getTransform();
+  t.scale = escala;
   _repoPanzoom.moveTo(offX, offY);
 }
 
