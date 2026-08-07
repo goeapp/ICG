@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ICG EvoTen v6.0.10 | Multi-obra</title>
+<title>ICG EvoTen v6.0.11 | Multi-obra</title>
 <script src="https://cdn.tailwindcss.com/3.4.1"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
@@ -730,7 +730,7 @@ main { max-width:1400px; margin:0 auto; padding:24px 20px 60px; }
 
 <div id="app-header">
   <div style="display:flex;align-items:center;gap:14px;">
-    <div class="app-badge">v6.0.10</div>
+    <div class="app-badge">v6.0.11</div>
     <div>
       <div class="app-title">ICG EvoTen · Evolución y Tendencia</div>
     </div>
@@ -1175,7 +1175,7 @@ const PANEL_MAP_CANVAS = {
 // Versión de la app — se estampa en el JSON exportado (STATE.generado_con) para que,
 // si mañana cambia la lógica de detección/visualización, el motor pueda detectar JSON
 // generados con una versión anterior y aplicar un fallback en vez de romper.
-const APP_VERSION = 'v6.0.10';
+const APP_VERSION = 'v6.0.11';
 
 // v5.0.0: persistencia en Drive vía GAS standalone (icg_evoten_v5.0.0.gs), sin login.
 // Reemplaza el guardado/carga local (Blob + FileReader) de v4.3.2 para portabilidad
@@ -4441,9 +4441,23 @@ function hdrAutoHideOnScroll(){
 // Nombre de archivo: {obra}_pantalla_{fechahora}.png, misma timestampArchivo() que usa
 // el resto de la app (exportarJSON, PDF de Repositorio) para mantener un único formato.
 // ============================================================
+// v6.0.11: oculta/muestra la barra y el FAB del lápiz durante la captura — la herramienta
+// no debe salir en la foto, solo lo que dibujaste con ella. visibility (no display), para
+// no pisar la lógica de las clases 'show'/'hdr-oculto' que ya controlan cuándo se ven.
+function lapizOcultarUIParaCaptura(oculto){
+  const bar = document.getElementById('lpz-bar');
+  const fab = document.getElementById('lpz-fab');
+  if(bar) bar.style.visibility = oculto ? 'hidden' : '';
+  if(fab) fab.style.visibility = oculto ? 'hidden' : '';
+}
+
 async function capturarPantalla(){
   let stream = null;
+  lapizOcultarUIParaCaptura(true);
   try{
+    // un frame para que el navegador pinte el estado ya oculto antes de que el selector
+    // nativo tome la miniatura de vista previa de la pestaña.
+    await new Promise(requestAnimationFrame);
     stream = await navigator.mediaDevices.getDisplayMedia({
       video: true,
       preferCurrentTab: true // hint (Chrome): sugiere "esta pestaña" primero en el selector — no fuerza la elección
@@ -4475,8 +4489,11 @@ async function capturarPantalla(){
     if(stream) stream.getTracks().forEach(t => t.stop());
     if(err.name === 'NotAllowedError') toast('Captura cancelada', 'warn');
     else { toast('Error al capturar: ' + err.message, 'err'); console.error(err); }
+  } finally {
+    lapizOcultarUIParaCaptura(false);
   }
 }
+
 
 document.addEventListener('DOMContentLoaded', async () => {
   // v5.0.1: título del tab tomado de APP_VERSION — antes quedaba hardcodeado en <title>
