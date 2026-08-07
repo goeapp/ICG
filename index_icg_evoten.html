@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ICG EvoTen v6.0.9 | Multi-obra</title>
+<title>ICG EvoTen v6.0.10 | Multi-obra</title>
 <script src="https://cdn.tailwindcss.com/3.4.1"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
@@ -107,9 +107,6 @@ input[type=file].hidden-input { display:none; }
 }
 .lpz-modo-btn.activo { background:#334155; border-color:#fff; color:#fff; }
 .lpz-bar-sep { width:1px; align-self:stretch; background:#334155; }
-
-.btn-hdr.btn-captura { border-color:#06b6d4; color:#06b6d4; }
-.btn-hdr.btn-captura:hover { background:#06b6d4; color:#fff; }
 
 /* ── FAB del lápiz (v6.0.8) — visible SOLO cuando el header está oculto ── */
 .lpz-fab {
@@ -733,7 +730,7 @@ main { max-width:1400px; margin:0 auto; padding:24px 20px 60px; }
 
 <div id="app-header">
   <div style="display:flex;align-items:center;gap:14px;">
-    <div class="app-badge">v6.0.9</div>
+    <div class="app-badge">v6.0.10</div>
     <div>
       <div class="app-title">ICG EvoTen · Evolución y Tendencia</div>
     </div>
@@ -766,9 +763,6 @@ main { max-width:1400px; margin:0 auto; padding:24px 20px 60px; }
     </button>
     <button class="btn-hdr btn-lapiz" id="btn-lapiz-toggle" onclick="lapizToggle()" title="Lápiz — anotar sobre la pantalla (Esc para salir)">
       <i class="ti ti-pencil"></i> Lápiz
-    </button>
-    <button class="btn-hdr btn-captura" onclick="capturarPantalla()" title="Capturar pantalla — guarda un PNG de lo que está visible ahora">
-      <i class="ti ti-camera"></i> Capturar
     </button>
   </div>
 </div>
@@ -1181,7 +1175,7 @@ const PANEL_MAP_CANVAS = {
 // Versión de la app — se estampa en el JSON exportado (STATE.generado_con) para que,
 // si mañana cambia la lógica de detección/visualización, el motor pueda detectar JSON
 // generados con una versión anterior y aplicar un fallback en vez de romper.
-const APP_VERSION = 'v6.0.9';
+const APP_VERSION = 'v6.0.10';
 
 // v5.0.0: persistencia en Drive vía GAS standalone (icg_evoten_v5.0.0.gs), sin login.
 // Reemplaza el guardado/carga local (Blob + FileReader) de v4.3.2 para portabilidad
@@ -4527,6 +4521,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     <span class="lpz-grosor-dot" data-grosor="8" onclick="lapizSetGrosor(8, this)"><span style="width:12px;height:12px;"></span></span>
   </div>
   <button class="lpz-bar-btn" onclick="lapizBorrar()"><i class="ti ti-eraser"></i> Borrar marcas</button>
+  <span class="lpz-bar-sep"></span>
+  <span class="lpz-modo-btn" onclick="capturarPantalla()" title="Capturar pantalla (con las marcas dibujadas) — guarda un PNG"><i class="ti ti-camera"></i></span>
   <span class="lpz-bar-close" onclick="lapizToggle()" title="Cerrar (Esc)">✕</span>
 </div>
 
