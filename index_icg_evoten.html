@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ICG EvoTen v6.0.7 | Multi-obra</title>
+<title>ICG EvoTen v6.0.8 | Multi-obra</title>
 <script src="https://cdn.tailwindcss.com/3.4.1"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
@@ -61,12 +61,15 @@ input[type=file].hidden-input { display:none; }
 .btn-hdr.btn-lapiz:hover { background:#ec4899; color:#fff; }
 .btn-hdr.btn-lapiz.activo { background:#ec4899; color:#fff; }
 
-/* ── Lápiz Global v1.1 (integrado en v6.0.7) ──────────────────────────────
+/* ── Lápiz Global v1.1 (integrado en v6.0.7, corregido en v6.0.8) ─────────
    Autocontenido: no lee ni depende de las variables de diseño del resto de
    la app (solo usa colores propios hardcodeados) para poder copiarse tal
    cual a otras web apps de la suite (PdTT, MdT, etc.) sin traducir tokens.
-   Ver lapiz_global_guia_integracion_v1_1.md para el detalle de diseño. */
-.lpz-canvas { position:fixed; inset:0; z-index:9990; pointer-events:none; touch-action:none; }
+   Ver lapiz_global_guia_integracion_v1_1.md para el detalle de diseño.
+   v6.0.8: el canvas pasa de position:fixed (pantalla) a position:absolute
+   (documento completo) — las marcas ahora se mueven con el scroll en vez de
+   quedar fijas y desconectadas del contenido señalado. */
+.lpz-canvas { position:absolute; top:0; left:0; z-index:9990; pointer-events:none; touch-action:none; }
 .lpz-canvas.activo { pointer-events:auto; cursor:crosshair; }
 .lpz-bar {
   position:fixed; bottom:20px; left:50%; transform:translateX(-50%); z-index:9991;
@@ -98,6 +101,27 @@ input[type=file].hidden-input { display:none; }
 .lpz-bar-btn:hover { background:#ef4444; color:#fff; }
 .lpz-bar-close { color:#64748b; cursor:pointer; font-size:16px; padding:0 4px; }
 .lpz-bar-close:hover { color:#fff; }
+
+/* ── FAB del lápiz (v6.0.8) — visible SOLO cuando el header está oculto ── */
+.lpz-fab {
+  display:none; position:fixed; right:24px; bottom:24px; z-index:9992;
+  width:52px; height:52px; border-radius:50%;
+  align-items:center; justify-content:center; font-size:20px;
+  background:#1e293b; color:#ec4899; border:2px solid #ec4899; cursor:pointer;
+  box-shadow:0 6px 20px rgba(0,0,0,.35);
+}
+.lpz-fab.activo { background:#ec4899; color:#fff; }
+body.hdr-oculto .lpz-fab { display:flex; }
+
+/* ── Auto-ocultar header/tab-bar al scrollear (v6.0.8) ──────────────────
+   No es parte del lápiz en sí (afecta a #eco-header y #app-header enteros,
+   con los 7 botones de acción, no solo al lápiz) — vive acá por cercanía
+   con el FAB, que es lo único que depende de este estado. Se oculta después
+   de LPZ_HDR_HIDE_THRESHOLD px de scroll, reaparece solo al llegar arriba
+   del todo (scrollY <= 0) — ver hdrAutoHideOnScroll() en el JS. */
+body.hdr-oculto #eco-header,
+body.hdr-oculto #app-header,
+body.hdr-oculto #tab-bar { display:none; }
 
 /* ── Cards & bloques ── */
 .card { background:#fff; border-radius:16px; border:1px solid #e6eaf0; }
@@ -693,7 +717,7 @@ main { max-width:1400px; margin:0 auto; padding:24px 20px 60px; }
 
 <div id="app-header">
   <div style="display:flex;align-items:center;gap:14px;">
-    <div class="app-badge">v6.0.7</div>
+    <div class="app-badge">v6.0.8</div>
     <div>
       <div class="app-title">ICG EvoTen · Evolución y Tendencia</div>
     </div>
@@ -1138,7 +1162,7 @@ const PANEL_MAP_CANVAS = {
 // Versión de la app — se estampa en el JSON exportado (STATE.generado_con) para que,
 // si mañana cambia la lógica de detección/visualización, el motor pueda detectar JSON
 // generados con una versión anterior y aplicar un fallback en vez de romper.
-const APP_VERSION = 'v6.0.7';
+const APP_VERSION = 'v6.0.8';
 
 // v5.0.0: persistencia en Drive vía GAS standalone (icg_evoten_v5.0.0.gs), sin login.
 // Reemplaza el guardado/carga local (Blob + FileReader) de v4.3.2 para portabilidad
@@ -4195,7 +4219,7 @@ function lapizInit(){
   const canvas = document.getElementById('lpz-canvas');
   if(!canvas) return;
   _lapizCtx = canvas.getContext('2d');
-  lapizResize();
+  lapizBorrar(); // sizing inicial (documento completo) + limpieza
   window.addEventListener('resize', lapizResize);
   document.addEventListener('keydown', e => { if(e.key === 'Escape' && lapizState.activo) lapizToggle(); });
 
@@ -4210,13 +4234,23 @@ function lapizInit(){
 
   const handle = document.querySelector('.lpz-bar-handle');
   if(handle) handle.addEventListener('pointerdown', lapizBarraDragStart);
+
+  // v6.0.8: auto-ocultar header/tab-bar al scrollear (independiente del lápiz,
+  // pero el FAB que muestra depende de este estado — ver CSS body.hdr-oculto)
+  window.addEventListener('scroll', hdrAutoHideOnScroll, {passive:true});
+}
+
+// v6.0.8: sincroniza el tamaño del canvas con el alto/ancho REAL del documento
+// (no de la ventana) — necesario porque el canvas ahora es position:absolute,
+// anclado a la página, para que las marcas se muevan con el scroll.
+function lapizSyncCanvasSize(){
+  const canvas = document.getElementById('lpz-canvas');
+  if(!canvas) return;
+  canvas.width = Math.max(document.documentElement.scrollWidth, document.body.scrollWidth, window.innerWidth);
+  canvas.height = Math.max(document.documentElement.scrollHeight, document.body.scrollHeight, window.innerHeight);
 }
 
 function lapizResize(){
-  const canvas = document.getElementById('lpz-canvas');
-  if(!canvas) return;
-  canvas.width = window.innerWidth;
-  canvas.height = window.innerHeight;
   // al cambiar tamaño de ventana el trazo se pierde — comportamiento esperado y
   // documentado (reescalar los puntos existentes no es trivial y no formaba
   // parte del pedido original).
@@ -4228,20 +4262,24 @@ function lapizToggle(){
   const canvas = document.getElementById('lpz-canvas');
   const bar = document.getElementById('lpz-bar');
   const btn = document.getElementById('btn-lapiz-toggle');
+  const fab = document.getElementById('lpz-fab');
   canvas.classList.toggle('activo', lapizState.activo);
   bar.classList.toggle('show', lapizState.activo);
   btn.classList.toggle('activo', lapizState.activo);
+  if(fab) fab.classList.toggle('activo', lapizState.activo);
   if(lapizState.activo){
     // cada activación arranca en la posición default — nunca recuerda la última
     // posición arrastrada (efímero, igual que el resto del lápiz).
     bar.style.left = '50%'; bar.style.top = ''; bar.style.bottom = '20px';
     bar.style.transform = 'translateX(-50%)';
+    lapizSyncCanvasSize(); // v6.0.8: por si el documento creció desde la última vez
   } else {
     lapizBorrar();
   }
 }
 
 function lapizBorrar(){
+  lapizSyncCanvasSize(); // v6.0.8: recalcula tamaño acá también — mismo hook, sin costo extra
   if(!_lapizCtx) return;
   const canvas = document.getElementById('lpz-canvas');
   _lapizCtx.clearRect(0, 0, canvas.width, canvas.height);
@@ -4263,11 +4301,11 @@ function lapizPointerDown(e){
   if(!lapizState.activo) return;
   lapizState.dibujando = true;
   _lapizCtx.beginPath();
-  _lapizCtx.moveTo(e.clientX, e.clientY);
+  _lapizCtx.moveTo(e.pageX, e.pageY);
 }
 function lapizPointerMove(e){
   if(!lapizState.activo || !lapizState.dibujando) return;
-  _lapizCtx.lineTo(e.clientX, e.clientY);
+  _lapizCtx.lineTo(e.pageX, e.pageY);
   _lapizCtx.strokeStyle = lapizState.color;
   _lapizCtx.lineWidth = lapizState.grosor;
   _lapizCtx.lineCap = 'round';
@@ -4287,7 +4325,7 @@ function lapizBarraDragStart(e){
   lapizState.dragOffX = e.clientX - rect.left;
   lapizState.dragOffY = e.clientY - rect.top;
   bar.style.transform = 'none';
-  bar.style.bottom = '';
+  bar.style.bottom = 'auto';
   bar.style.left = rect.left + 'px';
   bar.style.top = rect.top + 'px';
   document.addEventListener('pointermove', lapizBarraDragMove);
@@ -4310,6 +4348,27 @@ function lapizBarraDragEnd(){
   document.removeEventListener('pointerup', lapizBarraDragEnd);
 }
 
+// ============================================================
+// AUTO-OCULTAR HEADER/TAB-BAR AL SCROLLEAR — v6.0.8
+// No es parte del lápiz (oculta #eco-header + #app-header + #tab-bar
+// completos, con los 7 botones de acción), pero el FAB del lápiz depende
+// de este estado (solo se muestra con el header oculto), por eso vive acá
+// cerca. Se oculta a los LPZ_HDR_HIDE_THRESHOLD px de scroll, reaparece
+// solo al llegar arriba del todo — no con un umbral intermedio al subir.
+// ============================================================
+const LPZ_HDR_HIDE_THRESHOLD = 120;
+let _hdrOcultoTicking = false;
+function hdrAutoHideOnScroll(){
+  if(_hdrOcultoTicking) return;
+  _hdrOcultoTicking = true;
+  requestAnimationFrame(() => {
+    const y = window.scrollY || document.documentElement.scrollTop || 0;
+    if(y <= 0) document.body.classList.remove('hdr-oculto');
+    else if(y > LPZ_HDR_HIDE_THRESHOLD) document.body.classList.add('hdr-oculto');
+    _hdrOcultoTicking = false;
+  });
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
   // v5.0.1: título del tab tomado de APP_VERSION — antes quedaba hardcodeado en <title>
   // y se desincronizaba del badge en cada bump de versión (se detectó pegado en v4.1.0).
@@ -4323,7 +4382,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     slot.outerHTML = notaPanelIcono(slot.dataset.clave);
   });
   actualizarBotonNotasImpresion(); // v4.2.0: label inicial del toggle (arranca en ON)
-  lapizInit(); // v6.0.7: Lápiz Global
+  lapizInit(); // v6.0.7: Lápiz Global (corregido en v6.0.8 — ver hdrAutoHideOnScroll dentro)
 });
 </script>
 <div id="nota-panel-popover" class="nota-panel-popover"></div>
@@ -4348,5 +4407,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   <button class="lpz-bar-btn" onclick="lapizBorrar()"><i class="ti ti-eraser"></i> Borrar marcas</button>
   <span class="lpz-bar-close" onclick="lapizToggle()" title="Cerrar (Esc)">✕</span>
 </div>
+
+<!-- v6.0.8: FAB del lápiz — visible solo cuando el header está oculto (ver body.hdr-oculto) -->
+<button class="lpz-fab" id="lpz-fab" onclick="lapizToggle()" title="Lápiz (anotar pantalla)">
+  <i class="ti ti-pencil"></i>
+</button>
 </body>
 </html>
