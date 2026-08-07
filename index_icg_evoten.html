@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ICG EvoTen v6.0.8 | Multi-obra</title>
+<title>ICG EvoTen v6.0.9 | Multi-obra</title>
 <script src="https://cdn.tailwindcss.com/3.4.1"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
@@ -101,6 +101,15 @@ input[type=file].hidden-input { display:none; }
 .lpz-bar-btn:hover { background:#ef4444; color:#fff; }
 .lpz-bar-close { color:#64748b; cursor:pointer; font-size:16px; padding:0 4px; }
 .lpz-bar-close:hover { color:#fff; }
+.lpz-modo-btn {
+  width:26px; height:26px; border-radius:8px; display:flex; align-items:center; justify-content:center;
+  background:#1e293b; border:1px solid #334155; color:#94a3b8; cursor:pointer; font-size:14px;
+}
+.lpz-modo-btn.activo { background:#334155; border-color:#fff; color:#fff; }
+.lpz-bar-sep { width:1px; align-self:stretch; background:#334155; }
+
+.btn-hdr.btn-captura { border-color:#06b6d4; color:#06b6d4; }
+.btn-hdr.btn-captura:hover { background:#06b6d4; color:#fff; }
 
 /* ── FAB del lápiz (v6.0.8) — visible SOLO cuando el header está oculto ── */
 .lpz-fab {
@@ -113,15 +122,22 @@ input[type=file].hidden-input { display:none; }
 .lpz-fab.activo { background:#ec4899; color:#fff; }
 body.hdr-oculto .lpz-fab { display:flex; }
 
-/* ── Auto-ocultar header/tab-bar al scrollear (v6.0.8) ──────────────────
-   No es parte del lápiz en sí (afecta a #eco-header y #app-header enteros,
-   con los 7 botones de acción, no solo al lápiz) — vive acá por cercanía
-   con el FAB, que es lo único que depende de este estado. Se oculta después
-   de LPZ_HDR_HIDE_THRESHOLD px de scroll, reaparece solo al llegar arriba
-   del todo (scrollY <= 0) — ver hdrAutoHideOnScroll() en el JS. */
+/* ── Auto-ocultar header/tab-bar al scrollear (v6.0.8, transición suave desde v6.0.9) ──
+   No es parte del lápiz (oculta #eco-header + #app-header + #tab-bar completos, con los
+   8 botones de acción), pero el FAB del lápiz depende de este estado — vive acá cerca.
+   v6.0.9: antes usaba display:none (salto abrupto) — ahora max-height+opacity animados,
+   con un techo (max-height) generoso por elemento que nunca clipea el contenido real
+   en el estado visible normal, solo sirve como punto de partida para la animación. */
+#eco-header, #app-header, #tab-bar {
+  transition: max-height .32s ease, opacity .22s ease;
+  overflow:hidden;
+}
+#eco-header { max-height:36px; }
+#app-header { max-height:300px; }
+#tab-bar { max-height:120px; }
 body.hdr-oculto #eco-header,
 body.hdr-oculto #app-header,
-body.hdr-oculto #tab-bar { display:none; }
+body.hdr-oculto #tab-bar { max-height:0; opacity:0; }
 
 /* ── Cards & bloques ── */
 .card { background:#fff; border-radius:16px; border:1px solid #e6eaf0; }
@@ -717,7 +733,7 @@ main { max-width:1400px; margin:0 auto; padding:24px 20px 60px; }
 
 <div id="app-header">
   <div style="display:flex;align-items:center;gap:14px;">
-    <div class="app-badge">v6.0.8</div>
+    <div class="app-badge">v6.0.9</div>
     <div>
       <div class="app-title">ICG EvoTen · Evolución y Tendencia</div>
     </div>
@@ -750,6 +766,9 @@ main { max-width:1400px; margin:0 auto; padding:24px 20px 60px; }
     </button>
     <button class="btn-hdr btn-lapiz" id="btn-lapiz-toggle" onclick="lapizToggle()" title="Lápiz — anotar sobre la pantalla (Esc para salir)">
       <i class="ti ti-pencil"></i> Lápiz
+    </button>
+    <button class="btn-hdr btn-captura" onclick="capturarPantalla()" title="Capturar pantalla — guarda un PNG de lo que está visible ahora">
+      <i class="ti ti-camera"></i> Capturar
     </button>
   </div>
 </div>
@@ -1162,7 +1181,7 @@ const PANEL_MAP_CANVAS = {
 // Versión de la app — se estampa en el JSON exportado (STATE.generado_con) para que,
 // si mañana cambia la lógica de detección/visualización, el motor pueda detectar JSON
 // generados con una versión anterior y aplicar un fallback en vez de romper.
-const APP_VERSION = 'v6.0.8';
+const APP_VERSION = 'v6.0.9';
 
 // v5.0.0: persistencia en Drive vía GAS standalone (icg_evoten_v5.0.0.gs), sin login.
 // Reemplaza el guardado/carga local (Blob + FileReader) de v4.3.2 para portabilidad
@@ -4212,8 +4231,9 @@ async function repoExportarPDF(){
 // Nunca toca STATE ni se exporta: es 100% efímero, tanto el dibujo como la
 // posición de la barra (se resetea a default en cada activación).
 // ============================================================
-let lapizState = { activo:false, color:'#ef4444', grosor:4, dibujando:false, dragActivo:false, dragOffX:0, dragOffY:0 };
+let lapizState = { activo:false, color:'#ef4444', grosor:4, modo:'libre', dibujando:false, dragActivo:false, dragOffX:0, dragOffY:0, startX:0, startY:0 };
 let _lapizCtx = null;
+let _lapizSnapshot = null;
 
 function lapizInit(){
   const canvas = document.getElementById('lpz-canvas');
@@ -4297,23 +4317,71 @@ function lapizSetGrosor(px, el){
   el.classList.add('activo');
 }
 
+function lapizSetModo(modo, el){
+  lapizState.modo = modo;
+  document.querySelectorAll('.lpz-modo-btn').forEach(d => d.classList.remove('activo'));
+  el.classList.add('activo');
+}
+
 function lapizPointerDown(e){
   if(!lapizState.activo) return;
   lapizState.dibujando = true;
-  _lapizCtx.beginPath();
-  _lapizCtx.moveTo(e.pageX, e.pageY);
+  if(lapizState.modo === 'libre'){
+    _lapizCtx.beginPath();
+    _lapizCtx.moveTo(e.pageX, e.pageY);
+  } else {
+    // modo figura: guardamos el punto de inicio y una foto del canvas tal como está
+    // ahora — en cada pointermove restauramos esa foto (borra el preview anterior) y
+    // dibujamos la figura actual encima, sin comprometerla hasta soltar el mouse.
+    lapizState.startX = e.pageX;
+    lapizState.startY = e.pageY;
+    const canvas = document.getElementById('lpz-canvas');
+    _lapizSnapshot = _lapizCtx.getImageData(0, 0, canvas.width, canvas.height);
+  }
 }
 function lapizPointerMove(e){
   if(!lapizState.activo || !lapizState.dibujando) return;
-  _lapizCtx.lineTo(e.pageX, e.pageY);
   _lapizCtx.strokeStyle = lapizState.color;
   _lapizCtx.lineWidth = lapizState.grosor;
   _lapizCtx.lineCap = 'round';
   _lapizCtx.lineJoin = 'round';
-  _lapizCtx.stroke();
+  if(lapizState.modo === 'libre'){
+    _lapizCtx.lineTo(e.pageX, e.pageY);
+    _lapizCtx.stroke();
+  } else {
+    lapizDibujarFigura(e.pageX, e.pageY);
+  }
 }
-function lapizPointerUp(){
+function lapizPointerUp(e){
+  // pasada final con la posición exacta de soltar el mouse — por si el último
+  // pointermove no coincidió pixel a pixel con el pointerup.
+  if(lapizState.dibujando && lapizState.modo !== 'libre' && e){
+    lapizDibujarFigura(e.pageX, e.pageY);
+  }
   lapizState.dibujando = false;
+  _lapizSnapshot = null;
+}
+
+// Dibuja línea/rectángulo/círculo en modo "preview": restaura el snapshot tomado al
+// empezar (borra la vista previa anterior) y traza la figura actual entre el punto de
+// inicio (lapizState.startX/Y) y (x,y). Todas solo contorno, mismo color/grosor que el
+// trazo libre — sin relleno.
+function lapizDibujarFigura(x, y){
+  if(!_lapizSnapshot) return;
+  _lapizCtx.putImageData(_lapizSnapshot, 0, 0);
+  _lapizCtx.beginPath();
+  const sx = lapizState.startX, sy = lapizState.startY;
+  if(lapizState.modo === 'linea'){
+    _lapizCtx.moveTo(sx, sy);
+    _lapizCtx.lineTo(x, y);
+  } else if(lapizState.modo === 'rectangulo'){
+    _lapizCtx.rect(sx, sy, x - sx, y - sy);
+  } else if(lapizState.modo === 'circulo'){
+    const cx = (sx + x) / 2, cy = (sy + y) / 2;
+    const rx = Math.abs(x - sx) / 2 || 0.01, ry = Math.abs(y - sy) / 2 || 0.01;
+    _lapizCtx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
+  }
+  _lapizCtx.stroke();
 }
 
 // ── Arrastre de la barra (handle dedicado, clampeado a la pantalla) ──
@@ -4369,6 +4437,53 @@ function hdrAutoHideOnScroll(){
   });
 }
 
+// ============================================================
+// CAPTURA DE PANTALLA — v6.0.9
+// Técnica nativa del navegador (getDisplayMedia, la misma API que usan Zoom/Meet para
+// compartir pantalla) — pixel-perfecta, pero el navegador SIEMPRE muestra su cuadro de
+// selección ("¿qué querés compartir?") antes de cada captura; no hay forma de saltear
+// ese permiso por seguridad del navegador. Se toma un solo frame y se corta la conexión
+// de inmediato — no queda "compartiendo pantalla" de fondo.
+// Nombre de archivo: {obra}_pantalla_{fechahora}.png, misma timestampArchivo() que usa
+// el resto de la app (exportarJSON, PDF de Repositorio) para mantener un único formato.
+// ============================================================
+async function capturarPantalla(){
+  let stream = null;
+  try{
+    stream = await navigator.mediaDevices.getDisplayMedia({
+      video: true,
+      preferCurrentTab: true // hint (Chrome): sugiere "esta pestaña" primero en el selector — no fuerza la elección
+    });
+    const video = document.createElement('video');
+    video.srcObject = stream;
+    video.muted = true;
+    await video.play();
+    if(!video.videoWidth){
+      await new Promise(resolve => { video.onloadedmetadata = resolve; });
+    }
+    const canvas = document.createElement('canvas');
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    canvas.getContext('2d').drawImage(video, 0, 0);
+    stream.getTracks().forEach(t => t.stop()); // un solo frame — cortamos ya
+    canvas.toBlob(blob => {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${STATE.obra || 'obra'}_pantalla_${timestampArchivo()}.png`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      toast('Captura guardada', 'ok');
+    }, 'image/png');
+  } catch(err){
+    if(stream) stream.getTracks().forEach(t => t.stop());
+    if(err.name === 'NotAllowedError') toast('Captura cancelada', 'warn');
+    else { toast('Error al capturar: ' + err.message, 'err'); console.error(err); }
+  }
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
   // v5.0.1: título del tab tomado de APP_VERSION — antes quedaba hardcodeado en <title>
   // y se desincronizaba del badge en cada bump de versión (se detectó pegado en v4.1.0).
@@ -4391,6 +4506,13 @@ document.addEventListener('DOMContentLoaded', async () => {
 <canvas id="lpz-canvas" class="lpz-canvas"></canvas>
 <div class="lpz-bar" id="lpz-bar">
   <span class="lpz-bar-handle" title="Arrastrar">⠿</span>
+  <div style="display:flex;gap:4px;">
+    <span class="lpz-modo-btn activo" data-modo="libre" onclick="lapizSetModo('libre', this)" title="Trazo libre"><i class="ti ti-pencil"></i></span>
+    <span class="lpz-modo-btn" data-modo="linea" onclick="lapizSetModo('linea', this)" title="Línea"><i class="ti ti-minus"></i></span>
+    <span class="lpz-modo-btn" data-modo="rectangulo" onclick="lapizSetModo('rectangulo', this)" title="Rectángulo"><i class="ti ti-square"></i></span>
+    <span class="lpz-modo-btn" data-modo="circulo" onclick="lapizSetModo('circulo', this)" title="Círculo"><i class="ti ti-circle"></i></span>
+  </div>
+  <span class="lpz-bar-sep"></span>
   <div style="display:flex;gap:6px;">
     <span class="lpz-color-dot activo" style="background:#ef4444" data-color="#ef4444" onclick="lapizSetColor('#ef4444', this)"></span>
     <span class="lpz-color-dot" style="background:#f97316" data-color="#f97316" onclick="lapizSetColor('#f97316', this)"></span>
