@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ICG EvoTen v6.0.13 | Multi-obra</title>
+<title>ICG EvoTen v6.0.14 | Multi-obra</title>
 <script src="https://cdn.tailwindcss.com/3.4.1"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
@@ -730,7 +730,7 @@ main { max-width:1400px; margin:0 auto; padding:24px 20px 60px; }
 
 <div id="app-header">
   <div style="display:flex;align-items:center;gap:14px;">
-    <div class="app-badge">v6.0.13</div>
+    <div class="app-badge">v6.0.14</div>
     <div>
       <div class="app-title">ICG EvoTen · Evolución y Tendencia</div>
     </div>
@@ -1175,7 +1175,7 @@ const PANEL_MAP_CANVAS = {
 // Versión de la app — se estampa en el JSON exportado (STATE.generado_con) para que,
 // si mañana cambia la lógica de detección/visualización, el motor pueda detectar JSON
 // generados con una versión anterior y aplicar un fallback en vez de romper.
-const APP_VERSION = 'v6.0.13';
+const APP_VERSION = 'v6.0.14';
 
 // v5.0.0: persistencia en Drive vía GAS standalone (icg_evoten_v5.0.0.gs), sin login.
 // Reemplaza el guardado/carga local (Blob + FileReader) de v4.3.2 para portabilidad
@@ -3913,6 +3913,30 @@ function repoFitAllPanzoom(){
       transformAplicado: getComputedStyle(document.getElementById('repo-panzoom-inner')).transform
     });
   });
+  // v6.0.14: diagnóstico temporal (3ª etapa) — el transform CSS capturado en el frame
+  // siguiente coincidía con lo calculado (confirmado en [FitAll-transform] de v6.0.13), pero
+  // visualmente la imagen sigue apareciendo chica con hueco vacío a la derecha Y abajo — un
+  // patrón imposible para un contain-fit bien centrado (que siempre toca un borde completo).
+  // Esto sugiere que algo pisa el estado DESPUÉS del frame que veníamos midiendo. Este log
+  // mide el tamaño REAL en pantalla (getBoundingClientRect, no el transform calculado) de
+  // wrap e imagen, repetido en 3 momentos: apenas aplicado, a los 300ms y al segundo — para
+  // agarrar in fraganti si algo lo cambia más tarde.
+  const _diag14 = (etiqueta) => {
+    const w = document.getElementById('repo-panzoom-wrap');
+    const i = document.getElementById('repo-main-img-el');
+    if(!w || !i) return;
+    const rw = w.getBoundingClientRect(), ri = i.getBoundingClientRect();
+    console.debug('[FitAll-rect]', {
+      etiqueta,
+      pasada: img.naturalWidth === 480 ? 'miniatura(480)' : 'drive',
+      wrapRect: { w: Math.round(rw.width), h: Math.round(rw.height) },
+      imgRect: { w: Math.round(ri.width), h: Math.round(ri.height), top: Math.round(ri.top - rw.top), left: Math.round(ri.left - rw.left) },
+      transformActual: getComputedStyle(document.getElementById('repo-panzoom-inner')).transform
+    });
+  };
+  _diag14('t+0');
+  setTimeout(() => _diag14('t+300ms'), 300);
+  setTimeout(() => _diag14('t+1000ms'), 1000);
 }
 
 // v6.0.6: las tres funciones de abajo (nota, tags, períodos de UNA imagen) ya no llaman
