@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ICG EvoTen v6.0.14 | Multi-obra</title>
+<title>ICG EvoTen v6.0.15 | Multi-obra</title>
 <script src="https://cdn.tailwindcss.com/3.4.1"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
@@ -730,7 +730,7 @@ main { max-width:1400px; margin:0 auto; padding:24px 20px 60px; }
 
 <div id="app-header">
   <div style="display:flex;align-items:center;gap:14px;">
-    <div class="app-badge">v6.0.14</div>
+    <div class="app-badge">v6.0.15</div>
     <div>
       <div class="app-title">ICG EvoTen · Evolución y Tendencia</div>
     </div>
@@ -1175,7 +1175,7 @@ const PANEL_MAP_CANVAS = {
 // Versión de la app — se estampa en el JSON exportado (STATE.generado_con) para que,
 // si mañana cambia la lógica de detección/visualización, el motor pueda detectar JSON
 // generados con una versión anterior y aplicar un fallback en vez de romper.
-const APP_VERSION = 'v6.0.14';
+const APP_VERSION = 'v6.0.15';
 
 // v5.0.0: persistencia en Drive vía GAS standalone (icg_evoten_v5.0.0.gs), sin login.
 // Reemplaza el guardado/carga local (Blob + FileReader) de v4.3.2 para portabilidad
@@ -3937,6 +3937,27 @@ function repoFitAllPanzoom(){
   _diag14('t+0');
   setTimeout(() => _diag14('t+300ms'), 300);
   setTimeout(() => _diag14('t+1000ms'), 1000);
+  // v6.0.15: diagnóstico temporal (4ª etapa) — con la escala 0.404594 confirmada (coincide
+  // con el transform CSS real), la imagen en pantalla midió 292×207 en vez de los 647×458
+  // esperados para naturalWidth=1600/naturalHeight=1132. Haciendo la cuenta al revés
+  // (292/0.404594 ≈ 722, 207/0.404594 ≈ 512), esos ~722×512 coinciden con el ancho del wrap
+  // — sospecha: la caja de LAYOUT de la <img> (antes de aplicarle el transform, que no
+  // afecta layout, solo pintura) está siendo achicada a ~722px de ancho por algo del
+  // flex/inline-flex, y panzoom aplica su escala ENCIMA de esa caja ya achicada — doble
+  // achique. offsetWidth/offsetHeight son inmunes al transform (miden la caja pre-transform),
+  // así que si coinciden con naturalWidth/Height, la sospecha es incorrecta; si dan ~722×512,
+  // la confirma.
+  console.debug('[FitAll-caja]', {
+    pasada: img.naturalWidth === 480 ? 'miniatura(480)' : 'drive',
+    naturalWidth: img.naturalWidth,
+    naturalHeight: img.naturalHeight,
+    offsetWidth: img.offsetWidth,
+    offsetHeight: img.offsetHeight,
+    cssWidth: getComputedStyle(img).width,
+    cssHeight: getComputedStyle(img).height,
+    innerOffsetWidth: document.getElementById('repo-panzoom-inner').offsetWidth,
+    innerCssWidth: getComputedStyle(document.getElementById('repo-panzoom-inner')).width
+  });
 }
 
 // v6.0.6: las tres funciones de abajo (nota, tags, períodos de UNA imagen) ya no llaman
