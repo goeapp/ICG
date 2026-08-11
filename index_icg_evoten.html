@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ICG EvoTen v6.0.16 | Multi-obra</title>
+<title>ICG EvoTen v6.0.17 | Multi-obra</title>
 <script src="https://cdn.tailwindcss.com/3.4.1"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
@@ -619,7 +619,7 @@ main { max-width:1400px; margin:0 auto; padding:24px 20px 60px; }
   flex:1; min-width:280px; height:460px; overflow:hidden; position:relative;
   border:1px solid #e6eaf0; border-radius:12px; background:#f1f5f9;
 }
-.repo-panzoom-inner { display:inline-flex; cursor:grab; user-select:none; transform-origin:0 0; }
+.repo-panzoom-inner { display:inline-flex; width:max-content; height:max-content; cursor:grab; user-select:none; transform-origin:0 0; }
 .repo-panzoom-inner:active { cursor:grabbing; }
 .repo-panzoom-inner img { display:block; border-radius:10px; flex-shrink:0; }
 .repo-panzoom-hint {
@@ -730,7 +730,7 @@ main { max-width:1400px; margin:0 auto; padding:24px 20px 60px; }
 
 <div id="app-header">
   <div style="display:flex;align-items:center;gap:14px;">
-    <div class="app-badge">v6.0.16</div>
+    <div class="app-badge">v6.0.17</div>
     <div>
       <div class="app-title">ICG EvoTen · Evolución y Tendencia</div>
     </div>
@@ -1175,7 +1175,7 @@ const PANEL_MAP_CANVAS = {
 // Versión de la app — se estampa en el JSON exportado (STATE.generado_con) para que,
 // si mañana cambia la lógica de detección/visualización, el motor pueda detectar JSON
 // generados con una versión anterior y aplicar un fallback en vez de romper.
-const APP_VERSION = 'v6.0.16';
+const APP_VERSION = 'v6.0.17';
 
 // v5.0.0: persistencia en Drive vía GAS standalone (icg_evoten_v5.0.0.gs), sin login.
 // Reemplaza el guardado/carga local (Blob + FileReader) de v4.3.2 para portabilidad
@@ -3898,6 +3898,10 @@ function repoFitAllPanzoom(){
   const t = _repoPanzoom.getTransform();
   t.scale = escala;
   _repoPanzoom.moveTo(offX, offY);
+  // v6.0.17: diagnóstico mínimo temporal — confirma si width:max-content en .repo-panzoom-inner
+  // resolvió el achique de la caja de layout (v6.0.16 con flex-shrink:0 no alcanzó). Si
+  // offsetWidth ahora coincide con naturalWidth, el fix funcionó — sacar en el próximo patch.
+  console.debug('[FitAll-check]', { naturalWidth: img.naturalWidth, offsetWidth: img.offsetWidth, innerOffsetWidth: document.getElementById('repo-panzoom-inner').offsetWidth });
 }
 
 // v6.0.6: las tres funciones de abajo (nota, tags, períodos de UNA imagen) ya no llaman
