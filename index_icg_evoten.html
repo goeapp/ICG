@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ICG EvoTen v6.0.11 | Multi-obra</title>
+<title>ICG EvoTen v6.0.12 | Multi-obra</title>
 <script src="https://cdn.tailwindcss.com/3.4.1"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
@@ -730,7 +730,7 @@ main { max-width:1400px; margin:0 auto; padding:24px 20px 60px; }
 
 <div id="app-header">
   <div style="display:flex;align-items:center;gap:14px;">
-    <div class="app-badge">v6.0.11</div>
+    <div class="app-badge">v6.0.12</div>
     <div>
       <div class="app-title">ICG EvoTen · Evolución y Tendencia</div>
     </div>
@@ -1175,7 +1175,7 @@ const PANEL_MAP_CANVAS = {
 // Versión de la app — se estampa en el JSON exportado (STATE.generado_con) para que,
 // si mañana cambia la lógica de detección/visualización, el motor pueda detectar JSON
 // generados con una versión anterior y aplicar un fallback en vez de romper.
-const APP_VERSION = 'v6.0.11';
+const APP_VERSION = 'v6.0.12';
 
 // v5.0.0: persistencia en Drive vía GAS standalone (icg_evoten_v5.0.0.gs), sin login.
 // Reemplaza el guardado/carga local (Blob + FileReader) de v4.3.2 para portabilidad
@@ -3885,6 +3885,18 @@ function repoFitAllPanzoom(){
   const escala = Math.min(wrap.clientWidth / img.naturalWidth, wrap.clientHeight / img.naturalHeight);
   const offX = (wrap.clientWidth - img.naturalWidth * escala) / 2;
   const offY = (wrap.clientHeight - img.naturalHeight * escala) / 2;
+  // v6.0.12: diagnóstico temporal — comparar los 4 valores clave entre la pasada de la
+  // miniatura (thumbnailBase64, primer onload) y la pasada de la imagen Drive (segundo
+  // onload, tras repoCargarImagenFull) para confirmar dónde se origina el achicamiento
+  // reportado. Sacar en el próximo patch una vez confirmada la causa.
+  console.debug('[FitAll]', {
+    src: (img.src || '').slice(0, 30) + '…',
+    naturalWidth: img.naturalWidth,
+    naturalHeight: img.naturalHeight,
+    wrapW: wrap.clientWidth,
+    wrapH: wrap.clientHeight,
+    escala
+  });
   const t = _repoPanzoom.getTransform();
   t.scale = escala;
   _repoPanzoom.moveTo(offX, offY);
