@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ICG EvoTen v6.0.12 | Multi-obra</title>
+<title>ICG EvoTen v6.0.13 | Multi-obra</title>
 <script src="https://cdn.tailwindcss.com/3.4.1"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
@@ -730,7 +730,7 @@ main { max-width:1400px; margin:0 auto; padding:24px 20px 60px; }
 
 <div id="app-header">
   <div style="display:flex;align-items:center;gap:14px;">
-    <div class="app-badge">v6.0.12</div>
+    <div class="app-badge">v6.0.13</div>
     <div>
       <div class="app-title">ICG EvoTen · Evolución y Tendencia</div>
     </div>
@@ -1175,7 +1175,7 @@ const PANEL_MAP_CANVAS = {
 // Versión de la app — se estampa en el JSON exportado (STATE.generado_con) para que,
 // si mañana cambia la lógica de detección/visualización, el motor pueda detectar JSON
 // generados con una versión anterior y aplicar un fallback en vez de romper.
-const APP_VERSION = 'v6.0.12';
+const APP_VERSION = 'v6.0.13';
 
 // v5.0.0: persistencia en Drive vía GAS standalone (icg_evoten_v5.0.0.gs), sin login.
 // Reemplaza el guardado/carga local (Blob + FileReader) de v4.3.2 para portabilidad
@@ -3900,6 +3900,19 @@ function repoFitAllPanzoom(){
   const t = _repoPanzoom.getTransform();
   t.scale = escala;
   _repoPanzoom.moveTo(offX, offY);
+  // v6.0.13: diagnóstico temporal (2ª etapa) — la escala calculada dio consistente en las
+  // dos pasadas (miniatura y Drive, confirmado con [FitAll] de v6.0.12), así que el problema
+  // no está en el cálculo. Este log compara ESO contra el transform CSS que realmente queda
+  // pintado en .repo-panzoom-inner después de moveTo(), para ver si lo que aplicamos
+  // (t.scale mutado a mano) se está perdiendo en la segunda pasada. Doble chequeo: inmediato
+  // y en el próximo frame (rAF), por si algo lo pisa un instante después de moveTo().
+  requestAnimationFrame(() => {
+    console.debug('[FitAll-transform]', {
+      pasada: img.naturalWidth === 480 ? 'miniatura(480)' : 'drive',
+      escalaCalculada: escala,
+      transformAplicado: getComputedStyle(document.getElementById('repo-panzoom-inner')).transform
+    });
+  });
 }
 
 // v6.0.6: las tres funciones de abajo (nota, tags, períodos de UNA imagen) ya no llaman
