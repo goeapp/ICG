@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ICG EvoTen v6.0.17 | Multi-obra</title>
+<title>ICG EvoTen v7.0.0 | Multi-obra</title>
 <script src="https://cdn.tailwindcss.com/3.4.1"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
@@ -325,6 +325,20 @@ body.hdr-oculto #tab-bar { max-height:0; opacity:0; }
 @media (max-width:1100px){ .grid-5col,.grid-6col{ grid-template-columns:repeat(3,1fr); } .grid-4col{ grid-template-columns:repeat(2,1fr); } }
 @media (max-width:640px){ .grid-5col,.grid-6col,.grid-4col,.grid-2col{ grid-template-columns:1fr; } }
 .chart-wrap-md { position:relative; height:220px; }
+
+/* ── Tablas de Datos Extra (v7.0.0) — estilo tipo DataTable: sin grilla, líneas
+   horizontales finas, zebra striping, hover de fila, última columna (mes actual)
+   destacada con borde + negrita, badge de variación vs. mes anterior. ── */
+.tabla-datosextra { width:100%; border-collapse:collapse; font-size:11.5px; }
+.tabla-datosextra thead th { text-align:right; padding:8px 10px; color:#94a3b8; font-weight:700; font-size:9px; text-transform:uppercase; letter-spacing:.02em; border-bottom:2px solid #e6eaf0; white-space:nowrap; }
+.tabla-datosextra thead th:first-child { text-align:left; }
+.tabla-datosextra thead th.ult { color:#0369a1; }
+.tabla-datosextra tbody td { padding:7px 10px; text-align:right; color:#334155; border-bottom:1px solid #f1f5f9; }
+.tabla-datosextra tbody td:first-child { text-align:left; font-weight:600; color:#334155; white-space:nowrap; }
+.tabla-datosextra tbody tr:nth-child(even) { background:#f8fafc; }
+.tabla-datosextra tbody tr:hover { background:#eff6ff; }
+.tabla-datosextra tbody td.ult { font-family:'Space Grotesk','Inter',sans-serif; font-weight:700; color:#0f172a; border-left:2px solid #7dd3fc; }
+.tabla-badge { font-size:9px; font-weight:700; color:#475569; background:#e2e8f0; padding:1px 6px; border-radius:99px; margin-left:6px; }
 .chart-wrap-sm { position:relative; height:160px; }
 
 /* ── Empty state ── */
@@ -730,7 +744,7 @@ main { max-width:1400px; margin:0 auto; padding:24px 20px 60px; }
 
 <div id="app-header">
   <div style="display:flex;align-items:center;gap:14px;">
-    <div class="app-badge">v6.0.17</div>
+    <div class="app-badge">v7.0.0</div>
     <div>
       <div class="app-title">ICG EvoTen · Evolución y Tendencia</div>
     </div>
@@ -743,7 +757,7 @@ main { max-width:1400px; margin:0 auto; padding:24px 20px 60px; }
       <i class="ti ti-file-spreadsheet"></i> Cargar XLSX
     </button>
     <input type="file" id="input-xlsx" class="hidden-input" accept=".xlsx" multiple onchange="onXlsxSelected(event)">
-    <button class="btn-hdr btn-load" onclick="document.getElementById('input-xlsx-apoyo').click()" title="Auto Paneles: hojas 'paneles' + 'datos', archivo {obra}_dataextra_*.xlsx">
+    <button class="btn-hdr btn-load" onclick="document.getElementById('input-xlsx-apoyo').click()" title="Auto Paneles: hojas 'paneles'+'datos' · Tablas (v7.0.0, opcional): hoja 'tablas' · archivo {obra}_dataextra_*.xlsx">
       <i class="ti ti-chart-histogram"></i> Cargar XLSX Apoyo
     </button>
     <input type="file" id="input-xlsx-apoyo" class="hidden-input" accept=".xlsx" onchange="onXlsxApoyoSelected(event)">
@@ -928,6 +942,13 @@ main { max-width:1400px; margin:0 auto; padding:24px 20px 60px; }
 
     <div id="section-title-autopaneles" class="section-title" style="display:none;">Datos Extra</div>
     <div class="grid-3col" id="autopaneles-container" style="margin-bottom:16px;"></div>
+
+    <!-- ── Tablas — Datos Extra vía XLSX de apoyo, hoja "tablas" (v7.0.0) ── -->
+    <!-- grid-2col (no 3 como los gráficos): una tabla de 5-7 categorías x meses necesita más
+         ancho horizontal por tarjeta que un gráfico. Se oculta por completo si STATE.autoTablas
+         está vacío, mismo criterio de compatibilidad hacia atrás que Auto Paneles. -->
+    <div id="section-title-autotablas" class="section-title" style="display:none;">Tablas — Datos Extra</div>
+    <div class="grid-2col" id="autotablas-container" style="margin-bottom:16px;"></div>
 
     <!-- ── Notas al pie — SOLO visible en impresión/PDF (v4.2.0, punto c) ── -->
     <!-- Se arma justo antes de imprimir (evento beforeprint) para reflejar el estado real de
@@ -1175,7 +1196,7 @@ const PANEL_MAP_CANVAS = {
 // Versión de la app — se estampa en el JSON exportado (STATE.generado_con) para que,
 // si mañana cambia la lógica de detección/visualización, el motor pueda detectar JSON
 // generados con una versión anterior y aplicar un fallback en vez de romper.
-const APP_VERSION = 'v6.0.17';
+const APP_VERSION = 'v7.0.0';
 
 // v5.0.0: persistencia en Drive vía GAS standalone (icg_evoten_v5.0.0.gs), sin login.
 // Reemplaza el guardado/carga local (Blob + FileReader) de v4.3.2 para portabilidad
@@ -1203,7 +1224,10 @@ const TOL_CONTROL = 1e-4;
 // ============================================================
 // ESTADO — en memoria únicamente (no localStorage, no backend)
 // ============================================================
-let STATE = { obra:null, periodos:[], notas:[], errorSeq:0, celdasResueltas:{}, autoPaneles:[], notasPaneles:{}, galeria:[] };
+let STATE = { obra:null, periodos:[], notas:[], errorSeq:0, celdasResueltas:{}, autoPaneles:[], notasPaneles:{}, galeria:[], autoTablas:[] };
+// autoTablas (v7.0.0): array de tablas de "Datos Extra" — {id,titulo,subtitulo,meses,filas,decimales,esPorcentaje}.
+// Viajan en el mismo XLSX de apoyo que Auto Paneles, hoja nueva "tablas" (id|titulo|subtitulo|hojaOrigen|datos),
+// ver procesarHojaTablas(). Retrocompatible: JSON pre-v7.0.0 no tiene esta clave, se completa con [] al cargar.
 // galeria (v6.0.0): array de imágenes del tab Repositorio — {id, driveFileId, thumbnailBase64,
 // orden, nota, tags:[tagId], periodos:[ 'MM/AAAA' ], fechaCarga}. Retrocompatible: JSON de obra
 // pre-v6.0.0 no tiene esta clave, se completa con [] al cargar (ver aplicarEstadoCargado).
@@ -1613,6 +1637,103 @@ function esFormatoPorcentaje(z){
   return seccionPositiva.includes('%');
 }
 
+// ============================================================
+// TABLAS — Datos Extra (v7.0.0)
+// Hoja "tablas": id | titulo | subtitulo | hojaOrigen | datos (una fila = una tabla).
+// "hojaOrigen" nombra otra hoja del mismo XLSX de apoyo (la que Ale ya arma a mano, ej.
+// "CostoImes") y "datos" es el rango A1 exacto de esa hoja (ej. "A4:H10") — 1ª fila del rango
+// = header de meses (fecha real de Excel, columna A del rango descartada), filas siguientes =
+// una categoría por fila (columna A del rango = etiqueta, resto = valores por mes, alineados
+// por POSICIÓN de columna contra el header). Tope recomendado 7 categorías (no bloquea, avisa).
+// Acordado con Ale en sesión de diseño 21-ago-2026 antes de codear (ver handoff v7.0.0).
+// ============================================================
+
+// Decodifica una celda de header (fecha de Excel) a {anio, mes}. Con cellDates:false la fecha
+// llega como serial numérico — se usa XLSX.SSF.parse_date_code() para no tener que reabrir el
+// workbook con otra config (que afectaría también la lectura de "paneles"/"datos").
+function fechaCeldaAMesAnio(cell){
+  if(!cell || typeof cell.v !== 'number') return { anio:null, mes:null };
+  const d = XLSX.SSF.parse_date_code(cell.v);
+  return d ? { anio:d.y, mes:d.m } : { anio:null, mes:null };
+}
+
+function leerRangoTabla(ws, rangoStr){
+  const range = XLSX.utils.decode_range(rangoStr);
+  const meses = [];
+  for(let c = range.s.c + 1; c <= range.e.c; c++){
+    const cell = ws[XLSX.utils.encode_cell({ r: range.s.r, c })];
+    meses.push(fechaCeldaAMesAnio(cell));
+  }
+  const filas = [];
+  let decimales = null, esPorcentaje = false;
+  for(let r = range.s.r + 1; r <= range.e.r; r++){
+    const labelCell = ws[XLSX.utils.encode_cell({ r, c: range.s.c })];
+    if(!labelCell || labelCell.v == null || String(labelCell.v).trim() === '') continue; // fin de la tabla
+    const valores = [];
+    for(let c = range.s.c + 1; c <= range.e.c; c++){
+      const cell = ws[XLSX.utils.encode_cell({ r, c })];
+      const v = (cell && typeof cell.v === 'number') ? cell.v : null;
+      // v3.15.1 mismo criterio que Auto Paneles: decimales/formato tomados de la 1ª celda
+      // numérica con formato que aparece, aplicados a toda la tabla (no celda por celda).
+      if(decimales === null && v != null && cell.z){
+        const inferidos = decimalesDesdeFormato(cell.z);
+        if(inferidos != null) decimales = inferidos;
+        esPorcentaje = esFormatoPorcentaje(cell.z);
+      }
+      valores.push(v);
+    }
+    filas.push({ categoria: String(labelCell.v).trim(), valores });
+  }
+  if(decimales === null) decimales = 1;
+  return { meses, filas, decimales, esPorcentaje };
+}
+
+function procesarHojaTablas(wb){
+  const wsTablas = buscarHoja(wb, 'tablas');
+  if(!wsTablas) return { autoTablas: [], warnings: [] }; // hoja opcional — sin ella, sin tablas, sin error
+
+  const filasDef = XLSX.utils.sheet_to_json(wsTablas, { header:1, defval:null, raw:true });
+  const defs = filasDef.slice(1)
+    .filter(r => r && r[0] != null && String(r[0]).trim() !== '')
+    .map(r => ({
+      id: String(r[0]).trim(),
+      titulo: r[1] != null ? String(r[1]).trim() : '(sin título)',
+      subtitulo: r[2] != null ? String(r[2]).trim() : '',
+      hojaOrigen: r[3] != null ? String(r[3]).trim() : '',
+      rango: r[4] != null ? String(r[4]).trim() : ''
+    }));
+
+  const warnings = [];
+  const autoTablas = [];
+  defs.forEach(d => {
+    if(!d.hojaOrigen || !d.rango){
+      warnings.push(`tabla "${d.id}" (${d.titulo}): falta hojaOrigen o datos — omitida.`);
+      return;
+    }
+    const nombreHoja = wb.SheetNames.find(n => n.trim().toLowerCase() === d.hojaOrigen.trim().toLowerCase());
+    if(!nombreHoja){
+      warnings.push(`tabla "${d.id}" (${d.titulo}): no se encontró la hoja "${d.hojaOrigen}" — omitida.`);
+      return;
+    }
+    let leido;
+    try{ leido = leerRangoTabla(wb.Sheets[nombreHoja], d.rango); }
+    catch(err){
+      warnings.push(`tabla "${d.id}" (${d.titulo}): rango "${d.rango}" inválido (${err.message}) — omitida.`);
+      return;
+    }
+    if(leido.filas.length === 0){
+      warnings.push(`tabla "${d.id}" (${d.titulo}): el rango "${d.rango}" no trajo filas de categoría — omitida.`);
+      return;
+    }
+    if(leido.filas.length > 7){
+      warnings.push(`tabla "${d.id}" (${d.titulo}): ${leido.filas.length} categorías (recomendado hasta 7) — se muestran todas igual.`);
+    }
+    autoTablas.push({ id: d.id, titulo: d.titulo, subtitulo: d.subtitulo, meses: leido.meses, filas: leido.filas, decimales: leido.decimales, esPorcentaje: leido.esPorcentaje });
+  });
+
+  return { autoTablas, warnings };
+}
+
 async function procesarArchivoXLSXApoyo(file){
   const ident = parseNombreArchivoApoyo(file.name);
   if(!ident){
@@ -1709,7 +1830,10 @@ async function procesarArchivoXLSXApoyo(file){
     }
   });
 
-  return { obra: ident.obra, autoPaneles, warnings };
+  // v7.0.0: hoja "tablas" opcional, mismo wb ya leído — no reabre el archivo.
+  const { autoTablas, warnings: warningsTablas } = procesarHojaTablas(wb);
+
+  return { obra: ident.obra, autoPaneles, autoTablas, warnings: warnings.concat(warningsTablas) };
 }
 
 async function onXlsxApoyoSelected(evt){
@@ -1717,12 +1841,14 @@ async function onXlsxApoyoSelected(evt){
   if(!file) return;
   showSpinner('Procesando XLSX de apoyo…');
   try{
-    const { autoPaneles, warnings } = await procesarArchivoXLSXApoyo(file);
+    const { autoPaneles, autoTablas, warnings } = await procesarArchivoXLSXApoyo(file);
     STATE.autoPaneles = autoPaneles;
+    STATE.autoTablas = autoTablas;
     autoPanelTipoOverride = {}; // reimport = reemplazo total, incluye resetear el toggle visual
     renderAll();
-    if(warnings.length) toast(`Auto Paneles cargados con avisos: ${warnings.join(' | ')}`, 'warn');
-    else toast(`${autoPaneles.length} Auto Panel(es) cargado(s) desde "${file.name}"`, 'ok');
+    const resumen = `${autoPaneles.length} Auto Panel(es) y ${autoTablas.length} tabla(s) cargados desde "${file.name}"`;
+    if(warnings.length) toast(`${resumen} — con avisos: ${warnings.join(' | ')}`, 'warn');
+    else toast(resumen, 'ok');
   } catch(err){
     toast('Error al leer XLSX de apoyo: ' + err.message, 'err');
     console.error(err);
@@ -2234,6 +2360,7 @@ function renderAll(){
   renderChartROEscenarios();
   renderChartCostoAcumulado();
   renderAutoPaneles();
+  renderAutoTablas();
   actualizarHoverPaneles();
 }
 
@@ -2347,6 +2474,7 @@ function aplicarEstadoCargado(parsed){
   if(!Array.isArray(STATE.autoPaneles)) STATE.autoPaneles = []; // compatibilidad con JSON pre-v3.08 (sin Auto Paneles)
   if(!STATE.notasPaneles || typeof STATE.notasPaneles !== 'object' || Array.isArray(STATE.notasPaneles)) STATE.notasPaneles = {}; // compatibilidad con JSON pre-v4.0.0 (sin nota por panel)
   if(!Array.isArray(STATE.galeria)) STATE.galeria = []; // compatibilidad con JSON pre-v6.0.0 (sin Repositorio)
+  if(!Array.isArray(STATE.autoTablas)) STATE.autoTablas = []; // compatibilidad con JSON pre-v7.0.0 (sin Tablas de Datos Extra)
   autoPanelTipoOverride = {}; // nueva carga de obra/estado, vuelve a la config real (v3.11)
   computeDerivados();
   renderAll();
@@ -3336,6 +3464,68 @@ function renderAutoPaneles(){
   STATE.autoPaneles.forEach((p, i) => {
     dibujarUnAutoPanel(p, i);
   });
+}
+
+// ============================================================
+// TABLAS — Datos Extra: render (v7.0.0)
+// Misma lógica de card que Auto Paneles (bloque b-control, ícono de nota por `titulo` — mismo
+// trade-off ya aceptado con Ale: sobrevive a filas reordenadas, queda huérfana si se renombra
+// el título en el Excel). Adentro, en vez de <canvas>, una tabla estilo DataTable: sin grilla,
+// líneas horizontales finas, zebra, hover, última columna (mes más reciente) con borde + negrita
+// y badge ▲/▼/— comparando contra el mes anterior (Opción A acordada: neutro, sin rojo/verde de
+// "bien/mal" — eso queda para una fase futura si hace falta, ver handoff v7.0.0).
+// ============================================================
+function renderAutoTablas(){
+  const container = document.getElementById('autotablas-container');
+  const tituloSeccion = document.getElementById('section-title-autotablas');
+  notaPanelCerrar(); // evita popover huérfano si se reimporta el XLSX de apoyo con una nota abierta
+
+  if(!STATE.autoTablas || STATE.autoTablas.length === 0){
+    container.innerHTML = '';
+    container.style.display = 'none';
+    tituloSeccion.style.display = 'none';
+    return;
+  }
+  tituloSeccion.style.display = '';
+  container.style.display = '';
+
+  container.innerHTML = STATE.autoTablas.map(t => {
+    const nMeses = t.meses.length;
+    const headerCols = t.meses.map((m, i) => {
+      const label = (m.anio != null && m.mes != null) ? `${String(m.mes).padStart(2,'0')}/${m.anio}` : '—';
+      return `<th${i === nMeses - 1 ? ' class="ult"' : ''}>${label}</th>`;
+    }).join('');
+
+    const bodyRows = t.filas.map(f => {
+      const tds = f.valores.map((v, i) => {
+        const txt = t.esPorcentaje ? fmtARPct(v, t.decimales) : fmtAR(v, t.decimales);
+        if(i !== nMeses - 1) return `<td>${txt}</td>`;
+        const prev = f.valores[i - 1];
+        let badge = '<span class="tabla-badge">—</span>';
+        if(typeof v === 'number' && typeof prev === 'number'){
+          const dir = v > prev ? 1 : (v < prev ? -1 : 0);
+          const arrow = dir === 0 ? '—' : (dir > 0 ? '▲' : '▼');
+          badge = `<span class="tabla-badge">${arrow}</span>`;
+        }
+        return `<td class="ult">${txt}${badge}</td>`;
+      }).join('');
+      return `<tr><td>${escAttr(f.categoria)}</td>${tds}</tr>`;
+    }).join('');
+
+    return `
+    <div class="bloque b-control">
+      <div class="bloque-hdr">
+        <div><h3>${t.titulo}</h3><div class="bsub">${t.subtitulo || 'Dato extra'}</div></div>
+        ${notaPanelIcono(t.titulo)}
+      </div>
+      <div style="padding:12px 16px 16px;overflow-x:auto;">
+        <table class="tabla-datosextra">
+          <thead><tr><th></th>${headerCols}</tr></thead>
+          <tbody>${bodyRows}</tbody>
+        </table>
+      </div>
+    </div>`;
+  }).join('');
 }
 
 // v3.11: toggle individual barra/línea por Auto Panel — solo visual de la sesión actual,
