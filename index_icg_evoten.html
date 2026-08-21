@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ICG EvoTen v7.0.1 | Multi-obra</title>
+<title>ICG EvoTen v7.0.2 | Multi-obra</title>
 <script src="https://cdn.tailwindcss.com/3.4.1"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
@@ -339,7 +339,8 @@ body.hdr-oculto #tab-bar { max-height:0; opacity:0; }
 .tabla-datosextra tbody tr:hover { background:#eff6ff; }
 .tabla-datosextra tbody td.ult { font-family:'Space Grotesk','Inter',sans-serif; font-weight:700; color:#0f172a; border-left:2px solid #7dd3fc; }
 .tabla-badge { font-size:11px; font-weight:700; color:#334155; background:#e2e8f0; border:1px solid #cbd5e1; padding:2px 6px; border-radius:99px; margin-left:6px; display:inline-flex; align-items:center; line-height:1; }
-.tabla-badge i { font-size:11px; }
+.tabla-badge.tb-up { color:#dc2626; }
+.tabla-badge.tb-down { color:#16a34a; }
 .chart-wrap-sm { position:relative; height:160px; }
 
 /* ── Empty state ── */
@@ -745,7 +746,7 @@ main { max-width:1400px; margin:0 auto; padding:24px 20px 60px; }
 
 <div id="app-header">
   <div style="display:flex;align-items:center;gap:14px;">
-    <div class="app-badge">v7.0.1</div>
+    <div class="app-badge">v7.0.2</div>
     <div>
       <div class="app-title">ICG EvoTen · Evolución y Tendencia</div>
     </div>
@@ -767,14 +768,14 @@ main { max-width:1400px; margin:0 auto; padding:24px 20px 60px; }
     </button>
     <input type="file" id="input-json" class="hidden-input" accept=".json" onchange="onJsonSelected(event)">
     <button class="btn-hdr btn-export" onclick="exportarJSON()">
-      <i class="ti ti-download"></i> Exportar JSON
+      <i class="ti ti-download"></i> Guardar JSON
     </button>
     <button class="btn-hdr btn-json" onclick="document.getElementById('input-json-xlsx').click()" title="Convierte un JSON exportado de EvoTen a un XLSX con los 12 paneles fijos (mismo nombre que el JSON elegido, va a la carpeta de Descargas)">
       <i class="ti ti-file-type-xls"></i> Convertir JSON a XLSX
     </button>
     <input type="file" id="input-json-xlsx" class="hidden-input" accept=".json" onchange="onJsonToXlsxSelected(event)">
-    <button class="btn-hdr activo" id="btn-toggle-notas-impresion" onclick="toggleNotasImpresion()">
-      <i class="ti ti-notes"></i> Notas al pie (impresión): ON
+    <button class="btn-hdr" id="btn-toggle-notas-impresion" onclick="toggleNotasImpresion()">
+      <i class="ti ti-notes"></i> Notas al pie (impresión): OFF
     </button>
     <button class="btn-hdr btn-lapiz" id="btn-lapiz-toggle" onclick="lapizToggle()" title="Lápiz — anotar sobre la pantalla (Esc para salir)">
       <i class="ti ti-pencil"></i> Lápiz
@@ -1197,7 +1198,7 @@ const PANEL_MAP_CANVAS = {
 // Versión de la app — se estampa en el JSON exportado (STATE.generado_con) para que,
 // si mañana cambia la lógica de detección/visualización, el motor pueda detectar JSON
 // generados con una versión anterior y aplicar un fallback en vez de romper.
-const APP_VERSION = 'v7.0.1';
+const APP_VERSION = 'v7.0.2';
 
 // v5.0.0: persistencia en Drive vía GAS standalone (icg_evoten_v5.0.0.gs), sin login.
 // Reemplaza el guardado/carga local (Blob + FileReader) de v4.3.2 para portabilidad
@@ -2257,18 +2258,18 @@ function notaPanelActualizarIconos(){
 // mantener un array manual de claves que se podría desincronizar si mañana se reordena una
 // sección o se agregan paneles nuevos.
 // Toggle: NO persiste entre sesiones/recargas (mismo criterio que autoPanelTipoOverride) —
-// arranca siempre en ON. Si más adelante Ale quiere que se recuerde, es un solo cambio
-// (guardar/leer de localStorage en vez de esta variable en memoria).
+// arranca siempre en OFF (v7.0.2, a pedido de Ale). Si más adelante Ale quiere que se recuerde,
+// es un solo cambio (guardar/leer de localStorage en vez de esta variable en memoria).
 // ============================================================
-let notasImpresionActivas = true;
+let notasImpresionActivas = false;
 
 function toggleNotasImpresion(){
   notasImpresionActivas = !notasImpresionActivas;
-  document.body.classList.toggle('no-print-notas', !notasImpresionActivas);
   actualizarBotonNotasImpresion();
 }
 
 function actualizarBotonNotasImpresion(){
+  document.body.classList.toggle('no-print-notas', !notasImpresionActivas);
   const btn = document.getElementById('btn-toggle-notas-impresion');
   if(!btn) return;
   btn.classList.toggle('activo', notasImpresionActivas);
@@ -3502,11 +3503,12 @@ function renderAutoTablas(){
         const txt = t.esPorcentaje ? fmtARPct(v, t.decimales) : fmtAR(v, t.decimales);
         if(i !== nMeses - 1) return `<td>${txt}</td>`;
         const prev = f.valores[i - 1];
-        let badge = '<span class="tabla-badge"><i class="ti ti-minus" aria-hidden="true"></i></span>';
+        let badge = '<span class="tabla-badge">—</span>';
         if(typeof v === 'number' && typeof prev === 'number'){
           const dir = v > prev ? 1 : (v < prev ? -1 : 0);
-          const icono = dir === 0 ? 'ti-minus' : (dir > 0 ? 'ti-arrow-narrow-up' : 'ti-arrow-narrow-down');
-          badge = `<span class="tabla-badge"><i class="ti ${icono}" aria-hidden="true"></i></span>`;
+          const clase = dir > 0 ? ' tb-up' : (dir < 0 ? ' tb-down' : '');
+          const arrow = dir === 0 ? '—' : (dir > 0 ? '▲' : '▼');
+          badge = `<span class="tabla-badge${clase}">${arrow}</span>`;
         }
         return `<td class="ult">${txt}${badge}</td>`;
       }).join('');
@@ -3786,7 +3788,7 @@ async function cfgExportar(){
 // TAB REPOSITORIO (v6.0.0) — galería transversal a la obra
 // ============================================================
 // Datos: STATE.galeria (por obra, viaja en el JSON exportado — se guarda con el botón
-// "Exportar JSON" del header, igual que el resto de STATE). Binario real en Drive, carpeta
+// "Guardar JSON" del header, igual que el resto de STATE). Binario real en Drive, carpeta
 // {obraId} dentro de CARPETA_ID (backend .gs, subirImagenGaleria). thumbnailBase64 embebido
 // acá para lista/PDF instantáneos; la imagen grande se pide a Drive on-demand (repoCargarImagenFull).
 // Tags: CONFIG.tagsGaleria (config_uo_celdas.json) — globales para todas las obras.
@@ -4121,7 +4123,7 @@ function repoQuitarImagen(id){
   if(!confirm('¿Quitar esta imagen del Repositorio? El archivo permanece en Drive — solo se quita de la lista.')) return;
   STATE.galeria = STATE.galeria.filter(g => g.id !== id);
   if(repoUI.selId === id) repoUI.selId = null;
-  toast('Imagen quitada · recordá "Exportar JSON" para guardar el cambio en Drive', 'ok');
+  toast('Imagen quitada · recordá "Guardar JSON" para guardar el cambio en Drive', 'ok');
   renderRepositorio();
 }
 
@@ -4189,7 +4191,7 @@ async function repoOnArchivosSeleccionados(evt){
   hideSpinner();
   evt.target.value = '';
   renderRepositorio();
-  if(subidas) toast(`${subidas} imagen(es) subida(s) · recordá "Exportar JSON" para guardar los cambios en Drive`, errores ? 'warn' : 'ok');
+  if(subidas) toast(`${subidas} imagen(es) subida(s) · recordá "Guardar JSON" para guardar los cambios en Drive`, errores ? 'warn' : 'ok');
   if(errores) toast(`${errores} imagen(es) fallaron al subir — ver consola`, 'err');
 }
 
@@ -4209,7 +4211,7 @@ async function repoOnReemplazoSeleccionado(evt){
     // v6.0.0 (decisión de diseño confirmada): el archivo viejo NO se borra de Drive, queda huérfano.
     entry.driveFileId = await repoSubirBinarioADrive(displayDataURL, file.name);
     entry.thumbnailBase64 = thumbDataURL;
-    toast('Imagen reemplazada · recordá "Exportar JSON" para guardar el cambio en Drive', 'ok');
+    toast('Imagen reemplazada · recordá "Guardar JSON" para guardar el cambio en Drive', 'ok');
   } catch(err){
     toast('Error al reemplazar imagen: ' + err.message, 'err');
     console.error(err);
@@ -4712,7 +4714,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.querySelectorAll('.nota-panel-slot').forEach(slot => {
     slot.outerHTML = notaPanelIcono(slot.dataset.clave);
   });
-  actualizarBotonNotasImpresion(); // v4.2.0: label inicial del toggle (arranca en ON)
+  actualizarBotonNotasImpresion(); // v4.2.0: label inicial del toggle (arranca en OFF desde v7.0.2)
   lapizInit(); // v6.0.7: Lápiz Global (corregido en v6.0.8 — ver hdrAutoHideOnScroll dentro)
 });
 </script>
