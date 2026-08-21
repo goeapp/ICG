@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ICG EvoTen v7.0.3 | Multi-obra</title>
+<title>ICG EvoTen v7.0.4 | Multi-obra</title>
 <script src="https://cdn.tailwindcss.com/3.4.1"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
@@ -565,6 +565,21 @@ main { max-width:1400px; margin:0 auto; padding:24px 20px 60px; }
   #eco-header, #app-header, #tab-bar { display:none !important; }
   .print-notas-footer { display:block !important; margin-top:24px; }
   body.no-print-notas .print-notas-footer { display:none !important; }
+
+  /* v7.0.4: cada card (gráfico, KPI, notas, tabla) no se corta entre páginas al generar el
+     PDF — antes, si una card quedaba a caballo entre 2 hojas de la A3 vertical, el navegador
+     la partía a la mitad (un gráfico quedaba con la mitad de arriba en una hoja y la mitad de
+     abajo en la siguiente). Con esto, la card entera salta completa a la página siguiente si
+     no entra en el espacio que queda. `page-break-inside` es el nombre viejo de la misma
+     propiedad (`break-inside`) — se ponen los dos por compatibilidad de motor de impresión. */
+  .bloque, .kpi, .notas-panel, .alert-panel { break-inside:avoid; page-break-inside:avoid; }
+
+  /* Tablas de Datos Extra (v7.0.0): en pantalla scrollean horizontal (overflow-x:auto) para
+     tablas con muchos meses. Al imprimir no hay scroll posible — se deja pasar todo el ancho
+     de la tabla (el navegador la achica junto con el resto de la página si no entra), en vez
+     de recortarla a lo que entraba en el viewport de pantalla. */
+  .tabla-datosextra { overflow:visible; }
+  #autotablas-container, #autotablas-container [style*="overflow-x"] { overflow:visible !important; }
 }
 
 /* v4.2.0 — Notas al pie (punto c): oculto siempre en pantalla, visible solo en @media print
@@ -757,7 +772,7 @@ main { max-width:1400px; margin:0 auto; padding:24px 20px 60px; }
 
 <div id="app-header">
   <div style="display:flex;align-items:center;gap:14px;">
-    <div class="app-badge">v7.0.3</div>
+    <div class="app-badge">v7.0.4</div>
     <div>
       <div class="app-title">ICG EvoTen · Evolución y Tendencia</div>
     </div>
@@ -1209,7 +1224,7 @@ const PANEL_MAP_CANVAS = {
 // Versión de la app — se estampa en el JSON exportado (STATE.generado_con) para que,
 // si mañana cambia la lógica de detección/visualización, el motor pueda detectar JSON
 // generados con una versión anterior y aplicar un fallback en vez de romper.
-const APP_VERSION = 'v7.0.3';
+const APP_VERSION = 'v7.0.4';
 
 // v5.0.0: persistencia en Drive vía GAS standalone (icg_evoten_v5.0.0.gs), sin login.
 // Reemplaza el guardado/carga local (Blob + FileReader) de v4.3.2 para portabilidad
