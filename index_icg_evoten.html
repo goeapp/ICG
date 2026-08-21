@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ICG EvoTen v7.0.2 | Multi-obra</title>
+<title>ICG EvoTen v7.0.3 | Multi-obra</title>
 <script src="https://cdn.tailwindcss.com/3.4.1"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
@@ -338,6 +338,17 @@ body.hdr-oculto #tab-bar { max-height:0; opacity:0; }
 .tabla-datosextra tbody tr:nth-child(even) { background:#f8fafc; }
 .tabla-datosextra tbody tr:hover { background:#eff6ff; }
 .tabla-datosextra tbody td.ult { font-family:'Space Grotesk','Inter',sans-serif; font-weight:700; color:#0f172a; border-left:2px solid #7dd3fc; }
+/* v7.0.3: 1ª columna (categoría) y última (mes actual) fijas — el scroll horizontal corre
+   solo por las columnas del medio. Los <td>/<th> sticky necesitan color de fondo propio
+   (no lo heredan del <tr>), si no el resto de las columnas se transparenta por debajo al
+   scrollear — se redeclara el mismo fondo por fila (blanco/zebra/hover) sobre esas celdas. */
+.tabla-datosextra th:first-child, .tabla-datosextra td:first-child { position:sticky; left:0; z-index:1; background:#fff; }
+.tabla-datosextra th.ult, .tabla-datosextra td.ult { position:sticky; right:0; z-index:1; background:#fff; }
+.tabla-datosextra thead th:first-child, .tabla-datosextra thead th.ult { z-index:2; }
+.tabla-datosextra tbody tr:nth-child(even) td:first-child, .tabla-datosextra tbody tr:nth-child(even) td.ult { background:#f8fafc; }
+.tabla-datosextra tbody tr:hover td:first-child, .tabla-datosextra tbody tr:hover td.ult { background:#eff6ff; }
+.tabla-datosextra td:first-child { box-shadow:2px 0 4px -2px rgba(15,23,42,.15); }
+.tabla-datosextra td.ult { box-shadow:-2px 0 4px -2px rgba(15,23,42,.15); }
 .tabla-badge { font-size:11px; font-weight:700; color:#334155; background:#e2e8f0; border:1px solid #cbd5e1; padding:2px 6px; border-radius:99px; margin-left:6px; display:inline-flex; align-items:center; line-height:1; }
 .tabla-badge.tb-up { color:#dc2626; }
 .tabla-badge.tb-down { color:#16a34a; }
@@ -746,7 +757,7 @@ main { max-width:1400px; margin:0 auto; padding:24px 20px 60px; }
 
 <div id="app-header">
   <div style="display:flex;align-items:center;gap:14px;">
-    <div class="app-badge">v7.0.2</div>
+    <div class="app-badge">v7.0.3</div>
     <div>
       <div class="app-title">ICG EvoTen · Evolución y Tendencia</div>
     </div>
@@ -1198,7 +1209,7 @@ const PANEL_MAP_CANVAS = {
 // Versión de la app — se estampa en el JSON exportado (STATE.generado_con) para que,
 // si mañana cambia la lógica de detección/visualización, el motor pueda detectar JSON
 // generados con una versión anterior y aplicar un fallback en vez de romper.
-const APP_VERSION = 'v7.0.2';
+const APP_VERSION = 'v7.0.3';
 
 // v5.0.0: persistencia en Drive vía GAS standalone (icg_evoten_v5.0.0.gs), sin login.
 // Reemplaza el guardado/carga local (Blob + FileReader) de v4.3.2 para portabilidad
