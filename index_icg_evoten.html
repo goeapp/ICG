@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ICG EvoTen v7.0.0 | Multi-obra</title>
+<title>ICG EvoTen v7.0.1 | Multi-obra</title>
 <script src="https://cdn.tailwindcss.com/3.4.1"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
@@ -338,7 +338,8 @@ body.hdr-oculto #tab-bar { max-height:0; opacity:0; }
 .tabla-datosextra tbody tr:nth-child(even) { background:#f8fafc; }
 .tabla-datosextra tbody tr:hover { background:#eff6ff; }
 .tabla-datosextra tbody td.ult { font-family:'Space Grotesk','Inter',sans-serif; font-weight:700; color:#0f172a; border-left:2px solid #7dd3fc; }
-.tabla-badge { font-size:9px; font-weight:700; color:#475569; background:#e2e8f0; padding:1px 6px; border-radius:99px; margin-left:6px; }
+.tabla-badge { font-size:11px; font-weight:700; color:#334155; background:#e2e8f0; border:1px solid #cbd5e1; padding:2px 6px; border-radius:99px; margin-left:6px; display:inline-flex; align-items:center; line-height:1; }
+.tabla-badge i { font-size:11px; }
 .chart-wrap-sm { position:relative; height:160px; }
 
 /* ── Empty state ── */
@@ -744,7 +745,7 @@ main { max-width:1400px; margin:0 auto; padding:24px 20px 60px; }
 
 <div id="app-header">
   <div style="display:flex;align-items:center;gap:14px;">
-    <div class="app-badge">v7.0.0</div>
+    <div class="app-badge">v7.0.1</div>
     <div>
       <div class="app-title">ICG EvoTen · Evolución y Tendencia</div>
     </div>
@@ -1196,7 +1197,7 @@ const PANEL_MAP_CANVAS = {
 // Versión de la app — se estampa en el JSON exportado (STATE.generado_con) para que,
 // si mañana cambia la lógica de detección/visualización, el motor pueda detectar JSON
 // generados con una versión anterior y aplicar un fallback en vez de romper.
-const APP_VERSION = 'v7.0.0';
+const APP_VERSION = 'v7.0.1';
 
 // v5.0.0: persistencia en Drive vía GAS standalone (icg_evoten_v5.0.0.gs), sin login.
 // Reemplaza el guardado/carga local (Blob + FileReader) de v4.3.2 para portabilidad
@@ -3501,11 +3502,11 @@ function renderAutoTablas(){
         const txt = t.esPorcentaje ? fmtARPct(v, t.decimales) : fmtAR(v, t.decimales);
         if(i !== nMeses - 1) return `<td>${txt}</td>`;
         const prev = f.valores[i - 1];
-        let badge = '<span class="tabla-badge">—</span>';
+        let badge = '<span class="tabla-badge"><i class="ti ti-minus" aria-hidden="true"></i></span>';
         if(typeof v === 'number' && typeof prev === 'number'){
           const dir = v > prev ? 1 : (v < prev ? -1 : 0);
-          const arrow = dir === 0 ? '—' : (dir > 0 ? '▲' : '▼');
-          badge = `<span class="tabla-badge">${arrow}</span>`;
+          const icono = dir === 0 ? 'ti-minus' : (dir > 0 ? 'ti-arrow-narrow-up' : 'ti-arrow-narrow-down');
+          badge = `<span class="tabla-badge"><i class="ti ${icono}" aria-hidden="true"></i></span>`;
         }
         return `<td class="ult">${txt}${badge}</td>`;
       }).join('');
@@ -3516,7 +3517,7 @@ function renderAutoTablas(){
     <div class="bloque b-control">
       <div class="bloque-hdr">
         <div><h3>${t.titulo}</h3><div class="bsub">${t.subtitulo || 'Dato extra'}</div></div>
-        ${notaPanelIcono(t.titulo)}
+        ${notaPanelIcono('tabla:' + t.titulo)}
       </div>
       <div style="padding:12px 16px 16px;overflow-x:auto;">
         <table class="tabla-datosextra">
