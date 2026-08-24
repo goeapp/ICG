@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ICG EvoTen v7.0.5 | Multi-obra</title>
+<title>ICG EvoTen v7.0.6 | Multi-obra</title>
 <script src="https://cdn.tailwindcss.com/3.4.1"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
@@ -174,6 +174,11 @@ body.hdr-oculto #tab-bar { max-height:0; opacity:0; }
 .kpi .kpi-val { font-size:25px;font-weight:700;line-height:1; letter-spacing:-.01em; }
 .kpi .kpi-sub { font-size:10px;font-weight:600;opacity:.72;margin-top:4px; }
 .kpi .kpi-arrow { font-size:11px;font-weight:700;margin-top:6px;padding:2px 8px;background:rgba(255,255,255,.2);border-radius:99px;display:inline-block; }
+/* v7.0.6: placa blanca para el valor de Margen Obra y Resultado Estimado — resalta el número
+   sobre el fondo de color de la tarjeta. Color adentro: rojo si negativo, slate oscuro si no
+   (neutro, sin connotación de bien/mal). Acordado con Ale antes de codear. */
+.kpi .kpi-val.kpi-val-plaque { display:inline-block; background:#fff; color:#0f172a; padding:3px 10px; border-radius:8px; }
+.kpi .kpi-val.kpi-val-plaque.neg { color:#dc2626; }
 .kpi-amber  { background:linear-gradient(145deg,#e08c1c,#b45309); }
 .kpi-red    { background:linear-gradient(145deg,#e14b4b,#b91c1c); }
 .kpi-blue   { background:linear-gradient(145deg,#3b7bef,#1d4ed8); }
@@ -778,7 +783,7 @@ main { max-width:1400px; margin:0 auto; padding:24px 20px 60px; }
 
 <div id="app-header">
   <div style="display:flex;align-items:center;gap:14px;">
-    <div class="app-badge">v7.0.5</div>
+    <div class="app-badge">v7.0.6</div>
     <div>
       <div class="app-title">ICG EvoTen · Evolución y Tendencia</div>
     </div>
@@ -1230,7 +1235,7 @@ const PANEL_MAP_CANVAS = {
 // Versión de la app — se estampa en el JSON exportado (STATE.generado_con) para que,
 // si mañana cambia la lógica de detección/visualización, el motor pueda detectar JSON
 // generados con una versión anterior y aplicar un fallback en vez de romper.
-const APP_VERSION = 'v7.0.5';
+const APP_VERSION = 'v7.0.6';
 
 // v5.0.0: persistencia en Drive vía GAS standalone (icg_evoten_v5.0.0.gs), sin login.
 // Reemplaza el guardado/carga local (Blob + FileReader) de v4.3.2 para portabilidad
@@ -2615,18 +2620,22 @@ function renderKPIs(last){
     <div class="kpi-sub">${String(last.periodo.mes).padStart(2,'0')}/${last.periodo.anio}</div>`;
 
   const cambioMO = last.derivados?.margen_obra_cambio;
+  // v7.0.6: 1 decimal (antes 2) + placa blanca, rojo si negativo.
+  const claseValMO = 'kpi-val kpi-val-plaque' + (typeof last.datos.margen_obra === 'number' && last.datos.margen_obra < 0 ? ' neg' : '');
   document.getElementById('kpi-margenobra').innerHTML = `
     <div class="kpi-lbl">Margen Obra (F5)</div>
-    <div class="kpi-val">${fmtPct(last.datos.margen_obra,2)}</div>
+    <div class="${claseValMO}">${fmtPct(last.datos.margen_obra,1)}</div>
     <div class="kpi-sub">Valor de control — histórico completo abajo</div>
     <div class="alert-badge ${cambioMO?'':'ok'}"><i class="ti ti-${cambioMO?'alert-triangle':'check'}"></i> ${cambioMO?'Cambió este período':'Sin cambios'}</div>`;
 
   // Resultado Estimado — último Margen Total Proyectado (F33) vs Margen Obra (F5), en pp
   const diffPP = (typeof last.datos.margen_total_pct === 'number' && typeof last.datos.margen_obra === 'number')
     ? (last.datos.margen_total_pct - last.datos.margen_obra) * 100 : null;
+  // v7.0.6: placa blanca, rojo si negativo (mismo criterio que Margen Obra).
+  const claseValRE = 'kpi-val kpi-val-plaque' + (typeof last.datos.margen_total_pct === 'number' && last.datos.margen_total_pct < 0 ? ' neg' : '');
   document.getElementById('kpi-resultadoestim').innerHTML = `
     <div class="kpi-lbl">Resultado Estimado</div>
-    <div class="kpi-val">${fmtPct(last.datos.margen_total_pct,1)}</div>
+    <div class="${claseValRE}">${fmtPct(last.datos.margen_total_pct,1)}</div>
     <div class="kpi-sub">Dif. vs F5: ${typeof diffPP === 'number' ? fmtAR(diffPP,2)+' pp' : '—'}</div>`;
 }
 
