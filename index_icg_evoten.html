@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ICG EvoTen v7.0.4 | Multi-obra</title>
+<title>ICG EvoTen v7.0.5 | Multi-obra</title>
 <script src="https://cdn.tailwindcss.com/3.4.1"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
@@ -352,6 +352,12 @@ body.hdr-oculto #tab-bar { max-height:0; opacity:0; }
 .tabla-badge { font-size:11px; font-weight:700; color:#334155; background:#e2e8f0; border:1px solid #cbd5e1; padding:2px 6px; border-radius:99px; margin-left:6px; display:inline-flex; align-items:center; line-height:1; }
 .tabla-badge.tb-up { color:#dc2626; }
 .tabla-badge.tb-down { color:#16a34a; }
+/* v7.0.5: fila "total" (última fila del rango, si ultimaFilaNegrita en la hoja "tablas") —
+   bold + fondo sutil. Se pisan también los fondos de las columnas sticky (1ª y .ult), que si
+   no quedarían con su propio fondo blanco/zebra y la fila se vería "partida". */
+.tabla-datosextra tbody tr.tr-total td { font-weight:800; background:#eef2fb; }
+.tabla-datosextra tbody tr.tr-total td:first-child,
+.tabla-datosextra tbody tr.tr-total td.ult { background:#eef2fb; }
 .chart-wrap-sm { position:relative; height:160px; }
 
 /* ── Empty state ── */
@@ -772,7 +778,7 @@ main { max-width:1400px; margin:0 auto; padding:24px 20px 60px; }
 
 <div id="app-header">
   <div style="display:flex;align-items:center;gap:14px;">
-    <div class="app-badge">v7.0.4</div>
+    <div class="app-badge">v7.0.5</div>
     <div>
       <div class="app-title">ICG EvoTen · Evolución y Tendencia</div>
     </div>
@@ -1224,7 +1230,7 @@ const PANEL_MAP_CANVAS = {
 // Versión de la app — se estampa en el JSON exportado (STATE.generado_con) para que,
 // si mañana cambia la lógica de detección/visualización, el motor pueda detectar JSON
 // generados con una versión anterior y aplicar un fallback en vez de romper.
-const APP_VERSION = 'v7.0.4';
+const APP_VERSION = 'v7.0.5';
 
 // v5.0.0: persistencia en Drive vía GAS standalone (icg_evoten_v5.0.0.gs), sin login.
 // Reemplaza el guardado/carga local (Blob + FileReader) de v4.3.2 para portabilidad
@@ -1667,7 +1673,8 @@ function esFormatoPorcentaje(z){
 
 // ============================================================
 // TABLAS — Datos Extra (v7.0.0)
-// Hoja "tablas": id | titulo | subtitulo | hojaOrigen | datos (una fila = una tabla).
+// Hoja "tablas": id | titulo | subtitulo | hojaOrigen | datos | ultimaFilaNegrita (una fila =
+// una tabla; la columna F es opcional, ver v7.0.5 más abajo).
 // "hojaOrigen" nombra otra hoja del mismo XLSX de apoyo (la que Ale ya arma a mano, ej.
 // "CostoImes") y "datos" es el rango A1 exacto de esa hoja (ej. "A4:H10") — 1ª fila del rango
 // = header de meses (fecha real de Excel, columna A del rango descartada), filas siguientes =
@@ -1728,7 +1735,10 @@ function procesarHojaTablas(wb){
       titulo: r[1] != null ? String(r[1]).trim() : '(sin título)',
       subtitulo: r[2] != null ? String(r[2]).trim() : '',
       hojaOrigen: r[3] != null ? String(r[3]).trim() : '',
-      rango: r[4] != null ? String(r[4]).trim() : ''
+      rango: r[4] != null ? String(r[4]).trim() : '',
+      // v7.0.5: columna F opcional — TRUE/FALSE (texto o boolean nativo del XLSX). Ausente o
+      // cualquier otro valor → FALSE (retrocompatible con hojas "tablas" anteriores a v7.0.5).
+      ultimaFilaNegrita: r[5] != null && String(r[5]).trim().toUpperCase() === 'TRUE'
     }));
 
   const warnings = [];
@@ -1756,7 +1766,7 @@ function procesarHojaTablas(wb){
     if(leido.filas.length > 7){
       warnings.push(`tabla "${d.id}" (${d.titulo}): ${leido.filas.length} categorías (recomendado hasta 7) — se muestran todas igual.`);
     }
-    autoTablas.push({ id: d.id, titulo: d.titulo, subtitulo: d.subtitulo, meses: leido.meses, filas: leido.filas, decimales: leido.decimales, esPorcentaje: leido.esPorcentaje });
+    autoTablas.push({ id: d.id, titulo: d.titulo, subtitulo: d.subtitulo, meses: leido.meses, filas: leido.filas, decimales: leido.decimales, esPorcentaje: leido.esPorcentaje, ultimaFilaNegrita: d.ultimaFilaNegrita });
   });
 
   return { autoTablas, warnings };
@@ -3524,10 +3534,26 @@ function renderAutoTablas(){
       return `<th${i === nMeses - 1 ? ' class="ult"' : ''}>${label}</th>`;
     }).join('');
 
-    const bodyRows = t.filas.map(f => {
+    const bodyRows = t.filas.map((f, iFila) => {
+      // v7.0.5: última fila del rango, si ultimaFilaNegrita — bold + fondo (clase tr-total) y,
+      // celda por celda (salvo la del último mes, que ya tiene su propio badge visible), un
+      // tooltip nativo (title) con el mismo símbolo ▲/▼/— del badge, sin texto adicional —
+      // comparando esa celda contra la columna anterior de la MISMA fila. Acordado con Ale en
+      // sesión de diseño 21-ago-2026 antes de codear (ver handoff v7.0.5).
+      const esFilaTotal = t.ultimaFilaNegrita && iFila === t.filas.length - 1;
       const tds = f.valores.map((v, i) => {
         const txt = t.esPorcentaje ? fmtARPct(v, t.decimales) : fmtAR(v, t.decimales);
-        if(i !== nMeses - 1) return `<td>${txt}</td>`;
+        if(i !== nMeses - 1){
+          if(!esFilaTotal || i === 0) return `<td>${txt}</td>`;
+          const prev = f.valores[i - 1];
+          let simbolo = '—';
+          if(typeof v === 'number' && typeof prev === 'number'){
+            simbolo = v > prev ? '▲' : (v < prev ? '▼' : '—');
+          } else {
+            return `<td>${txt}</td>`; // sin par numérico comparable → sin tooltip
+          }
+          return `<td title="${simbolo}">${txt}</td>`;
+        }
         const prev = f.valores[i - 1];
         let badge = '<span class="tabla-badge">—</span>';
         if(typeof v === 'number' && typeof prev === 'number'){
@@ -3538,7 +3564,7 @@ function renderAutoTablas(){
         }
         return `<td class="ult">${txt}${badge}</td>`;
       }).join('');
-      return `<tr><td>${escAttr(f.categoria)}</td>${tds}</tr>`;
+      return `<tr${esFilaTotal ? ' class="tr-total"' : ''}><td>${escAttr(f.categoria)}</td>${tds}</tr>`;
     }).join('');
 
     return `
