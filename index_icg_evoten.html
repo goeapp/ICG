@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ICG EvoTen v8.0.0 | Multi-obra</title>
+<title>ICG EvoTen v9.1.0 | Multi-obra</title>
 <script src="https://cdn.tailwindcss.com/3.4.1"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
@@ -259,6 +259,24 @@ body.hdr-oculto #tab-bar { max-height:0; opacity:0; }
   animation: fadeSlideUp .25s ease both;
   padding:28px 24px;
 }
+/* Dialog "Sesión actual" (v9.1.0) — atajo Ctrl+Alt+U, informativo + logout */
+#modal-sesion {
+  display:none; position:fixed; inset:0; z-index:950;
+  background:rgba(15,23,42,.55); backdrop-filter:blur(3px);
+  align-items:flex-start; justify-content:center;
+}
+#modal-sesion.open { display:flex; }
+#modal-sesion-inner {
+  background:#fff; border-radius:18px; margin:80px 20px 0; padding:0 0 18px;
+  max-width:360px; width:100%;
+  box-shadow:0 24px 60px rgba(0,0,0,.4); animation: fadeSlideUp .25s ease both;
+}
+#modal-sesion-inner .bloque-hdr { position:sticky; top:0; background:#fff; z-index:2; }
+.sesion-dato { display:flex; justify-content:space-between; gap:10px; padding:8px 20px; font-size:12px; }
+.sesion-dato .lbl { color:#94a3b8; font-weight:700; text-transform:uppercase; letter-spacing:.04em; font-size:9.5px; }
+.sesion-dato .val { color:#0f172a; font-weight:700; text-align:right; }
+.sesion-badge-noexpira { display:inline-block; background:#faeeda; color:#854f0b; font-size:9.5px; font-weight:800; text-transform:uppercase; letter-spacing:.04em; padding:2px 8px; border-radius:6px; }
+#btn-sesion-logout { width:calc(100% - 40px); margin:14px 20px 0; }
 .login-pin-logo { display:flex; align-items:center; gap:8px; margin-bottom:18px; }
 .login-pin-logo .app-badge { background:#3b82f6; padding:6px 12px; border-radius:10px; font-size:13px; font-weight:900; color:#fff; }
 .login-pin-logo span.tit { font-size:14px; font-weight:900; color:#0f172a; }
@@ -1153,7 +1171,7 @@ body.modo-local-activo .repo-solo-edicion {
       <span class="login-pin-label">Tu email</span>
       <input type="email" class="login-pin-input" id="login-input-email" placeholder="nombre@empresa.com" autocomplete="username">
       <div class="login-pin-msg err" id="login-email-error"></div>
-      <button class="notas-btn" style="width:100%;" onclick="loginPinEnviarEmail()">Enviar código</button>
+      <button class="notas-btn" style="width:100%;" id="login-btn-email" onclick="loginPinEnviarEmail()">Enviar código</button>
     </div>
 
     <!-- Paso 2: esperando código -->
@@ -1162,7 +1180,7 @@ body.modo-local-activo .repo-solo-edicion {
       <span class="login-pin-label">Código</span>
       <input type="text" inputmode="numeric" maxlength="6" class="login-pin-input codigo" id="login-input-codigo" placeholder="······" autocomplete="one-time-code">
       <div class="login-pin-msg err" id="login-codigo-error"></div>
-      <button class="notas-btn" style="width:100%; margin-bottom:10px;" onclick="loginPinValidarCodigo()">Ingresar</button>
+      <button class="notas-btn" style="width:100%; margin-bottom:10px;" id="login-btn-codigo" onclick="loginPinValidarCodigo()">Ingresar</button>
       <div class="login-pin-centro">
         <button class="login-pin-link" id="login-btn-reenviar" onclick="loginPinReenviar()">Reenviar código</button>
       </div>
@@ -1185,6 +1203,23 @@ body.modo-local-activo .repo-solo-edicion {
       <div class="login-pin-msg err login-pin-centro" id="login-error-msg"></div>
       <button class="notas-btn" style="width:100%;" onclick="loginPinVolverAEmail()">Volver a intentar</button>
     </div>
+  </div>
+</div>
+
+<!-- ── Dialog "Sesión actual" (v9.1.0) — Ctrl+Alt+U, cierre por ✕ o click afuera ── -->
+<div id="modal-sesion" onclick="cerrarModalSesionClickFuera(event)">
+  <div id="modal-sesion-inner">
+    <div class="bloque-hdr">
+      <div>
+        <h3>Sesión actual</h3>
+        <div class="bsub">Datos guardados en este dispositivo</div>
+      </div>
+      <button class="modal-close-btn" onclick="cerrarModalSesion()">✕</button>
+    </div>
+    <div class="sesion-dato"><span class="lbl">Email</span><span class="val" id="sesion-info-email">—</span></div>
+    <div class="sesion-dato"><span class="lbl">Nombre</span><span class="val" id="sesion-info-nombre">—</span></div>
+    <div class="sesion-dato"><span class="lbl">Vencimiento</span><span class="val" id="sesion-info-exp">—</span></div>
+    <button class="notas-btn" id="btn-sesion-logout" onclick="cerrarSesionDesdeDialog()">Cerrar sesión</button>
   </div>
 </div>
 
@@ -1340,7 +1375,7 @@ const PANEL_MAP_CANVAS = {
 // Versión de la app — se estampa en el JSON exportado (STATE.generado_con) para que,
 // si mañana cambia la lógica de detección/visualización, el motor pueda detectar JSON
 // generados con una versión anterior y aplicar un fallback en vez de romper.
-const APP_VERSION = 'v9.0.1';
+const APP_VERSION = 'v9.1.0';
 
 // v5.0.0: persistencia en Drive vía GAS standalone (icg_evoten_v5.0.0.gs), sin login.
 // Reemplaza el guardado/carga local (Blob + FileReader) de v4.3.2 para portabilidad
@@ -1412,13 +1447,36 @@ function loginPinLeerSesion(){
     const raw = localStorage.getItem(LOGIN_PIN_SESION_KEY);
     if(!raw) return null;
     const s = JSON.parse(raw);
-    if(!s.email || !s.exp || Date.now() > s.exp) return null;
+    if(!s.email || !s.exp) return null;
+    // v9.1.0: si NoExpira estaba en TRUE la última vez que se guardó/actualizó
+    // el cache, el vencimiento local de 7 días se ignora acá — la decisión
+    // final de si la sesión sigue viva queda en manos del backend
+    // (validarSesion, en iniciarFlujoLogin), que puede haber cambiado el
+    // flag desde entonces.
+    if(Date.now() > s.exp && !s.noExpira) return null;
     return s;
   } catch(e){ return null; }
 }
-function loginPinGuardarSesion(email){
+// email es obligatorio; nombreApellido/noExpira son opcionales (columnas
+// nuevas de usuarios_pin, v9.1.0) — se guardan tal cual vengan del backend.
+function loginPinGuardarSesion(email, nombreApellido, noExpira){
   const exp = Date.now() + LOGIN_PIN_SESION_DIAS * 24 * 60 * 60 * 1000;
-  localStorage.setItem(LOGIN_PIN_SESION_KEY, JSON.stringify({ email, exp }));
+  localStorage.setItem(LOGIN_PIN_SESION_KEY, JSON.stringify({
+    email, exp, nombreApellido: nombreApellido || '', noExpira: !!noExpira
+  }));
+}
+// Actualiza SOLO nombreApellido/noExpira sobre la sesión ya guardada, sin
+// tocar el "exp" original — evita resetear el reloj de 7 días en cada
+// apertura de la PWA para usuarios que no tienen NoExpira=TRUE.
+function loginPinActualizarCache(nombreApellido, noExpira){
+  try {
+    const raw = localStorage.getItem(LOGIN_PIN_SESION_KEY);
+    if(!raw) return;
+    const s = JSON.parse(raw);
+    s.nombreApellido = nombreApellido || '';
+    s.noExpira = !!noExpira;
+    localStorage.setItem(LOGIN_PIN_SESION_KEY, JSON.stringify(s));
+  } catch(e){ /* no romper el boot por esto */ }
 }
 function loginPinBorrarSesion(){
   localStorage.removeItem(LOGIN_PIN_SESION_KEY);
@@ -1475,6 +1533,16 @@ async function iniciarFlujoLogin(){
     return false;
   }
   if(resp.ok){
+    const noExpiraActual = !!resp.noExpira;
+    const expiradaLocalmente = Date.now() > sesion.exp;
+    if(expiradaLocalmente && !noExpiraActual){
+      // Estaba viva solo porque NoExpira era TRUE la última vez — dejó de
+      // estarlo, y los 7 días locales ya pasaron: se fuerza login nuevo.
+      loginPinBorrarSesion();
+      mostrarPasoLogin('email');
+      return false;
+    }
+    loginPinActualizarCache(resp.nombreApellido, noExpiraActual);
     ocultarModalLogin();
     return true;
   }
@@ -1488,16 +1556,24 @@ async function iniciarFlujoLogin(){
 async function loginPinEnviarEmail(){
   const email = document.getElementById('login-input-email').value.trim();
   const errEl = document.getElementById('login-email-error');
+  const btn = document.getElementById('login-btn-email');
   errEl.textContent = '';
   if(!email || !email.includes('@')){ errEl.textContent = 'Ingresá un email válido.'; return; }
 
+  const textoOriginal = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = 'Enviando…';
   let resp;
   try {
     resp = await loginPinFetch('solicitarPIN', { email });
   } catch(err){
     errEl.textContent = 'Sin conexión. Reintentá en un momento.';
+    btn.disabled = false;
+    btn.textContent = textoOriginal;
     return;
   }
+  btn.disabled = false;
+  btn.textContent = textoOriginal;
   if(resp.ok){
     document.getElementById('login-codigo-email-mostrado').textContent = email;
     document.getElementById('login-input-codigo').value = '';
@@ -1517,22 +1593,30 @@ async function loginPinValidarCodigo(){
   const email = document.getElementById('login-codigo-email-mostrado').textContent;
   const pin = document.getElementById('login-input-codigo').value.trim();
   const errEl = document.getElementById('login-codigo-error');
+  const btn = document.getElementById('login-btn-codigo');
   errEl.textContent = '';
   if(pin.length !== 6){ errEl.textContent = 'El código tiene 6 dígitos.'; return; }
 
+  const textoOriginal = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = 'Validando…';
   let resp;
   try {
     resp = await loginPinFetch('validarPIN', { email, pin });
   } catch(err){
     errEl.textContent = 'Sin conexión. Reintentá en un momento.';
+    btn.disabled = false;
+    btn.textContent = textoOriginal;
     return;
   }
   if(resp.ok){
-    loginPinGuardarSesion(email);
+    loginPinGuardarSesion(email, resp.nombreApellido, !!resp.noExpira);
     ocultarModalLogin();
     await bootEvoTen();
-    return;
+    return; // no se rehabilita: el modal ya se cerró y la app siguió
   }
+  btn.disabled = false;
+  btn.textContent = textoOriginal;
   let msg = LOGIN_PIN_MENSAJES[resp.motivo] || 'Código incorrecto.';
   if(resp.motivo === 'pin_incorrecto' && typeof resp.restantes === 'number') msg += ` Te quedan ${resp.restantes} intento(s).`;
   errEl.textContent = msg;
@@ -1582,6 +1666,43 @@ function loginPinVolverAEmail(){
   document.getElementById('login-email-error').textContent = '';
   mostrarPasoLogin('email');
 }
+
+// ---------------------------------------------------------------------------
+// Dialog "Sesión actual" (v9.1.0) — atajo Ctrl+Alt+U, lee el localStorage de
+// la sesión pwa_pin tal cual está guardado. Cierre por ✕ o click afuera (a
+// diferencia del modal de login: acá SÍ tiene sentido, no es un gate).
+// ---------------------------------------------------------------------------
+function abrirModalSesion(){
+  let s = null;
+  try { s = JSON.parse(localStorage.getItem(LOGIN_PIN_SESION_KEY) || 'null'); } catch(e){ s = null; }
+  document.getElementById('sesion-info-email').textContent = (s && s.email) || '—';
+  document.getElementById('sesion-info-nombre').textContent = (s && s.nombreApellido) || '—';
+  const expEl = document.getElementById('sesion-info-exp');
+  if(s && s.noExpira){
+    expEl.innerHTML = '<span class="sesion-badge-noexpira">No expira</span>';
+  } else if(s && s.exp){
+    expEl.textContent = new Date(s.exp).toLocaleDateString('es-AR', { day:'2-digit', month:'2-digit', year:'numeric' });
+  } else {
+    expEl.textContent = '—';
+  }
+  document.getElementById('modal-sesion').classList.add('open');
+}
+function cerrarModalSesion(){
+  document.getElementById('modal-sesion').classList.remove('open');
+}
+function cerrarModalSesionClickFuera(e){
+  if(e.target.id === 'modal-sesion') cerrarModalSesion();
+}
+function cerrarSesionDesdeDialog(){
+  loginPinBorrarSesion();
+  location.reload();
+}
+document.addEventListener('keydown', e => {
+  if(e.ctrlKey && e.altKey && (e.key === 'u' || e.key === 'U')){
+    e.preventDefault();
+    abrirModalSesion();
+  }
+});
 
 let MODO_LECTURA_LOCAL = false;
 
