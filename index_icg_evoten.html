@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ICG EvoTen v9.1.0 | Multi-obra</title>
+<title>ICG EvoTen v9.1.1 | Multi-obra</title>
 <script src="https://cdn.tailwindcss.com/3.4.1"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
@@ -857,7 +857,7 @@ body.modo-local-activo .repo-solo-edicion {
 
 <div id="app-header">
   <div style="display:flex;align-items:center;gap:14px;">
-    <div class="app-badge">v8.0.0</div>
+    <div class="app-badge" id="app-badge-version">v8.0.0</div>
     <div>
       <div class="app-title">ICG EvoTen · Evolución y Tendencia</div>
     </div>
@@ -1375,7 +1375,7 @@ const PANEL_MAP_CANVAS = {
 // Versión de la app — se estampa en el JSON exportado (STATE.generado_con) para que,
 // si mañana cambia la lógica de detección/visualización, el motor pueda detectar JSON
 // generados con una versión anterior y aplicar un fallback en vez de romper.
-const APP_VERSION = 'v9.1.0';
+const APP_VERSION = 'v9.1.1';
 
 // v5.0.0: persistencia en Drive vía GAS standalone (icg_evoten_v5.0.0.gs), sin login.
 // Reemplaza el guardado/carga local (Blob + FileReader) de v4.3.2 para portabilidad
@@ -5238,7 +5238,11 @@ async function capturarPantalla(){
 async function bootEvoTen(){
   // v5.0.1: título del tab tomado de APP_VERSION — antes quedaba hardcodeado en <title>
   // y se desincronizaba del badge en cada bump de versión (se detectó pegado en v4.1.0).
+  // v9.1.1: el badge visual del header (#app-badge-version) había quedado AFUERA de ese
+  // fix — seguía siendo texto fijo en el HTML, nunca se tocó. Se parametriza acá mismo,
+  // junto al title, para que no vuelva a desincronizarse en el próximo bump.
   document.title = `ICG EvoTen ${APP_VERSION} | Multi-obra`;
+  document.getElementById('app-badge-version').textContent = APP_VERSION;
   await cargarConfig();
   renderAll();
   renderConfigTab();
