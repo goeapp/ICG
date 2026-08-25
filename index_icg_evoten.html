@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ICG EvoTen v7.0.6 | Multi-obra</title>
+<title>ICG EvoTen v8.0.0 | Multi-obra</title>
 <script src="https://cdn.tailwindcss.com/3.4.1"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
@@ -508,8 +508,22 @@ main { max-width:1400px; margin:0 auto; padding:24px 20px 60px; }
 .cfg-banner.tipo-fallback { background:#fffbeb; color:#92400e; border-color:#fde68a; }
 .cfg-banner.tipo-error { background:#fef2f2; color:#991b1b; border-color:#fecaca; cursor:pointer; }
 .cfg-banner.tipo-error:hover { background:#fee2e2; }
+.cfg-banner.tipo-local { background:#eff6ff; color:#1e40af; border-color:#bfdbfe; }
 .cfg-banner button.cfg-banner-close { background:none;border:none;color:inherit;font-size:14px;cursor:pointer;opacity:.6; }
 .cfg-banner button.cfg-banner-close:hover { opacity:1; }
+
+/* ── v8.0.0 — Modo Lectura Local: gating visual de Configuración/Guardado/edición de Repositorio ── */
+body.modo-local-activo #tab-btn-config,
+body.modo-local-activo #btn-guardar-json,
+body.modo-local-activo .repo-solo-edicion {
+  opacity:.4; pointer-events:none; cursor:not-allowed;
+}
+.repo-baja-res-badge {
+  position:absolute; top:10px; left:10px; z-index:2;
+  background:#1e40af; color:#fff; font-size:10.5px; font-weight:800;
+  padding:4px 9px; border-radius:6px; display:flex; align-items:center; gap:5px;
+  text-transform:uppercase; letter-spacing:.03em;
+}
 
 /* ── v3.00 — Tabs ── */
 #tab-bar { display:flex; gap:4px; padding:0 32px; background:#fff; border-bottom:1px solid #e2e8f0; position:sticky; top:70px; z-index:90; }
@@ -783,7 +797,7 @@ main { max-width:1400px; margin:0 auto; padding:24px 20px 60px; }
 
 <div id="app-header">
   <div style="display:flex;align-items:center;gap:14px;">
-    <div class="app-badge">v7.0.6</div>
+    <div class="app-badge">v8.0.0</div>
     <div>
       <div class="app-title">ICG EvoTen · Evolución y Tendencia</div>
     </div>
@@ -804,7 +818,7 @@ main { max-width:1400px; margin:0 auto; padding:24px 20px 60px; }
       <i class="ti ti-upload"></i> Cargar JSON
     </button>
     <input type="file" id="input-json" class="hidden-input" accept=".json" onchange="onJsonSelected(event)">
-    <button class="btn-hdr btn-export" onclick="exportarJSON()">
+    <button class="btn-hdr btn-export" id="btn-guardar-json" onclick="exportarJSON()">
       <i class="ti ti-download"></i> Guardar JSON
     </button>
     <button class="btn-hdr btn-json" onclick="document.getElementById('input-json-xlsx').click()" title="Convierte un JSON exportado de EvoTen a un XLSX con los 12 paneles fijos (mismo nombre que el JSON elegido, va a la carpeta de Descargas)">
@@ -828,6 +842,10 @@ main { max-width:1400px; margin:0 auto; padding:24px 20px 60px; }
 <div class="cfg-banner tipo-error" id="banner-errores" onclick="irABannerErrores()">
   <span id="banner-errores-msg"></span>
   <button class="cfg-banner-close" onclick="event.stopPropagation(); document.getElementById('banner-errores').classList.remove('show')">✕</button>
+</div>
+
+<div class="cfg-banner tipo-local" id="banner-modo-local">
+  <span><i class="ti ti-lock"></i> MODO LECTURA LOCAL — obra cargada desde archivo, sin conexión a Drive. Configuración, Guardar JSON y edición de Repositorio deshabilitados.</span>
 </div>
 
 <div id="tab-bar">
@@ -1017,12 +1035,12 @@ main { max-width:1400px; margin:0 auto; padding:24px 20px 60px; }
         <button class="btn-hdr" id="btn-repo-sidebar-toggle" onclick="repoToggleSidebar()" title="Mostrar/ocultar panel lateral">
           <i class="ti ti-layout-sidebar"></i> Panel
         </button>
-        <button class="btn-hdr btn-load" onclick="document.getElementById('repo-input-imgs').click()">
+        <button class="btn-hdr btn-load repo-solo-edicion" onclick="document.getElementById('repo-input-imgs').click()">
           <i class="ti ti-upload"></i> Subir imágenes
         </button>
         <input type="file" id="repo-input-imgs" class="hidden-input" accept="image/*" multiple onchange="repoOnArchivosSeleccionados(event)">
         <input type="file" id="repo-input-reemplazo" class="hidden-input" accept="image/*" onchange="repoOnReemplazoSeleccionado(event)">
-        <button class="btn-hdr" onclick="repoAbrirGestionTags()">
+        <button class="btn-hdr repo-solo-edicion" onclick="repoAbrirGestionTags()">
           <i class="ti ti-tags"></i> Tags
         </button>
         <button class="btn-hdr btn-export" onclick="repoExportarPDF()">
@@ -1235,7 +1253,7 @@ const PANEL_MAP_CANVAS = {
 // Versión de la app — se estampa en el JSON exportado (STATE.generado_con) para que,
 // si mañana cambia la lógica de detección/visualización, el motor pueda detectar JSON
 // generados con una versión anterior y aplicar un fallback en vez de romper.
-const APP_VERSION = 'v7.0.6';
+const APP_VERSION = 'v8.0.0';
 
 // v5.0.0: persistencia en Drive vía GAS standalone (icg_evoten_v5.0.0.gs), sin login.
 // Reemplaza el guardado/carga local (Blob + FileReader) de v4.3.2 para portabilidad
@@ -1264,6 +1282,22 @@ const TOL_CONTROL = 1e-4;
 // ESTADO — en memoria únicamente (no localStorage, no backend)
 // ============================================================
 let STATE = { obra:null, periodos:[], notas:[], errorSeq:0, celdasResueltas:{}, autoPaneles:[], notasPaneles:{}, galeria:[], autoTablas:[] };
+
+// v8.0.0: Modo Lectura Local — true cuando la obra en pantalla vino de "Cargar JSON desde
+// archivo local" (sin red), no de Drive. Vive fuera de STATE a propósito: no debe viajar
+// dentro del JSON exportado ni sobrevivir a un JSON.parse/stringify de STATE.
+let MODO_LECTURA_LOCAL = false;
+
+// Gating central: un solo lugar que decide qué queda deshabilitado en modo local. Doble
+// defensa — visual (clase en <body>, ver CSS) + funcional (guard al inicio de cada función
+// de edición) — para que ningún camino (teclado, click directo, etc.) la esquive.
+function aplicarModoLecturaLocal(){
+  document.body.classList.toggle('modo-local-activo', MODO_LECTURA_LOCAL);
+  document.getElementById('banner-modo-local').classList.toggle('show', MODO_LECTURA_LOCAL);
+  if(MODO_LECTURA_LOCAL && document.getElementById('tab-panel-config').classList.contains('active')){
+    cambiarTab('dashboard'); // si por algún camino quedó en Config, se saca de ahí al entrar en modo local
+  }
+}
 // autoTablas (v7.0.0): array de tablas de "Datos Extra" — {id,titulo,subtitulo,meses,filas,decimales,esPorcentaje}.
 // Viajan en el mismo XLSX de apoyo que Auto Paneles, hoja nueva "tablas" (id|titulo|subtitulo|hojaOrigen|datos),
 // ver procesarHojaTablas(). Retrocompatible: JSON pre-v7.0.0 no tiene esta clave, se completa con [] al cargar.
@@ -1622,6 +1656,7 @@ function onJsonSelected(evt){
   reader.onload = () => {
     try{
       const parsed = JSON.parse(reader.result);
+      MODO_LECTURA_LOCAL = true; // v8.0.0: archivo local → modo lectura, gatea en aplicarEstadoCargado()
       aplicarEstadoCargado(parsed);
     } catch(err){
       toast('Error al leer JSON: ' + err.message, 'err');
@@ -1910,6 +1945,7 @@ function timestampArchivo(){
 }
 
 async function exportarJSON(){
+  if(MODO_LECTURA_LOCAL){ toast('Guardar deshabilitado en modo lectura local', 'warn'); return; }
   if(STATE.periodos.length === 0){ toast('No hay datos para exportar', 'warn'); return; }
   STATE.generado_con = APP_VERSION;
   showSpinner(`Guardando obra ${STATE.obra} en Drive...`);
@@ -2497,6 +2533,7 @@ async function seleccionarObraDesdeGAS(obraId){
     if(!resp.ok) throw new Error(`HTTP ${resp.status}`);
     const body = await resp.json();
     if(!body.ok) throw new Error(body.error || 'El GAS devolvió ok:false');
+    MODO_LECTURA_LOCAL = false; // v8.0.0: obra vino de Drive → modo completo, no lectura local
     aplicarEstadoCargado(body.datos);
   } catch(err){
     toast(`Error al cargar obra ${obraId} desde Drive: ` + err.message, 'err');
@@ -2521,7 +2558,8 @@ function aplicarEstadoCargado(parsed){
   autoPanelTipoOverride = {}; // nueva carga de obra/estado, vuelve a la config real (v3.11)
   computeDerivados();
   renderAll();
-  toast(`Obra cargada: ${STATE.obra} · ${STATE.periodos.length} período(s)`, 'ok');
+  aplicarModoLecturaLocal(); // v8.0.0
+  toast(`Obra cargada: ${STATE.obra} · ${STATE.periodos.length} período(s)${MODO_LECTURA_LOCAL ? ' · modo lectura local' : ''}`, 'ok');
 }
 
 function cerrarModalCargarObra(){ document.getElementById('modal-cargar-obra').classList.remove('open'); }
@@ -3632,6 +3670,7 @@ function hideSpinner(){ document.getElementById('spinner').classList.remove('act
 // TABS — Dashboard / Configuración (v3.00)
 // ============================================================
 function cambiarTab(nombre){
+  if(nombre==='config' && MODO_LECTURA_LOCAL){ toast('Configuración deshabilitada en modo lectura local', 'warn'); return; }
   document.getElementById('tab-panel-dashboard').classList.toggle('active', nombre==='dashboard');
   document.getElementById('tab-panel-repo').classList.toggle('active', nombre==='repo');
   document.getElementById('tab-panel-config').classList.toggle('active', nombre==='config');
@@ -3964,7 +4003,7 @@ function repoRenderSidebar(){
       const t = (CONFIG.tagsGaleria||[]).find(x=>x.id===tid);
       return t ? `<span class="dot" style="background:${t.color}" title="${repoEsc(t.etiqueta)}"></span>` : '';
     }).join('');
-    return `<div class="repo-thumb-card ${sel?'sel':''}" draggable="${!filtroActivo}"
+    return `<div class="repo-thumb-card ${sel?'sel':''}" draggable="${!filtroActivo && !MODO_LECTURA_LOCAL}"
       ondragstart="repoDragStart(event,'${g.id}')" ondragover="repoDragOver(event)" ondragleave="repoDragLeave(event)" ondrop="repoDrop(event,'${g.id}')"
       onclick="repoSeleccionarImagen('${g.id}')">
       <input type="checkbox" class="repo-thumb-check" ${chk?'checked':''} onclick="event.stopPropagation(); repoToggleCompararSel('${g.id}', this.checked)" title="Elegir para comparar">
@@ -3985,6 +4024,7 @@ function repoDragLeave(evt){ evt.currentTarget.classList.remove('dragover'); }
 function repoDrop(evt, targetId){
   evt.preventDefault();
   evt.currentTarget.classList.remove('dragover');
+  if(MODO_LECTURA_LOCAL) return; // v8.0.0
   const sourceId = evt.dataTransfer.getData('text/plain');
   if(!sourceId || sourceId === targetId) return;
   const lista = [...STATE.galeria].sort((a,b)=>(a.orden??0)-(b.orden??0));
@@ -4034,17 +4074,17 @@ function repoMainSideInnerHtml(g){
       <button class="repo-main-side-toggle" onclick="repoToggleDetalleSide()" title="Ocultar panel de detalle"><i class="ti ti-layout-sidebar-right"></i></button>
     </div>
     <div>
-      <textarea class="repo-nota-input" onchange="repoGuardarNota('${g.id}', this.value)" placeholder="Anotación de esta imagen...">${repoEsc(g.nota||'')}</textarea>
+      <textarea class="repo-nota-input" ${MODO_LECTURA_LOCAL ? 'readonly' : ''} onchange="repoGuardarNota('${g.id}', this.value)" placeholder="Anotación de esta imagen...">${repoEsc(g.nota||'')}</textarea>
     </div>
     <div>
       <label>Períodos</label>
-      <div class="repo-periodos-picker">${periodosPicker}</div>
+      <div class="repo-periodos-picker repo-solo-edicion">${periodosPicker}</div>
     </div>
     <div>
       <label>Tags</label>
-      <div class="repo-tags-picker">${tagsPicker}</div>
+      <div class="repo-tags-picker repo-solo-edicion">${tagsPicker}</div>
     </div>
-    <div class="repo-main-actions">
+    <div class="repo-main-actions repo-solo-edicion">
       <button class="btn-hdr" onclick="repoReemplazarImagen('${g.id}')"><i class="ti ti-replace"></i> Reemplazar</button>
       <button class="btn-hdr" style="border-color:#b91c1c;color:#b91c1c;" onclick="repoQuitarImagen('${g.id}')"><i class="ti ti-trash"></i> Quitar</button>
     </div>`;
@@ -4059,6 +4099,7 @@ function repoRenderMainDetalle(){
 
   det.innerHTML = `
     <div class="repo-panzoom-wrap" id="repo-panzoom-wrap">
+      ${MODO_LECTURA_LOCAL ? `<span class="repo-baja-res-badge"><i class="ti ti-photo-off"></i> Imagen en baja resolución — Drive no disponible en modo lectura local</span>` : ''}
       <div class="repo-panzoom-inner" id="repo-panzoom-inner">
         <img id="repo-main-img-el" src="${g.thumbnailBase64}" data-drive="${g.driveFileId}" alt="">
       </div>
@@ -4068,6 +4109,8 @@ function repoRenderMainDetalle(){
     <div class="repo-main-side${repoUI.detalleOculto ? ' oculto' : ''}" id="repo-main-side">${repoMainSideInnerHtml(g)}</div>`;
 
   repoInitPanzoom();
+  // v8.0.0: repoCargarImagenFull() ya se auto-bloquea en modo lectura local (guard central,
+  // cubre este llamado + comparar + presentación + PDF) — se queda con el thumbnail embebido.
   repoCargarImagenFull(g.driveFileId).then(url => {
     if(!url) return;
     const img = document.getElementById('repo-main-img-el');
@@ -4162,11 +4205,13 @@ function repoFitAllPanzoom(){
 // renderRepositorio() completo — eso reconstruía imagen+panzoom en cada edición (ver nota
 // arriba de repoRenderPanelLateral). Ahora llaman al refresco liviano del panel lateral.
 function repoGuardarNota(id, valor){
+  if(MODO_LECTURA_LOCAL) return; // v8.0.0 · textarea queda readonly, esto es defensa extra
   const g = STATE.galeria.find(x=>x.id===id); if(!g) return;
   g.nota = valor;
   repoRenderPanelLateral();
 }
 function repoToggleTagImagen(id, tagId){
+  if(MODO_LECTURA_LOCAL) return; // v8.0.0
   const g = STATE.galeria.find(x=>x.id===id); if(!g) return;
   g.tags = g.tags || [];
   const i = g.tags.indexOf(tagId);
@@ -4174,6 +4219,7 @@ function repoToggleTagImagen(id, tagId){
   repoRenderPanelLateral();
 }
 function repoTogglePeriodoImagen(id, valor){
+  if(MODO_LECTURA_LOCAL) return; // v8.0.0
   const g = STATE.galeria.find(x=>x.id===id); if(!g) return;
   g.periodos = g.periodos || [];
   const i = g.periodos.indexOf(valor);
@@ -4181,6 +4227,7 @@ function repoTogglePeriodoImagen(id, valor){
   repoRenderPanelLateral();
 }
 function repoQuitarImagen(id){
+  if(MODO_LECTURA_LOCAL) return; // v8.0.0
   if(!confirm('¿Quitar esta imagen del Repositorio? El archivo permanece en Drive — solo se quita de la lista.')) return;
   STATE.galeria = STATE.galeria.filter(g => g.id !== id);
   if(repoUI.selId === id) repoUI.selId = null;
@@ -4229,6 +4276,7 @@ async function repoSubirBinarioADrive(displayDataURL, nombreOriginal){
 async function repoOnArchivosSeleccionados(evt){
   const files = Array.from(evt.target.files || []);
   if(!files.length) return;
+  if(MODO_LECTURA_LOCAL){ toast('Subir imágenes deshabilitado en modo lectura local', 'warn'); evt.target.value=''; return; } // v8.0.0
   if(!STATE.obra){ toast('Cargá una obra antes de subir imágenes', 'warn'); evt.target.value=''; return; }
   showSpinner(`Subiendo ${files.length} imagen(es)...`);
   let subidas = 0, errores = 0;
@@ -4257,6 +4305,7 @@ async function repoOnArchivosSeleccionados(evt){
 }
 
 function repoReemplazarImagen(id){
+  if(MODO_LECTURA_LOCAL) return; // v8.0.0
   _repoReemplazarId = id;
   document.getElementById('repo-input-reemplazo').click();
 }
@@ -4289,6 +4338,7 @@ async function repoOnReemplazoSeleccionado(evt){
 // esto solo reemplaza el <img> cuando la versión grande termina de llegar.
 async function repoCargarImagenFull(driveFileId){
   if(!driveFileId) return null;
+  if(MODO_LECTURA_LOCAL) return null; // v8.0.0: sin red a Drive por diseño — se queda con el thumbnail
   try{
     const resp = await fetch(`${GAS_URL}?accion=leerImagen&driveFileId=${encodeURIComponent(driveFileId)}`, { cache:'no-store' });
     if(!resp.ok) throw new Error(`HTTP ${resp.status}`);
@@ -4371,6 +4421,7 @@ document.addEventListener('keydown', evt => {
 
 // ── Gestión de tags (globales, CONFIG.tagsGaleria) ──
 function repoAbrirGestionTags(){
+  if(MODO_LECTURA_LOCAL){ toast('Gestión de tags deshabilitada en modo lectura local', 'warn'); return; } // v8.0.0
   repoRenderTagsModal();
   document.getElementById('modal-repo-tags').classList.add('open');
 }
