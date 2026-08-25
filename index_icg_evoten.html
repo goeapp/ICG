@@ -242,6 +242,48 @@ body.hdr-oculto #tab-bar { max-height:0; opacity:0; }
 }
 .modal-close-btn:hover { background:#f1f5f9; color:#0f172a; }
 
+/* ── Modal Login PIN (pwa_pin, v9.0.0) — mismo patrón visual que Modal Períodos.
+   Sin botón de cerrar: no tiene sentido "cancelar" un login pendiente sin
+   app detrás todavía. Los 5 estados son bloques internos alternados por
+   mostrarPasoLogin(), no modales separados. ── */
+#modal-login-pin {
+  display:none; position:fixed; inset:0; z-index:900;
+  background:rgba(15,23,42,.7); backdrop-filter:blur(4px);
+  align-items:flex-start; justify-content:center;
+}
+#modal-login-pin.open { display:flex; }
+#modal-login-pin-inner {
+  background:#fff; border-radius:18px; margin:80px 20px 0;
+  max-width:400px; width:100%;
+  box-shadow:0 24px 60px rgba(0,0,0,.4);
+  animation: fadeSlideUp .25s ease both;
+  padding:28px 24px;
+}
+.login-pin-logo { display:flex; align-items:center; gap:8px; margin-bottom:18px; }
+.login-pin-logo .app-badge { background:#3b82f6; padding:6px 12px; border-radius:10px; font-size:13px; font-weight:900; color:#fff; }
+.login-pin-logo span.tit { font-size:14px; font-weight:900; color:#0f172a; }
+.login-pin-step { display:none; }
+.login-pin-step.activo { display:block; }
+.login-pin-label { font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:.06em; color:#64748b; margin-bottom:6px; display:block; }
+.login-pin-input {
+  width:100%; box-sizing:border-box; padding:11px 14px; border-radius:10px;
+  border:1px solid #e2e8f0; font-size:14px; font-weight:700; color:#0f172a;
+  margin-bottom:14px; transition:border-color .15s;
+}
+.login-pin-input:focus { outline:none; border-color:#3b82f6; }
+.login-pin-input.codigo { letter-spacing:.35em; text-align:center; font-size:20px; }
+.login-pin-msg { font-size:11.5px; font-weight:600; color:#64748b; margin-bottom:14px; line-height:1.5; }
+.login-pin-msg.err { color:#b91c1c; }
+.login-pin-spinner {
+  width:34px; height:34px; margin:20px auto; border-radius:50%;
+  border:3px solid #e2e8f0; border-top-color:#3b82f6;
+  animation: loginPinSpin .8s linear infinite;
+}
+@keyframes loginPinSpin { to { transform:rotate(360deg); } }
+.login-pin-centro { text-align:center; }
+.login-pin-link { background:none; border:none; color:#3b82f6; font-size:11px; font-weight:800; cursor:pointer; padding:0; }
+.login-pin-link:disabled { color:#94a3b8; cursor:not-allowed; }
+
 /* ── Modal Cargar Obra (Drive, v5.0.0) — mismo patrón visual que Modal Períodos ── */
 #modal-cargar-obra {
   display:none; position:fixed; inset:0; z-index:800;
@@ -1101,6 +1143,51 @@ body.modo-local-activo .repo-solo-edicion {
   </div>
 </div>
 
+<!-- ── Modal Login PIN (pwa_pin, v9.0.0) ── -->
+<div id="modal-login-pin">
+  <div id="modal-login-pin-inner">
+    <div class="login-pin-logo"><span class="app-badge">ICG</span><span class="tit">EvoTen · Acceso</span></div>
+
+    <!-- Paso 1: pedir email -->
+    <div class="login-pin-step" id="login-step-email">
+      <span class="login-pin-label">Tu email</span>
+      <input type="email" class="login-pin-input" id="login-input-email" placeholder="nombre@empresa.com" autocomplete="username">
+      <div class="login-pin-msg err" id="login-email-error"></div>
+      <button class="notas-btn" style="width:100%;" onclick="loginPinEnviarEmail()">Enviar código</button>
+    </div>
+
+    <!-- Paso 2: esperando código -->
+    <div class="login-pin-step" id="login-step-codigo">
+      <div class="login-pin-msg">Te enviamos un código de 6 dígitos a <b id="login-codigo-email-mostrado"></b>.</div>
+      <span class="login-pin-label">Código</span>
+      <input type="text" inputmode="numeric" maxlength="6" class="login-pin-input codigo" id="login-input-codigo" placeholder="······" autocomplete="one-time-code">
+      <div class="login-pin-msg err" id="login-codigo-error"></div>
+      <button class="notas-btn" style="width:100%; margin-bottom:10px;" onclick="loginPinValidarCodigo()">Ingresar</button>
+      <div class="login-pin-centro">
+        <button class="login-pin-link" id="login-btn-reenviar" onclick="loginPinReenviar()">Reenviar código</button>
+      </div>
+    </div>
+
+    <!-- Paso 3: validando sesión -->
+    <div class="login-pin-step" id="login-step-validando">
+      <div class="login-pin-spinner"></div>
+      <div class="login-pin-msg login-pin-centro">Validando usuario...</div>
+    </div>
+
+    <!-- Paso 4: sin conexión -->
+    <div class="login-pin-step" id="login-step-sinconexion">
+      <div class="login-pin-msg login-pin-centro"><i class="ti ti-wifi-off"></i><br>Sin conexión. No pudimos validar tu sesión.</div>
+      <button class="notas-btn" style="width:100%;" onclick="loginPinReintentarSesion()">Reintentar</button>
+    </div>
+
+    <!-- Paso 5: error de auth -->
+    <div class="login-pin-step" id="login-step-error">
+      <div class="login-pin-msg err login-pin-centro" id="login-error-msg"></div>
+      <button class="notas-btn" style="width:100%;" onclick="loginPinVolverAEmail()">Volver a intentar</button>
+    </div>
+  </div>
+</div>
+
 <!-- ── Modal Cargar Obra (Drive, v5.0.0) ── -->
 <div id="modal-cargar-obra" onclick="cerrarModalCargarObraClickFuera(event)">
   <div id="modal-cargar-obra-inner">
@@ -1253,12 +1340,24 @@ const PANEL_MAP_CANVAS = {
 // Versión de la app — se estampa en el JSON exportado (STATE.generado_con) para que,
 // si mañana cambia la lógica de detección/visualización, el motor pueda detectar JSON
 // generados con una versión anterior y aplicar un fallback en vez de romper.
-const APP_VERSION = 'v8.0.0';
+const APP_VERSION = 'v9.0.1';
 
 // v5.0.0: persistencia en Drive vía GAS standalone (icg_evoten_v5.0.0.gs), sin login.
 // Reemplaza el guardado/carga local (Blob + FileReader) de v4.3.2 para portabilidad
 // entre computadoras. Carpeta Drive: 1ggj1acslONoXXIHGBpuV_FdGEDqS92Yr
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbwygEg8xQ1mwtQlfI_NYQNh7R-9D5GivKXZE5SQgC77mwwkV6WRgPfky8hXnmBI9FkX/exec';
+
+// v9.0.1: login por PIN (módulo pwa_pin) — backend aparte, proyecto GAS dedicado
+// bound al Sheet de usuarios_pin (ID 1E-T11m911SpIYuOfLLKzTt0XhU1j3z8BsdiimnFbof8).
+// La URL de auth NO va hardcodeada acá — se lee de pwa_data.json (registro central
+// de URLs, guía pwa_pin_guia_integracion v1.3 §10), que vive en el root del mismo
+// repo que este index (fetch relativo, sin CORS ni caché de raw.githubusercontent).
+// APP_KEY_EVOTEN es la clave con la que este HTML se busca a sí mismo dentro de ese
+// JSON — convención: una constante APP_KEY_<PWA> por proyecto, no un solo nombre
+// genérico repetido, para que quede explícito de qué app es al leer el código.
+const PWA_DATA_URL = './pwa_data.json';
+const APP_KEY_EVOTEN = 'evoten';
+let PIN_AUTH_URL = null; // se completa en cargarPwaData(), antes de iniciarFlujoLogin()
 
 // CAMPOS_BASE — plantilla de ids/tipos usada por "Nueva UO en blanco" en el tab Configuración.
 // No es un perfil de extracción (no tiene anclas propias); solo define QUÉ campos existen.
@@ -1286,6 +1385,204 @@ let STATE = { obra:null, periodos:[], notas:[], errorSeq:0, celdasResueltas:{}, 
 // v8.0.0: Modo Lectura Local — true cuando la obra en pantalla vino de "Cargar JSON desde
 // archivo local" (sin red), no de Drive. Vive fuera de STATE a propósito: no debe viajar
 // dentro del JSON exportado ni sobrevivir a un JSON.parse/stringify de STATE.
+// ============================================================
+// LOGIN PIN (pwa_pin, v9.0.0) — ver pwa_pin_guia_integracion_v1.2.md
+// localStorage con prefijo 'evoten_' (§8 de la guía). Sesión = { email, exp }.
+// Se dispara en DOMContentLoaded, ANTES de cargarConfig()/banners/Modo Lectura
+// Local — nada de la app (Drive, JSON, dashboard) arranca hasta ok:true.
+// ============================================================
+const LOGIN_PIN_SESION_KEY = 'evoten_sesion';
+const LOGIN_PIN_SESION_DIAS = 7;
+let loginPinCooldownTimer = null;
+
+const LOGIN_PIN_MENSAJES = {
+  no_encontrado:     'No encontramos ese email en el sistema.',
+  inactivo:          'Tu acceso está desactivado. Contactá a Control de Gestión.',
+  bloqueado:         'Tu cuenta quedó bloqueada por intentos fallidos. Contactá a Control de Gestión.',
+  pin_incorrecto:    'Código incorrecto.',
+  bloqueado_ahora:   'Demasiados intentos fallidos — tu cuenta quedó bloqueada.',
+  pin_vencido:       'El código venció. Pedí uno nuevo.',
+  sin_pin_generado:  'Todavía no pediste un código. Solicitá uno primero.',
+  cooldown:          'Esperá antes de pedir un código nuevo.',
+  error_envio_mail:  'No pudimos enviar el mail. Reintentá en un momento.'
+};
+
+function loginPinLeerSesion(){
+  try {
+    const raw = localStorage.getItem(LOGIN_PIN_SESION_KEY);
+    if(!raw) return null;
+    const s = JSON.parse(raw);
+    if(!s.email || !s.exp || Date.now() > s.exp) return null;
+    return s;
+  } catch(e){ return null; }
+}
+function loginPinGuardarSesion(email){
+  const exp = Date.now() + LOGIN_PIN_SESION_DIAS * 24 * 60 * 60 * 1000;
+  localStorage.setItem(LOGIN_PIN_SESION_KEY, JSON.stringify({ email, exp }));
+}
+function loginPinBorrarSesion(){
+  localStorage.removeItem(LOGIN_PIN_SESION_KEY);
+}
+
+function mostrarPasoLogin(paso){
+  document.querySelectorAll('.login-pin-step').forEach(el => el.classList.remove('activo'));
+  document.getElementById('login-step-' + paso).classList.add('activo');
+  document.getElementById('modal-login-pin').classList.add('open');
+}
+function ocultarModalLogin(){
+  document.getElementById('modal-login-pin').classList.remove('open');
+}
+
+// v9.0.1: lee pwa_data.json (root del repo) y completa PIN_AUTH_URL según APP_KEY_EVOTEN.
+// Se llama al arrancar, ANTES de iniciarFlujoLogin() — si falla, el login no tiene a
+// dónde pegarle, así que se muestra directamente el paso "sin conexión".
+async function cargarPwaData(){
+  try {
+    const resp = await fetch(`${PWA_DATA_URL}?t=${Date.now()}`, { cache: 'no-store' });
+    const data = await resp.json();
+    const entrada = data[APP_KEY_EVOTEN];
+    if(!entrada || !entrada.authUrl) throw new Error(`Clave "${APP_KEY_EVOTEN}" no encontrada en pwa_data.json`);
+    PIN_AUTH_URL = entrada.authUrl;
+    return true;
+  } catch(err){
+    console.error('cargarPwaData:', err);
+    return false;
+  }
+}
+
+async function loginPinFetch(action, body){
+  const resp = await fetch(PIN_AUTH_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // evita preflight OPTIONS (ver guía §CORS)
+    body: JSON.stringify({ action, ...body })
+  });
+  return resp.json();
+}
+
+// Punto de entrada — llamado desde DOMContentLoaded antes que cualquier otra cosa.
+async function iniciarFlujoLogin(){
+  const sesion = loginPinLeerSesion();
+  if(!sesion){
+    mostrarPasoLogin('email');
+    return false;
+  }
+  mostrarPasoLogin('validando');
+  let resp;
+  try {
+    resp = await loginPinFetch('validarSesion', { email: sesion.email });
+  } catch(err){
+    mostrarPasoLogin('sinconexion'); // falla de red — NO se borra la sesión
+    return false;
+  }
+  if(resp.ok){
+    ocultarModalLogin();
+    return true;
+  }
+  // rechazo real (inactivo/bloqueado/no_encontrado)
+  loginPinBorrarSesion();
+  document.getElementById('login-error-msg').textContent = LOGIN_PIN_MENSAJES[resp.motivo] || 'Tu sesión ya no es válida.';
+  mostrarPasoLogin('error');
+  return false;
+}
+
+async function loginPinEnviarEmail(){
+  const email = document.getElementById('login-input-email').value.trim();
+  const errEl = document.getElementById('login-email-error');
+  errEl.textContent = '';
+  if(!email || !email.includes('@')){ errEl.textContent = 'Ingresá un email válido.'; return; }
+
+  let resp;
+  try {
+    resp = await loginPinFetch('solicitarPIN', { email });
+  } catch(err){
+    errEl.textContent = 'Sin conexión. Reintentá en un momento.';
+    return;
+  }
+  if(resp.ok){
+    document.getElementById('login-codigo-email-mostrado').textContent = email;
+    document.getElementById('login-input-codigo').value = '';
+    document.getElementById('login-codigo-error').textContent = '';
+    mostrarPasoLogin('codigo');
+    loginPinArrancarCooldown(120); // arranca "lleno" tras enviar (COOLDOWN_SEGUNDOS del backend)
+  } else if(resp.motivo === 'cooldown'){
+    document.getElementById('login-codigo-email-mostrado').textContent = email;
+    mostrarPasoLogin('codigo');
+    loginPinArrancarCooldown(resp.restanteSegundos || 120);
+  } else {
+    errEl.textContent = LOGIN_PIN_MENSAJES[resp.motivo] || 'No pudimos enviar el código.';
+  }
+}
+
+async function loginPinValidarCodigo(){
+  const email = document.getElementById('login-codigo-email-mostrado').textContent;
+  const pin = document.getElementById('login-input-codigo').value.trim();
+  const errEl = document.getElementById('login-codigo-error');
+  errEl.textContent = '';
+  if(pin.length !== 6){ errEl.textContent = 'El código tiene 6 dígitos.'; return; }
+
+  let resp;
+  try {
+    resp = await loginPinFetch('validarPIN', { email, pin });
+  } catch(err){
+    errEl.textContent = 'Sin conexión. Reintentá en un momento.';
+    return;
+  }
+  if(resp.ok){
+    loginPinGuardarSesion(email);
+    ocultarModalLogin();
+    await bootEvoTen();
+    return;
+  }
+  let msg = LOGIN_PIN_MENSAJES[resp.motivo] || 'Código incorrecto.';
+  if(resp.motivo === 'pin_incorrecto' && typeof resp.restantes === 'number') msg += ` Te quedan ${resp.restantes} intento(s).`;
+  errEl.textContent = msg;
+  if(resp.motivo === 'bloqueado_ahora' || resp.motivo === 'pin_vencido'){
+    document.getElementById('login-error-msg').textContent = msg;
+    mostrarPasoLogin('error');
+  }
+}
+
+function loginPinArrancarCooldown(segundos){
+  const btn = document.getElementById('login-btn-reenviar');
+  let restante = segundos;
+  btn.disabled = true;
+  btn.textContent = `Reenviar código (${restante}s)`;
+  if(loginPinCooldownTimer) clearInterval(loginPinCooldownTimer);
+  loginPinCooldownTimer = setInterval(() => {
+    restante--;
+    if(restante <= 0){
+      clearInterval(loginPinCooldownTimer);
+      btn.disabled = false;
+      btn.textContent = 'Reenviar código';
+    } else {
+      btn.textContent = `Reenviar código (${restante}s)`;
+    }
+  }, 1000);
+}
+
+function loginPinReenviar(){
+  const email = document.getElementById('login-codigo-email-mostrado').textContent;
+  document.getElementById('login-input-email').value = email;
+  loginPinEnviarEmail();
+}
+
+async function loginPinReintentarSesion(){
+  // v9.0.1: si todavía no se pudo resolver PIN_AUTH_URL (falló pwa_data.json),
+  // reintenta ese paso primero — si eso falla de nuevo, se queda en "sin conexión".
+  if(!PIN_AUTH_URL){
+    const dataOk = await cargarPwaData();
+    if(!dataOk){ mostrarPasoLogin('sinconexion'); return; }
+  }
+  const sesionOk = await iniciarFlujoLogin();
+  if(sesionOk) await bootEvoTen();
+}
+
+function loginPinVolverAEmail(){
+  document.getElementById('login-input-email').value = '';
+  document.getElementById('login-email-error').textContent = '';
+  mostrarPasoLogin('email');
+}
+
 let MODO_LECTURA_LOCAL = false;
 
 // Gating central: un solo lugar que decide qué queda deshabilitado en modo local. Doble
@@ -4814,7 +5111,10 @@ async function capturarPantalla(){
 }
 
 
-document.addEventListener('DOMContentLoaded', async () => {
+// v9.0.0: boot real de la app, separado del listener de DOMContentLoaded para poder
+// llamarlo tanto al validar una sesión ya vigente como justo después de un login por
+// PIN recién hecho (loginPinValidarCodigo) — antes vivía inline dentro del listener.
+async function bootEvoTen(){
   // v5.0.1: título del tab tomado de APP_VERSION — antes quedaba hardcodeado en <title>
   // y se desincronizaba del badge en cada bump de versión (se detectó pegado en v4.1.0).
   document.title = `ICG EvoTen ${APP_VERSION} | Multi-obra`;
@@ -4828,6 +5128,24 @@ document.addEventListener('DOMContentLoaded', async () => {
   });
   actualizarBotonNotasImpresion(); // v4.2.0: label inicial del toggle (arranca en OFF desde v7.0.2)
   lapizInit(); // v6.0.7: Lápiz Global (corregido en v6.0.8 — ver hdrAutoHideOnScroll dentro)
+}
+
+document.addEventListener('DOMContentLoaded', async () => {
+  // v9.0.1: primero se resuelve PIN_AUTH_URL vía pwa_data.json — recién con eso
+  // tiene sentido intentar el login. Si pwa_data.json falla (repo sin el archivo,
+  // sin red, etc.), no hay a dónde mandar el login: se muestra "sin conexión"
+  // directamente, sin pasar por "Pedir email" (evita un botón que fallaría seguro).
+  const dataOk = await cargarPwaData();
+  if(!dataOk){
+    mostrarPasoLogin('sinconexion');
+    return;
+  }
+  // v9.0.0: login PIN corre PRIMERO — nada de la app (Drive, config, dashboard,
+  // banners de fallback/Modo Lectura Local) arranca hasta que haya sesión válida.
+  const sesionOk = await iniciarFlujoLogin();
+  if(sesionOk) await bootEvoTen();
+  // si sesionOk es false, el boot queda en manos de loginPinValidarCodigo()
+  // cuando el usuario complete el login desde el modal.
 });
 </script>
 <div id="nota-panel-popover" class="nota-panel-popover"></div>
